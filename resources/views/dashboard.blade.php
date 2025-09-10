@@ -11,6 +11,9 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+    <!-- DataTables CSS -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -52,6 +55,22 @@
         }
     </style>
 </head>
+<!-- jQuery + DataTables JS -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+<script>
+    $(document).ready(function() {
+        $('#invoiceTable').DataTable({
+            "order": [[3, "asc"]], // default sort by Due Date (kolom ke-4, index mulai dari 0)
+            "columnDefs": [
+                { "orderable": true, "targets": [1,2,3,4,5] }, // Due Date & Amount sortable
+                // { "orderable": false, "targets": [] } // kolom lain tetap
+            ]
+        });
+    });
+</script>
 
 <body>
     <h1>Financial Dashboard</h1>
@@ -71,45 +90,34 @@
     </div>
 </div>
 
-
-    <div class="card shadow-sm mt-4">
-    <div class="card-header bg-primary text-white">
-        <h5 class="mb-0">Latest Invoices</h5>
-    </div>
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover table-bordered mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th>Doc Number</th>
-                        <th>Customer</th>
-                        <th>Invoice Date</th>
-                        <th>Due Date</th>
-                        <th class="text-end">Amount</th>
-                        <th class="text-end">Balance</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse($invoices as $inv)
-                        <tr>
-                            <td>{{ $inv->doc_no }}</td>
-                            <td>{{ $inv->customer }}</td>
-                            <td>{{ \Carbon\Carbon::parse($inv->date)->format('M d, Y') }}</td>
-                            <td>{{ \Carbon\Carbon::parse($inv->due_date)->format('M d, Y') }}</td>
-                            <td class="text-end">${{ number_format($inv->amount, 2) }}</td>
-                            <td class="text-end">${{ number_format($inv->balance, 2) }}</td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="6" class="text-center text-muted">No invoices found.</td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
+<table id="invoiceTable" class="table table-hover table-bordered mb-0">
+    <thead class="table-light">
+        <tr>
+            <th>Doc Number</th>
+            <th>Customer</th>
+            <th>Invoice Date</th>
+            <th>Due Date</th>
+            <th class="text-end">Amount</th>
+            <th class="text-end">Balance</th>
+        </tr>
+    </thead>
+    <tbody>
+        @forelse($invoices as $inv)
+            <tr>
+                <td>{{ $inv->doc_no }}</td>
+                <td>{{ $inv->customer }}</td>
+                <td>{{ \Carbon\Carbon::parse($inv->date)->format('M d, Y') }}</td>
+                <td>{{ \Carbon\Carbon::parse($inv->due_date)->format('M d, Y') }}</td>
+                <td class="text-end">${{ number_format($inv->amount, 2) }}</td>
+                <td class="text-end">${{ number_format($inv->balance, 2) }}</td>
+            </tr>
+        @empty
+            <tr>
+                <td colspan="6" class="text-center text-muted">No invoices found.</td>
+            </tr>
+        @endforelse
+    </tbody>
+</table>
 
     {{-- Monthly Trend Chart --}}
     <div class="chart-container">
@@ -155,7 +163,7 @@
                         beginAtZero: true,
                         ticks: {
                             callback: function(value) {
-                                return 'Rp ' + value.toLocaleString();
+                                return 'USD ' + value.toLocaleString();
                             }
                         }
                     }
