@@ -1,110 +1,168 @@
-@extends('layouts.app')
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financial Dashboard</title>
 
-@section('content')
-<!-- KPI Cards -->
-<div class="row mb-4">
-  <div class="col-md-4">
-    <div class="card text-white bg-success mb-3">
-      <div class="card-body">
-        <h6 class="card-title">Paid invoices (this month)</h6>
-        <h3>$12,500</h3>
-      </div>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            background: #f5f6fa;
+        }
+        h1 {
+            margin-bottom: 20px;
+        }
+        .cards {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+        .card-summary {
+            background: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            flex: 1;
+            text-align: center;
+        }
+        .card-summary h3 {
+            margin-bottom: 10px;
+            font-size: 18px;
+            color: #555;
+        }
+        .card-summary p {
+            font-size: 22px;
+            font-weight: bold;
+            margin: 0;
+        }
+        .chart-container {
+            background: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-top: 30px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Financial Dashboard</h1>
+
+<div class="cards">
+    <div class="card-summary">
+        <h3>Total Paid</h3>
+        <p>{{ number_format($totalPaid, 0) }}</p>
     </div>
-  </div>
-  <div class="col-md-4">
-    <div class="card text-white bg-danger mb-3">
-      <div class="card-body">
-        <h6 class="card-title">Overdue invoices (this month)</h6>
-        <h3>$3,200</h3>
-      </div>
+    <div class="card-summary">
+        <h3>Total Overdue</h3>
+        <p>{{ number_format($totalOverdue, 0) }}</p>
     </div>
-  </div>
-  <div class="col-md-4">
-    <div class="card text-white bg-info mb-3">
-      <div class="card-body">
-        <h6 class="card-title">Open invoices (this month)</h6>
-        <h3>$5,700</h3>
-      </div>
+    <div class="card-summary">
+        <h3>Total Open</h3>
+        <p>{{ number_format($totalOpen, 0) }}</p>
     </div>
-  </div>
 </div>
 
-<!-- Invoices Table -->
-<div class="card mb-4">
-  <div class="card-header">Invoices</div>
-  <div class="table-responsive">
-    <table class="table table-striped mb-0">
-      <thead>
-        <tr>
-          <th>Doc #</th>
-          <th>Customer</th>
-          <th>Date</th>
-          <th>Due</th>
-          <th>Currency</th>
-          <th>Amount</th>
-          <th>Balance</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>1056</td>
-          <td>Elite Systems</td>
-          <td>2025-06-12</td>
-          <td>2025-06-27</td>
-          <td>USD</td>
-          <td class="text-end">500.00</td>
-          <td class="text-end">0.00</td>
-        </tr>
-        <tr>
-          <td>1079</td>
-          <td>Quantum Services</td>
-          <td>2025-06-15</td>
-          <td>2025-06-30</td>
-          <td>USD</td>
-          <td class="text-end">8440.00</td>
-          <td class="text-end">0.00</td>
-        </tr>
-        <tr>
-          <td>1082</td>
-          <td>Elite Systems</td>
-          <td>2025-06-15</td>
-          <td>2025-06-30</td>
-          <td>USD</td>
-          <td class="text-end">500.00</td>
-          <td class="text-end">500.00</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+
+    <div class="card shadow-sm mt-4">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">Latest Invoices</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-bordered mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Doc Number</th>
+                        <th>Customer</th>
+                        <th>Invoice Date</th>
+                        <th>Due Date</th>
+                        <th class="text-end">Amount</th>
+                        <th class="text-end">Balance</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($invoices as $inv)
+                        <tr>
+                            <td>{{ $inv->doc_no }}</td>
+                            <td>{{ $inv->customer }}</td>
+                            <td>{{ \Carbon\Carbon::parse($inv->date)->format('M d, Y') }}</td>
+                            <td>{{ \Carbon\Carbon::parse($inv->due_date)->format('M d, Y') }}</td>
+                            <td class="text-end">${{ number_format($inv->amount, 2) }}</td>
+                            <td class="text-end">${{ number_format($inv->balance, 2) }}</td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="6" class="text-center text-muted">No invoices found.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
 
-<!-- Chart -->
-<div class="card">
-  <div class="card-header">Monthly Summary</div>
-  <div class="card-body">
-    <canvas id="invoicesChart" height="120"></canvas>
-  </div>
-</div>
-@endsection
 
-@push('scripts')
-<script>
-const labels = ["Mar 2025","Apr 2025","May 2025","Jun 2025"];
-const dataOpen = [2000, 1500, 3000, 5700];
-const dataOverdue = [1000, 800, 1200, 3200];
-const dataPaid = [5000, 7500, 10000, 12500];
+    {{-- Monthly Trend Chart --}}
+    <div class="chart-container">
+        <canvas id="invoiceChart"></canvas>
+    </div>
 
-new Chart(document.getElementById('invoicesChart'), {
-  type: 'bar',
-  data: {
-    labels: labels,
-    datasets: [
-      { label: 'Open', data: dataOpen, backgroundColor: 'blue' },
-      { label: 'Overdue', data: dataOverdue, backgroundColor: 'red' },
-      { label: 'Paid', data: dataPaid, backgroundColor: 'green' }
-    ]
-  },
-  options: { responsive: true, plugins:{ legend:{ position:'top' } } }
-});
-</script>
-@endpush
+    <script>
+        const labels = @json(array_column($monthly, 'month'));
+        const paidData = @json(array_column($monthly, 'paid'));
+        const openData = @json(array_column($monthly, 'open_amount'));
+
+        const ctx = document.getElementById('invoiceChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Paid',
+                        data: paidData,
+                        backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                        borderRadius: 6
+                    },
+                    {
+                        label: 'Open',
+                        data: openData,
+                        backgroundColor: 'rgba(255, 99, 132, 0.6)',
+                        borderRadius: 6
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'top' },
+                    title: {
+                        display: true,
+                        text: 'Monthly Invoice Summary'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return 'Rp ' + value.toLocaleString();
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+
+</body>
+</html>
