@@ -65,15 +65,15 @@
         $('#invoiceTable').DataTable({
             "order": [[3, "asc"]], // default sort by Due Date (kolom ke-4, index mulai dari 0)
             "columnDefs": [
-                { "orderable": true, "targets": [1,2,3,4,5] }, // Due Date & Amount sortable
-                // { "orderable": false, "targets": [] } // kolom lain tetap
+                { "orderable": true, "targets": [0,1,5] }, // Due Date & Amount sortable
+                { "orderable": false, "targets": [2,3] } // kolom lain tetap
             ]
         });
     });
 </script>
 
-<body>
-    <h1>Financial Dashboard</h1>
+<div class="container-fluid py-4">
+    <h2 class="mb-4">Financial Dashboard</h2>
 
 <div class="cards">
     <div class="card-summary">
