@@ -1,51 +1,74 @@
 <?php
-
 namespace App\Http\Controllers;
 
+use Illuminate\Http\Request;
+use App\Models\Customer;
+use App\Models\Invoice;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
-    public function index()
+    public function overview(Request $req)
     {
-        $summary = DB::select('EXEC sp_get_invoice_summary');
-        $totalPaid = $summary[0]->total_paid ?? 0;
-        $totalOverdue = $summary[0]->total_overdue ?? 0;
-        $totalOpen = $summary[0]->total_open ?? 0;
+        // KPIs
+        $totalCustomers = Customer::count();
+        $totalInvoices = Invoice::count();
+        $totalPaid = Invoice::sum(DB::raw('amount - balance'));
+        $totalOutstanding = Invoice::sum('balance');
 
-        $monthly = DB::select('EXEC sp_get_invoice_monthly');
+        // monthly payments (group by yyyy-mm)
+        $monthly = Invoice::selectRaw("FORMAT(invoice_date, 'yyyy-MM') as month, SUM(amount - balance) as paid, SUM(balance) as open_amount")
+            ->whereNotNull('invoice_date')
+            ->groupByRaw("FORMAT(invoice_date, 'yyyy-MM')")
+            ->orderByRaw("FORMAT(invoice_date, 'yyyy-MM')")
+            ->get();
 
-        $invoices = DB::table('invoices')
-            ->orderBy('date', 'desc')
+        // latest payments/invoices for table
+        $latestInvoices = Invoice::with('customer')->orderByDesc('invoice_date')->limit(20)->get();
+
+        return view('dash.overview', compact(
+            'totalCustomers','totalInvoices','totalPaid','totalOutstanding','monthly','latestInvoices'
+        ));
+    }
+
+    public function customers()
+    {
+        $topCustomers = Customer::withSum('invoices','amount')
+            ->orderByDesc('invoices_sum_amount')
             ->limit(10)
             ->get();
 
-        return view('dashboard', compact('totalPaid', 'totalOverdue', 'totalOpen', 'monthly', 'invoices'));
+        $customers = Customer::with('invoices')->get();
+
+        return view('dash.customers', compact('topCustomers','customers'));
     }
 
-    public function revenue()
+    public function aging()
     {
-    // dummy data
-    $customers = [
-        ['name' => 'Elite Systems', 'revenue' => 1000],
-        ['name' => 'Stellar Innovations', 'revenue' => 1000],
-        ['name' => 'Innovate Systems', 'revenue' => 1200],
-        ['name' => 'Bright Future Ltd.', 'revenue' => 1500],
-        ['name' => 'Innovate Industries', 'revenue' => 2594],
-        ['name' => 'Proactive Solutions', 'revenue' => 3831],
-    ];
+        // Build buckets from invoice due_date vs today
+        $today = Carbon::today();
+        $aging = Invoice::selectRaw("
+            SUM(CASE WHEN DATEDIFF(day,due_date,GETDATE()) BETWEEN 1 AND 30 THEN balance ELSE 0 END) as d1_30,
+            SUM(CASE WHEN DATEDIFF(day,due_date,GETDATE()) BETWEEN 31 AND 60 THEN balance ELSE 0 END) as d31_60,
+            SUM(CASE WHEN DATEDIFF(day,due_date,GETDATE()) BETWEEN 61 AND 90 THEN balance ELSE 0 END) as d61_90,
+            SUM(CASE WHEN DATEDIFF(day,due_date,GETDATE()) > 90 THEN balance ELSE 0 END) as d90p
+        ")->first();
 
-    $products = [
-        ['name' => 'Enterprise', 'avg_price' => 2552.94, 'qty' => 17, 'amount' => 43400],
-        ['name' => 'DA Solutions', 'avg_price' => 3327.50, 'qty' => 10, 'amount' => 33275],
-        ['name' => 'Business', 'avg_price' => 570.00, 'qty' => 50, 'amount' => 28500],
-        ['name' => 'Standart', 'avg_price' => 1616.00, 'qty' => 15, 'amount' => 24240],
-        ['name' => 'Web design', 'avg_price' => 2400.00, 'qty' => 10, 'amount' => 24000],
-        ['name' => 'Alpha', 'avg_price' => 937.50, 'qty' => 20, 'amount' => 18750],
-    ];
+        $overdueList = Invoice::with('customer')->where('due_date','<', $today)->orderByDesc('balance')->get();
 
-    return view('revenue', compact('customers', 'products'));
+        return view('dash.aging', compact('aging','overdueList'));
     }
 
+    public function cashflow()
+    {
+        // Basic cashflow: monthly totals (paid vs outstanding)
+        $monthly = Invoice::selectRaw("FORMAT(invoice_date, 'yyyy-MM') as month, SUM(amount - balance) as paid, SUM(balance) as outstanding")
+            ->whereNotNull('invoice_date')
+            ->groupByRaw("FORMAT(invoice_date, 'yyyy-MM')")
+            ->orderByRaw("FORMAT(invoice_date, 'yyyy-MM')")
+            ->get();
 
+        return view('dash.cashflow', compact('monthly'));
+    }
 }
