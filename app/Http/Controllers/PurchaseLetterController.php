@@ -16,7 +16,7 @@ class PurchaseLetterController extends Controller
  
         public function chart()
         {
-            $data = \DB::table('Cash_In_Payment_Report_1732091816')
+            $data = \DB::table('Worksheet$')
                 ->selectRaw("
                     FORMAT(CONVERT(date, PurchaseDate, 105), 'yyyy-MM') as month,
                     SUM(TRY_CAST(REPLACE(REPLACE(REPLACE(HrgJualTotal, 'Rp ', ''), '.', ''), ',', '') AS bigint)) as paid,
