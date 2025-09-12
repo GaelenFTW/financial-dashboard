@@ -18,31 +18,34 @@ class PurchaseLetterController extends Controller
         {
             $data = \DB::table('Worksheet$')
                 ->selectRaw("
-                    FORMAT(CONVERT(date, PurchaseDate, 105), 'yyyy-MM') as month,
-                    SUM(TRY_CAST(REPLACE(REPLACE(REPLACE(HrgJualTotal, 'Rp ', ''), '.', ''), ',', '') AS bigint)) as paid,
+                    FORMAT(TRY_CAST(PurchaseDate AS date), 'yyyy-MM') as month,
+                    SUM(CASE WHEN LunasDate IS NOT NULL 
+                            THEN CAST(HrgJualTotal AS bigint) ELSE 0 END) as paid,
                     SUM(CASE WHEN LunasDate IS NULL 
-                        THEN TRY_CAST(REPLACE(REPLACE(REPLACE(HrgJualTotal, 'Rp ', ''), '.', ''), ',', '') AS bigint) 
-                        ELSE 0 
-                    END) as open_amount
+                            THEN CAST(HrgJualTotal AS bigint) ELSE 0 END) as open_amount,
+                    SUM(CASE WHEN LunasDate IS NULL 
+                            AND TRY_CAST(PurchaseDate AS date) < GETDATE()
+                            THEN CAST(HrgJualTotal AS bigint) ELSE 0 END) as overdue
                 ")
-                ->whereRaw("ISDATE(PurchaseDate) = 1") // only valid dates
-                ->groupByRaw("FORMAT(CONVERT(date, PurchaseDate, 105), 'yyyy-MM')")
-                ->orderByRaw("FORMAT(CONVERT(date, PurchaseDate, 105), 'yyyy-MM')")
+                ->groupByRaw("FORMAT(TRY_CAST(PurchaseDate AS date), 'yyyy-MM')")
+                ->orderByRaw("FORMAT(TRY_CAST(PurchaseDate AS date), 'yyyy-MM')")
                 ->get();
+
 
             $months = [];
             $paid = [];
             $open = [];
-            $overdue = []; // placeholder logic
+            $overdue = [];
 
             foreach ($data as $row) {
                 $months[] = $row->month;
                 $paid[] = (float) $row->paid;
                 $open[] = (float) $row->open_amount;
-                $overdue[] = 0; // adjust if you have overdue logic
+                $overdue[] = (float) $row->overdue;
             }
 
             return view('purchase_letters.charts', compact('months', 'paid', 'open', 'overdue'));
         }
+
         
 }
