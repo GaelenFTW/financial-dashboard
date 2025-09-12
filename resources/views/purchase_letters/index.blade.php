@@ -33,6 +33,6 @@
     </table>
 
 
-    {{ $letters->links() }}
+{{ $letters->links('pagination::bootstrap-5') }}
 </div>
 @endsection
