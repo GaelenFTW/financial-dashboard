@@ -9,7 +9,7 @@ class PurchaseLetter extends Model
 {
     use HasFactory;
 
-    protected $table = 'Cash_In_Payment_Report_1732091816';
+    protected $table = 'Worksheet$';
     public $timestamps = false; // ⬅️ disable created_at / updated_at
 
     protected $fillable = [
