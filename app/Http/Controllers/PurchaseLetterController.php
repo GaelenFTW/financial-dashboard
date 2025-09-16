@@ -2,50 +2,111 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\PurchaseLetter;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Http;
 
 class PurchaseLetterController extends Controller
 {
-    public function index()
+    protected function getData()
     {
-        // use PurchaseDate to order since you don't have created_at
-        $letters = PurchaseLetter::orderBy('PurchaseDate', 'desc')->paginate(20);
+        $url = config('services.data_api.url');
 
-        return view('purchase_letters.index', compact('letters'));
-    }
- 
-        public function chart()
-        {
-            $data = \DB::table('Worksheet$')
-                ->selectRaw("
-                    FORMAT(TRY_CAST(PurchaseDate AS date), 'yyyy-MM') as month,
-                    SUM(CASE WHEN LunasDate IS NOT NULL 
-                            THEN CAST(HrgJualTotal AS bigint) ELSE 0 END) as paid,
-                    SUM(CASE WHEN LunasDate IS NULL 
-                            THEN CAST(HrgJualTotal AS bigint) ELSE 0 END) as open_amount,
-                    SUM(CASE WHEN LunasDate IS NULL 
-                            AND TRY_CAST(PurchaseDate AS date) < GETDATE()
-                            THEN CAST(HrgJualTotal AS bigint) ELSE 0 END) as overdue
-                ")
-                ->groupByRaw("FORMAT(TRY_CAST(PurchaseDate AS date), 'yyyy-MM')")
-                ->orderByRaw("FORMAT(TRY_CAST(PurchaseDate AS date), 'yyyy-MM')")
-                ->get();
-
-
-            $months = [];
-            $paid = [];
-            $open = [];
-            $overdue = [];
-
-            foreach ($data as $row) {
-                $months[] = $row->month;
-                $paid[] = (float) $row->paid;
-                $open[] = (float) $row->open_amount;
-                $overdue[] = (float) $row->overdue;
+        try {
+            if ($url) {
+                $response = Http::timeout(10)->get($url);
+                if ($response->successful()) {
+                    return $response->json();
+                }
             }
-
-            return view('purchase_letters.charts', compact('months', 'paid', 'open', 'overdue'));
+        } catch (\Exception $e) {
+            // fail silently and fallback
         }
 
-        
+        // fallback to local file
+        $path = public_path('data.json');
+        if (file_exists($path)) {
+            return json_decode(file_get_contents($path), true);
+        }
+
+        return [];
+    }
+
+    public function chart()
+    {
+        $rows = $this->getData();
+
+        $months = [];
+        $paid = [];
+        $open = [];
+        $overdue = [];
+
+        foreach ($rows as $row) {
+            $month = null;
+            if (!empty($row['PurchaseDate'])) {
+                $dt = \DateTime::createFromFormat('d-m-Y', $row['PurchaseDate']);
+                if ($dt) {
+                    $month = $dt->format('Y-m');
+                }
+            }
+
+            if ($month) {
+                $months[$month] = $months[$month] ?? [
+                    'paid' => 0,
+                    'open' => 0,
+                    'overdue' => 0,
+                ];
+
+                $amount = (float) ($row['HrgJualTotal'] ?? 0);
+
+                if (!empty($row['LunasDate'])) {
+                    $months[$month]['paid'] += $amount;
+                } else {
+                    $months[$month]['open'] += $amount;
+                    if ($dt && $dt < new \DateTime()) {
+                        $months[$month]['overdue'] += $amount;
+                    }
+                }
+            }
+        }
+
+        $labels = array_keys($months);
+        foreach ($months as $m) {
+            $paid[] = $m['paid'];
+            $open[] = $m['open'];
+            $overdue[] = $m['overdue'];
+        }
+
+        return view('purchase_letters.charts', [
+            'months'   => $labels,
+            'paid'     => $paid,
+            'open'     => $open,
+            'overdue'  => $overdue,
+        ]);
+    }
+
+public function index()
+{
+    $rows = $this->getData();
+
+    // Convert array to collection
+    $collection = collect($rows);
+
+    // Pagination setup
+    $perPage = 10;
+    $currentPage = request()->get('page', 1);
+    $pagedData = $collection->forPage($currentPage, $perPage);
+
+    $letters = new LengthAwarePaginator(
+        $pagedData,
+        $collection->count(),
+        $perPage,
+        $currentPage,
+        ['path' => request()->url(), 'query' => request()->query()]
+    );
+
+    return view('purchase_letters.index', compact('letters'));
+}
+
+
 }

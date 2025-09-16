@@ -19,16 +19,17 @@
         <tbody>
             @foreach($letters as $letter)
             <tr>
-                <td>{{ $letter->CustomerName }}</td>
-                <td>{{ $letter->Cluster }}</td>
-                <td>{{ $letter->Unit }}</td>
-                <td>{{ $letter->PurchaseDate }}</td>
-                <td>{{ $letter->LunasDate }}</td>
-                <td>Rp {{ number_format((float) $letter->harga_netto, 0) }}</td>
-                <td>Rp {{ number_format((float) $letter->HrgJualTotal, 0) }}</td>
-
+                <td>{{ $letter['CustomerName'] ?? '' }}</td>
+                <td>{{ $letter['Cluster'] ?? '' }}</td>
+                <td>{{ $letter['Unit'] ?? '' }}</td>
+                <td>{{ $letter['PurchaseDate'] ?? '' }}</td>
+                <td>{{ $letter['LunasDate'] ?? '' }}</td>
+                <td>Rp {{ number_format((float) ($letter['harga_netto'] ?? 0), 0) }}</td>
+                <td>Rp {{ number_format((float) ($letter['HrgJualTotal'] ?? 0), 0) }}</td>
             </tr>
             @endforeach
+
+            </tr>
         </tbody>
     </table>
 

@@ -56,21 +56,20 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @forelse($customers as $customer)
-                                <tr>
-                                    <td>{{ $customer->CustomerName }}</td>
-                                    <td>{{ number_format($customer->revenue, 0) }}</td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="2" class="text-center">No data</td>
-                                </tr>
-                            @endforelse
-                        </tbody>
+                        @forelse($customers as $name => $revenue)
+                            <tr>
+                                <td>{{ $name }}</td>
+                                <td>{{ number_format($revenue, 0) }}</td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="2" class="text-center">No data</td>
+                            </tr>
+                        @endforelse
                         <tfoot class="table-light">
                             <tr>
                                 <th>Total</th>
-                                <th>{{ number_format($customers->sum('revenue'), 0) }}</th>
+                                <th>{{ number_format($customers->sum(), 0) }}</th>
                             </tr>
                         </tfoot>
                     </table>
@@ -93,23 +92,23 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @forelse($products as $product)
-                                <tr>
-                                    <td>{{ $product->ProductName }}</td>
-                                    <td>{{ number_format($product->revenue, 0) }}</td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="2" class="text-center">No data</td>
-                                </tr>
-                            @endforelse
-                        </tbody>
+                        @forelse($products as $product => $revenue)
+                            <tr>
+                                <td>{{ $product }}</td>
+                                <td>{{ number_format($revenue, 0) }}</td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="2" class="text-center">No data</td>
+                            </tr>
+                        @endforelse
                         <tfoot class="table-light">
                             <tr>
                                 <th>Total</th>
-                                <th>{{ number_format($products->sum('revenue'), 0) }}</th>
+                                <th>{{ number_format($products->sum(), 0) }}</th>
                             </tr>
                         </tfoot>
+
                     </table>
                 </div>
             </div>
