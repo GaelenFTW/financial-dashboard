@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Http;
 
 class PurchaseLetterController extends Controller
@@ -37,16 +36,13 @@ class PurchaseLetterController extends Controller
         $rows = $this->getData();
 
         $months = [];
-        $paid = [];
-        $open = [];
-        $overdue = [];
 
         foreach ($rows as $row) {
             $month = null;
             if (!empty($row['PurchaseDate'])) {
                 $dt = \DateTime::createFromFormat('d-m-Y', $row['PurchaseDate']);
                 if ($dt) {
-                    $month = $dt->format('Y-m');
+                    $month = $dt->format('Y-m'); // normalize to YYYY-MM
                 }
             }
 
@@ -70,12 +66,13 @@ class PurchaseLetterController extends Controller
             }
         }
 
-        $labels = array_keys($months);
-        foreach ($months as $m) {
-            $paid[] = $m['paid'];
-            $open[] = $m['open'];
-            $overdue[] = $m['overdue'];
-        }
+        // ✅ Sort months chronologically
+        ksort($months);
+
+        $labels   = array_keys($months);
+        $paid     = array_column($months, 'paid');
+        $open     = array_column($months, 'open');
+        $overdue  = array_column($months, 'overdue');
 
         return view('purchase_letters.charts', [
             'months'   => $labels,
@@ -85,28 +82,26 @@ class PurchaseLetterController extends Controller
         ]);
     }
 
-public function index()
-{
-    $rows = $this->getData();
+    public function index()
+    {
+        $rows = $this->getData();
 
-    // Convert array to collection
-    $collection = collect($rows);
+        // Convert to Laravel Collection
+        $collection = collect($rows);
 
-    // Pagination setup
-    $perPage = 10;
-    $currentPage = request()->get('page', 1);
-    $pagedData = $collection->forPage($currentPage, $perPage);
+        // Pagination setup
+        $perPage = 10;
+        $currentPage = request()->get('page', 1);
+        $pagedData = $collection->forPage($currentPage, $perPage);
 
-    $letters = new LengthAwarePaginator(
-        $pagedData,
-        $collection->count(),
-        $perPage,
-        $currentPage,
-        ['path' => request()->url(), 'query' => request()->query()]
-    );
+        $letters = new LengthAwarePaginator(
+            $pagedData,
+            $collection->count(),
+            $perPage,
+            $currentPage,
+            ['path' => request()->url(), 'query' => request()->query()]
+        );
 
-    return view('purchase_letters.index', compact('letters'));
-}
-
-
+        return view('purchase_letters.index', compact('letters'));
+    }
 }
