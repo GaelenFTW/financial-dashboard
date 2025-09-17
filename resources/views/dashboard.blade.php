@@ -40,6 +40,38 @@
         </div>
     </div>
 
+    <div class="container py-4">
+    <h1 class="mb-4">Financial Dashboard</h1>
+
+    {{-- Filters --}}
+    <form method="GET" action="{{ route('dashboard') }}" class="row g-3 mb-4">
+        <div class="col-md-3">
+            <input type="text" name="cluster" class="form-control" placeholder="Cluster" value="{{ $filters['cluster'] ?? '' }}">
+        </div>
+        <div class="col-md-3">
+            <input type="text" name="salesman" class="form-control" placeholder="Salesman" value="{{ $filters['salesman'] ?? '' }}">
+        </div>
+        <div class="col-md-3">
+            <input type="text" name="customername" class="form-control" placeholder="Customer Name" value="{{ $filters['customername'] ?? '' }}">
+        </div>
+        <div class="col-md-3">
+            <input type="text" name="type_unit" class="form-control" placeholder="Type Unit" value="{{ $filters['type_unit'] ?? '' }}">
+        </div>
+        <div class="col-md-3">
+            <input type="date" name="startdate" class="form-control" value="{{ $filters['startdate'] ?? '' }}">
+        </div>
+        <div class="col-md-3">
+            <input type="date" name="enddate" class="form-control" value="{{ $filters['enddate'] ?? '' }}">
+        </div>
+        <div class="col-md-3">
+            <button type="submit" class="btn btn-primary w-100">Search</button>
+        </div>
+        <div class="col-md-3">
+            <a href="{{ route('dashboard') }}" class="btn btn-secondary w-100">Reset</a>
+        </div>
+    </form>
+
+
     {{-- Top 10 Customers --}}
     <div class="row mt-5">
         <div class="col-md-6">

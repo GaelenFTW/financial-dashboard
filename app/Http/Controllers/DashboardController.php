@@ -49,12 +49,51 @@ class DashboardController extends Controller
         return [];
     }
 
-    public function index()
-    {
+    public function index(\Illuminate\Http\Request $request)
+{
     $rows = $this->getData();
 
     // Only keep valid array rows
     $rows = array_filter($rows, fn($row) => is_array($row));
+
+    // Apply filters from request
+    $rows = array_filter($rows, function ($row) use ($request) {
+
+        // cluster
+        if ($request->filled('cluster') && strcasecmp($row['Cluster'] ?? '', $request->cluster) !== 0) {
+            return false;
+        }
+
+        // salesman
+        if ($request->filled('salesman') && stripos($row['salesman'] ?? '', $request->salesman) === false) {
+            return false;
+        }
+
+        // customer name
+        if ($request->filled('customername') && stripos($row['CustomerName'] ?? '', $request->customername) === false) {
+            return false;
+        }
+
+        // type unit
+        if ($request->filled('type_unit') && strcasecmp($row['type_unit'] ?? '', $request->type_unit) !== 0) {
+            return false;
+        }
+
+ 
+
+        // start-end date range
+        if ($request->filled('startdate') || $request->filled('enddate')) {
+            $purchaseDate = isset($row['PurchaseDate']) ? date('mm-dd-yyyy', strtotime($row['PurchaseDate'])) : null;
+            if ($request->filled('startdate') && $purchaseDate < date('mm-dd-yyyy', strtotime($request->startdate))) {
+                return false;
+            }
+            if ($request->filled('enddate') && $purchaseDate > date('mm-dd-yyyy', strtotime($request->enddate))) {
+                return false;
+            }
+        }
+
+        return true;
+    });
 
     // Aggregates
     $totalRevenue = array_sum(array_column($rows, 'HrgJualTotal'));
@@ -87,7 +126,9 @@ class DashboardController extends Controller
         'numCustomers' => $numCustomers,
         'productsSold' => $productsSold,
         'avgRevenue'   => $avgRevenue,
+        'filters'      => $request->all(), // send filters back to blade
     ]);
 }
+
 
 }
