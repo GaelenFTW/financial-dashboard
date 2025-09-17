@@ -82,26 +82,37 @@ class PurchaseLetterController extends Controller
         ]);
     }
 
-    public function index()
-    {
-        $rows = $this->getData();
+public function index()
+{
+    $rows = $this->getData();
+    $collection = collect($rows);
 
-        // Convert to Laravel Collection
-        $collection = collect($rows);
-
-        // Pagination setup
-        $perPage = 10;
-        $currentPage = request()->get('page', 1);
-        $pagedData = $collection->forPage($currentPage, $perPage);
-
-        $letters = new LengthAwarePaginator(
-            $pagedData,
-            $collection->count(),
-            $perPage,
-            $currentPage,
-            ['path' => request()->url(), 'query' => request()->query()]
-        );
-
-        return view('purchase_letters.index', compact('letters'));
+    // 🔍 Search filter
+    $search = request()->get('search');
+    if ($search) {
+        $collection = $collection->filter(function ($row) use ($search) {
+            return str_contains(strtolower($row['CustomerName']), strtolower($search)) ||
+                   str_contains(strtolower($row['Cluster']), strtolower($search)) ||
+                   str_contains(strtolower($row['PurchaseDate']), strtolower($search)) ||
+                   str_contains(strtolower($row['Unit']), strtolower($search));
+                   
+        });
     }
+
+    // Pagination
+    $perPage = 10;
+    $currentPage = request()->get('page', 1);
+    $pagedData = $collection->forPage($currentPage, $perPage);
+
+    $letters = new LengthAwarePaginator(
+        $pagedData,
+        $collection->count(),
+        $perPage,
+        $currentPage,
+        ['path' => request()->url(), 'query' => request()->query()]
+    );
+
+    return view('purchase_letters.index', compact('letters', 'search'));
+}
+
 }

@@ -3,6 +3,10 @@
 @section('content')
 <div class="container">
     <h2>Purchase Letters</h2>
+<form method="GET" action="{{ url()->current() }}" class="mb-3">
+    <input type="text" name="search" value="{{ $search ?? '' }}" 
+           class="form-control" placeholder="Search customer, cluster, or unit...">
+</form>
 
     <table class="table table-bordered">
         <thead>
