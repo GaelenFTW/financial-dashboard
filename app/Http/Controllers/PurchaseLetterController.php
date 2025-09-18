@@ -8,36 +8,84 @@ use Illuminate\Http\Request;
 
 class PurchaseLetterController extends Controller
 {
+    protected $apiUrl;
+
+    public function __construct()
+    {
+        $this->apiUrl = config('jwt.api_url');
+    }
+
+    protected function login()
+    {
+        try {
+            $response = Http::post($this->apiUrl . '/login', [
+                'username' => 'testuser',
+                'password' => 'Test123!'
+            ]);
+
+            if (!$response->successful()) {
+                Log::error('Login failed: ' . $response->body());
+                return null;
+            }
+
+            $data = $response->json();
+            if (isset($data['token'])) {
+                session(['api_token' => $data['token']]);
+                return $data['token'];
+            }
+
+            return null;
+        } catch (\Exception $e) {
+            Log::error('Login error: ' . $e->getMessage());
+            return null;
+        }
+    }
+
     protected function getData()
     {
-        // ✅ Load token & API URL from config/services.php (better than hardcoding)
-        $token = config('services.data_api.token');
-        $url   = config('services.data_api.url');
-
         try {
-            if ($url) {
-                $response = Http::timeout(10)
-                    ->withHeaders([
-                        'Authorization' => 'Bearer ' . $token,
-                    ])
-                    ->get($url);
-
-                if ($response->successful()) {
-                    return $response->json();
+            // Try to login if no token exists
+            if (!session('api_token')) {
+                $token = $this->login();
+                if (!$token) {
+                    return ['error' => 'Authentication failed'];
                 }
             }
+
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . session('api_token'),
+                'Accept' => 'application/json'
+            ])->get($this->apiUrl);
+
+            if (!$response->successful()) {
+                // If token expired, try to login again
+                if ($response->status() === 401) {
+                    $token = $this->login();
+                    if ($token) {
+                        // Retry the request with new token
+                        $response = Http::withHeaders([
+                            'Authorization' => 'Bearer ' . $token,
+                            'Accept' => 'application/json'
+                        ])->get($this->apiUrl);
+                    }
+                }
+
+                if (!$response->successful()) {
+                    return ['error' => 'API request failed: ' . $response->body()];
+                }
+            }
+
+            $data = $response->json();
+            if (empty($data)) {
+                return ['error' => 'No data received from API'];
+            }
+
+            return $data;
+
         } catch (\Exception $e) {
-            // fail silently
-            // \Log::error('PurchaseLetter API error: '.$e->getMessage());
+            Log::error('getData error: ' . $e->getMessage());
+            return ['error' => 'Failed to fetch data: ' . $e->getMessage()];
         }
-
-        // ✅ fallback to local file if API fails
-        $path = public_path('data.json');
-        if (file_exists($path)) {
-            return json_decode(file_get_contents($path), true);
-        }
-
-        return [];
     }
 
     public function chart()

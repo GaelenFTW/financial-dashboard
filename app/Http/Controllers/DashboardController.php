@@ -3,66 +3,105 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 
 class DashboardController extends Controller
 {
+
+    protected $apiUrl;
+
+    public function __construct()
+    {
+        $this->apiUrl = config('jwt.api_url');
+    }
+
+    protected function login()
+    {
+        try {
+            $response = Http::post($this->apiUrl . '/login', [
+                'username' => 'testuser',
+                'password' => 'Test123!'
+            ]);
+
+            if (!$response->successful()) {
+                Log::error('Login failed: ' . $response->body());
+                return null;
+            }
+
+            $data = $response->json();
+            if (isset($data['token'])) {
+                session(['api_token' => $data['token']]);
+                return $data['token'];
+            }
+
+            return null;
+        } catch (\Exception $e) {
+            Log::error('Login error: ' . $e->getMessage());
+            return null;
+        }
+    }
+
     protected function getData()
     {
-
-        $token = env('DATA_API_TOKEN');
-        $url = config('services.data_api.url');
-
         try {
-            if ($url) {
-                // ✅ Attach JWT token to the request
-                $response = Http::timeout(10)
-                    ->withHeaders([
-                        'Authorization' => 'Bearer ' . $token
-                    ])
-                    ->get($url);
-
-                if ($response->successful()) {
-                    $data = $response->json();
-
-                    // If the API response is wrapped in a key, unwrap it
-                    if (isset($data['data']) && is_array($data['data'])) {
-                        return $data['data'];
-                    }
-
-                    // If it's already a flat array
-                    if (is_array($data)) {
-                        return $data;
-                    }
+            // Try to login if no token exists
+            if (!session('api_token')) {
+                $token = $this->login();
+                if (!$token) {
+                    return ['error' => 'Authentication failed'];
                 }
             }
+
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . session('api_token'),
+                'Accept' => 'application/json'
+            ])->get($this->apiUrl);
+
+            if (!$response->successful()) {
+                // If token expired, try to login again
+                if ($response->status() === 401) {
+                    $token = $this->login();
+                    if ($token) {
+                        // Retry the request with new token
+                        $response = Http::withHeaders([
+                            'Authorization' => 'Bearer ' . $token,
+                            'Accept' => 'application/json'
+                        ])->get($this->apiUrl);
+                    }
+                }
+
+                if (!$response->successful()) {
+                    return ['error' => 'API request failed: ' . $response->body()];
+                }
+            }
+
+            $data = $response->json();
+            if (empty($data)) {
+                return ['error' => 'No data received from API'];
+            }
+
+            return $data;
+
         } catch (\Exception $e) {
-            // fail silently and fallback
+            Log::error('getData error: ' . $e->getMessage());
+            return ['error' => 'Failed to fetch data: ' . $e->getMessage()];
         }
-
-        // fallback: local file
-        $path = public_path('data.json');
-        if (file_exists($path)) {
-            $data = json_decode(file_get_contents($path), true);
-
-            if (isset($data['data']) && is_array($data['data'])) {
-                return $data['data'];
-            }
-
-            if (is_array($data)) {
-                return $data;
-            }
-        }
-
-        return [];
     }
+
 
     public function index(Request $request)
     {
         $rows = $this->getData();
+        
+        if (isset($rows['error'])) {
+            return view('dashboard', ['error' => $rows['error']]);
+        }
+
         $rows = array_filter($rows, fn($row) => is_array($row));
 
+        // Apply filters
         $rows = array_filter($rows, function ($row) use ($request) {
             if ($request->filled('cluster') && strcasecmp($row['Cluster'] ?? '', $request->cluster) !== 0) {
                 return false;
@@ -84,7 +123,7 @@ class DashboardController extends Controller
                 return false;
             }
 
-            // start-end date range
+            // Date range filtering
             if ($request->filled('startdate') || $request->filled('enddate')) {
                 $purchaseDate = isset($row['PurchaseDate']) ? strtotime(str_replace('-', '/', $row['PurchaseDate'])) : null;
 
@@ -106,30 +145,29 @@ class DashboardController extends Controller
             return true;
         });
 
-        // Aggregates
+        // Calculate aggregates
         $totalRevenue = array_sum(array_column($rows, 'HrgJualTotal'));
         $numCustomers = count(array_unique(array_column($rows, 'CustomerName')));
         $productsSold = count($rows);
         $avgRevenue   = $productsSold > 0 ? $totalRevenue / $productsSold : 0;
 
-        // Top 10 customers
+        // Calculate top 10 customers by revenue
         $customerRevenue = [];
         foreach ($rows as $row) {
             $name = $row['CustomerName'] ?? 'Unknown';
-            $customerRevenue[$name] =
-                ($customerRevenue[$name] ?? 0) + (float)($row['HrgJualTotal'] ?? 0);
+            $customerRevenue[$name] = ($customerRevenue[$name] ?? 0) + (float)($row['HrgJualTotal'] ?? 0);
         }
         $customers = collect($customerRevenue)->sortDesc()->take(10);
 
-        // Top 10 products
+        // Calculate top 10 products by revenue
         $productRevenue = [];
         foreach ($rows as $row) {
             $product = $row['type_unit'] ?? 'Unknown';
-            $productRevenue[$product] =
-                ($productRevenue[$product] ?? 0) + (float)($row['HrgJualTotal'] ?? 0);
+            $productRevenue[$product] = ($productRevenue[$product] ?? 0) + (float)($row['HrgJualTotal'] ?? 0);
         }
         $products = collect($productRevenue)->sortDesc()->take(10);
 
+        // Return view with all calculated data
         return view('dashboard', [
             'customers'    => $customers,
             'products'     => $products,

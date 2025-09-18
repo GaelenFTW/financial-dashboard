@@ -4,13 +4,19 @@
 <div class="container py-4">
     <h1 class="mb-4">Financial Dashboard</h1>
 
+    @if(isset($error))
+        <div class="alert alert-danger">
+            {{ $error }}
+        </div>
+    @endif
+
     {{-- Summary Cards --}}
     <div class="row g-4">
         <div class="col-md-3">
             <div class="card text-white bg-primary shadow">
                 <div class="card-body">
                     <h6 class="card-title">Num of Customers</h6>
-                    <h2>{{ $numCustomers }}</h2>
+                    <h2>{{ $numCustomers ?? 0 }}</h2>
                 </div>
             </div>
         </div>
@@ -18,7 +24,7 @@
             <div class="card text-white bg-success shadow">
                 <div class="card-body">
                     <h6 class="card-title">Total Revenue</h6>
-                    <h2>{{ number_format($totalRevenue / 1000, 0) }}K</h2>
+                    <h2>{{ number_format(($totalRevenue ?? 0) / 1000, 0) }}K</h2>
                 </div>
             </div>
         </div>
@@ -26,7 +32,7 @@
             <div class="card text-white bg-warning shadow">
                 <div class="card-body">
                     <h6 class="card-title">Avg Revenue</h6>
-                    <h2>{{ number_format($avgRevenue, 2) }}</h2>
+                    <h2>{{ number_format($avgRevenue ?? 0, 2) }}</h2>
                 </div>
             </div>
         </div>
@@ -34,14 +40,11 @@
             <div class="card text-white bg-danger shadow">
                 <div class="card-body">
                     <h6 class="card-title">Products Sold</h6>
-                    <h2>{{ $productsSold }}</h2>
+                    <h2>{{ $productsSold ?? 0 }}</h2>
                 </div>
             </div>
         </div>
     </div>
-
-    <div class="container py-4">
-    <h1 class="mb-4">Financial Dashboard</h1>
 
     {{-- Filters --}}
     <form method="GET" action="{{ route('dashboard') }}" class="row g-3 mb-4">
@@ -71,7 +74,6 @@
         </div>
     </form>
 
-
     {{-- Top 10 Customers --}}
     <div class="row mt-5">
         <div class="col-md-6">
@@ -88,7 +90,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                        @forelse($customers as $name => $revenue)
+                        @forelse(($customers ?? collect()) as $name => $revenue)
                             <tr>
                                 <td>{{ $name }}</td>
                                 <td>{{ number_format($revenue, 0) }}</td>
@@ -98,10 +100,11 @@
                                 <td colspan="2" class="text-center">No data</td>
                             </tr>
                         @endforelse
+                        </tbody>
                         <tfoot class="table-light">
                             <tr>
                                 <th>Total</th>
-                                <th>{{ number_format($customers->sum(), 0) }}</th>
+                                <th>{{ number_format(($customers ?? collect())->sum(), 0) }}</th>
                             </tr>
                         </tfoot>
                     </table>
@@ -124,7 +127,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                        @forelse($products as $product => $revenue)
+                        @forelse(($products ?? collect()) as $product => $revenue)
                             <tr>
                                 <td>{{ $product }}</td>
                                 <td>{{ number_format($revenue, 0) }}</td>
@@ -134,24 +137,23 @@
                                 <td colspan="2" class="text-center">No data</td>
                             </tr>
                         @endforelse
+                        </tbody>
                         <tfoot class="table-light">
                             <tr>
                                 <th>Total</th>
-                                <th>{{ number_format($products->sum(), 0) }}</th>
+                                <th>{{ number_format(($products ?? collect())->sum(), 0) }}</th>
                             </tr>
                         </tfoot>
-
                     </table>
                 </div>
             </div>
         </div>
     </div>
     
+    <div class="mb-4 d-flex justify-content-end">
+        <a href="{{ url('/purchase-letters') }}" class="btn btn-outline-primary">
+            Purchase Letters Table
+        </a>
+    </div>
 </div>
-<div class="mb-4 d-flex justify-content-end">
-    <a href="{{ url('/purchase-letters') }}" class="btn btn-outline-primary">
-        Purchase Letters Table
-    </a>
-</div>
-
 @endsection

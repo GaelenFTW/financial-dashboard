@@ -37,7 +37,7 @@ return [
     
     'data_api' => [
         'url' => env('DATA_API_URL', null),
-        'token' => env('DATA_API_TOKEN'),
+        'token' => env('JWT_SECRET', 'TestingJWT123'),
     ],
 
 
