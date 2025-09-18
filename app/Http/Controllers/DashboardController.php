@@ -6,6 +6,8 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Firebase\JWT\JWT;
+use Firebase\JWT\Key;
 
 class DashboardController extends Controller
 {
@@ -44,51 +46,50 @@ class DashboardController extends Controller
     }
 
     protected function getData()
-    {
-        try {
-            // Try to login if no token exists
-            if (!session('api_token')) {
+{
+    // dd(session('api_token'));
+    try {
+        if (!session('api_token')) {
+            $token = $this->login();
+            if (!$token) {
+                return ['error' => 'Authentication failed, no token'];
+            }
+        }
+
+        $response = Http::withHeaders([
+            'Authorization' => 'Bearer ' . session('api_token'),
+            'Accept' => 'application/json'
+        ])->get($this->apiUrl);
+
+        if (!$response->successful()) {
+            if ($response->status() === 401) {
                 $token = $this->login();
                 if (!$token) {
-                    return ['error' => 'Authentication failed'];
+                    return ['error' => 'Authentication failed after retry'];
                 }
+                $response = Http::withHeaders([
+                    'Authorization' => 'Bearer ' . $token,
+                    'Accept' => 'application/json'
+                ])->get($this->apiUrl);
             }
-
-            $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . session('api_token'),
-                'Accept' => 'application/json'
-            ])->get($this->apiUrl);
 
             if (!$response->successful()) {
-                // If token expired, try to login again
-                if ($response->status() === 401) {
-                    $token = $this->login();
-                    if ($token) {
-                        // Retry the request with new token
-                        $response = Http::withHeaders([
-                            'Authorization' => 'Bearer ' . $token,
-                            'Accept' => 'application/json'
-                        ])->get($this->apiUrl);
-                    }
-                }
-
-                if (!$response->successful()) {
-                    return ['error' => 'API request failed: ' . $response->body()];
-                }
+                return ['error' => 'API request failed: ' . $response->body()];
             }
-
-            $data = $response->json();
-            if (empty($data)) {
-                return ['error' => 'No data received from API'];
-            }
-
-            return $data;
-
-        } catch (\Exception $e) {
-            Log::error('getData error: ' . $e->getMessage());
-            return ['error' => 'Failed to fetch data: ' . $e->getMessage()];
         }
+
+        $data = $response->json();
+        if (empty($data)) {
+            return ['error' => 'No data received from API'];
+        }
+
+        return $data;
+
+    } catch (\Exception $e) {
+        Log::error('getData error: ' . $e->getMessage());
+        return ['error' => 'Failed to fetch data: ' . $e->getMessage()];
     }
+}
 
 
     public function index(Request $request)

@@ -7,15 +7,14 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use PDO;
 
-class JWTController extends Controller  
-{
+class JWTController extends Controller  {
     protected $key;
     protected $apiUrl;
     protected $pdo;
 
     public function __construct()
     {
-        $this->key = 'TestingJWT123';
+        $this->key = 'TestingdadasJWT123'; // Ensure this matches your .env JWT_SECRET
         $this->apiUrl = 'http://localhost/index.php';
         
         try {
@@ -69,6 +68,7 @@ class JWTController extends Controller
             "iss" => "localhost",
             "aud" => "localhost",
             "iat" => time(),
+            "exp" => time() + 300, // Token valid for 1 hour
             "user" => $username
         ];
 

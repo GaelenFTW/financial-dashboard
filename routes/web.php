@@ -10,7 +10,3 @@ Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 Route::get('/purchase-letters', [PurchaseLetterController::class, 'index']);
 Route::get('/purchase-letters/charts', [PurchaseLetterController::class, 'chart']);
 
-Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/generate-token', [JWTController::class, 'generateToken']);
-    Route::get('/worksheet-data', [JWTController::class, 'getWorksheetData']);
-});
