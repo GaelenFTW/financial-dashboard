@@ -4,25 +4,34 @@ namespace App\Http\Controllers;
 
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Http\Request;
 
 class PurchaseLetterController extends Controller
 {
     protected function getData()
     {
-        $url = config('services.data_api.url');
+        // ✅ Load token & API URL from config/services.php (better than hardcoding)
+        $token = config('services.data_api.token');
+        $url   = config('services.data_api.url');
 
         try {
             if ($url) {
-                $response = Http::timeout(10)->get($url);
+                $response = Http::timeout(10)
+                    ->withHeaders([
+                        'Authorization' => 'Bearer ' . $token,
+                    ])
+                    ->get($url);
+
                 if ($response->successful()) {
                     return $response->json();
                 }
             }
         } catch (\Exception $e) {
-            // fail silently and fallback
+            // fail silently
+            // \Log::error('PurchaseLetter API error: '.$e->getMessage());
         }
 
-        // fallback to local file
+        // ✅ fallback to local file if API fails
         $path = public_path('data.json');
         if (file_exists($path)) {
             return json_decode(file_get_contents($path), true);
@@ -34,7 +43,6 @@ class PurchaseLetterController extends Controller
     public function chart()
     {
         $rows = $this->getData();
-
         $months = [];
 
         foreach ($rows as $row) {
@@ -48,8 +56,8 @@ class PurchaseLetterController extends Controller
 
             if ($month) {
                 $months[$month] = $months[$month] ?? [
-                    'paid' => 0,
-                    'open' => 0,
+                    'paid'    => 0,
+                    'open'    => 0,
                     'overdue' => 0,
                 ];
 
@@ -82,38 +90,38 @@ class PurchaseLetterController extends Controller
         ]);
     }
 
-public function index()
-{
-    $rows = $this->getData();
-    $collection = collect($rows);
+    public function index(Request $request)
+    {
+        $rows = $this->getData();
+        $collection = collect($rows);
 
-    // 🔍 Search filter
-    $search = request()->get('search');
-    if ($search) {
-        $collection = $collection->filter(function ($row) use ($search) {
-            return str_contains(strtolower($row['CustomerName']), strtolower($search)) ||
-                   str_contains(strtolower($row['Cluster']), strtolower($search)) ||
-                   str_contains(strtolower($row['PurchaseDate']), strtolower($search)) ||
-                   str_contains(strtolower($row['Unit']), strtolower($search));
-                   str_contains(strtolower($row['TypePembelian']), strtolower($search));
-                   
-        });
+        // 🔍 Search filter
+        $search = $request->get('search');
+        if ($search) {
+            $collection = $collection->filter(function ($row) use ($search) {
+                $search = strtolower($search);
+
+                return str_contains(strtolower($row['CustomerName'] ?? ''), $search) ||
+                       str_contains(strtolower($row['Cluster'] ?? ''), $search) ||
+                       str_contains(strtolower($row['PurchaseDate'] ?? ''), $search) ||
+                       str_contains(strtolower($row['Unit'] ?? ''), $search) ||
+                       str_contains(strtolower($row['TypePembelian'] ?? ''), $search);
+            });
+        }
+
+        // Pagination
+        $perPage     = 10;
+        $currentPage = $request->get('page', 1);
+        $pagedData   = $collection->forPage($currentPage, $perPage);
+
+        $letters = new LengthAwarePaginator(
+            $pagedData,
+            $collection->count(),
+            $perPage,
+            $currentPage,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
+
+        return view('purchase_letters.index', compact('letters', 'search'));
     }
-
-    // Pagination
-    $perPage = 10;
-    $currentPage = request()->get('page', 1);
-    $pagedData = $collection->forPage($currentPage, $perPage);
-
-    $letters = new LengthAwarePaginator(
-        $pagedData,
-        $collection->count(),
-        $perPage,
-        $currentPage,
-        ['path' => request()->url(), 'query' => request()->query()]
-    );
-
-    return view('purchase_letters.index', compact('letters', 'search'));
-}
-
 }
