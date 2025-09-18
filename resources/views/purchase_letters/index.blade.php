@@ -40,4 +40,14 @@
 
 {{ $letters->links('pagination::bootstrap-5') }}
 </div>
+<div class="mb-4 d-flex">
+    <a href="{{ url('/') }}" class="btn btn-outline-primary">
+        Dashboard
+    </a>
+    <a href="{{ url('/purchase-letters/charts') }}" class="btn btn-outline-primary ms-auto">
+        Charts
+    </a>
+</div>
+
+
 @endsection

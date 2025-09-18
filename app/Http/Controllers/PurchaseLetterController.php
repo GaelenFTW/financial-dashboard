@@ -95,6 +95,7 @@ public function index()
                    str_contains(strtolower($row['Cluster']), strtolower($search)) ||
                    str_contains(strtolower($row['PurchaseDate']), strtolower($search)) ||
                    str_contains(strtolower($row['Unit']), strtolower($search));
+                   str_contains(strtolower($row['TypePembelian']), strtolower($search));
                    
         });
     }

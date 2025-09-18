@@ -49,7 +49,7 @@
             <input type="text" name="cluster" class="form-control" placeholder="Cluster" value="{{ $filters['cluster'] ?? '' }}">
         </div>
         <div class="col-md-3">
-            <input type="text" name="salesman" class="form-control" placeholder="Salesman" value="{{ $filters['salesman'] ?? '' }}">
+            <input type="text" name="typepembelian" class="form-control" placeholder="Type Pembelian" value="{{ $filters['typepembelian'] ?? '' }}">
         </div>
         <div class="col-md-3">
             <input type="text" name="customername" class="form-control" placeholder="Customer Name" value="{{ $filters['customername'] ?? '' }}">
@@ -146,5 +146,12 @@
             </div>
         </div>
     </div>
+    
 </div>
+<div class="mb-4 d-flex justify-content-end">
+    <a href="{{ url('/purchase-letters') }}" class="btn btn-outline-primary">
+        Purchase Letters Table
+    </a>
+</div>
+
 @endsection

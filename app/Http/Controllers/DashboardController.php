@@ -49,48 +49,51 @@ class DashboardController extends Controller
         return [];
     }
 
-    public function index(\Illuminate\Http\Request $request)
-{
+    public function index(\Illuminate\Http\Request $request){
+
     $rows = $this->getData();
-
-    // Only keep valid array rows
     $rows = array_filter($rows, fn($row) => is_array($row));
-
-    // Apply filters from request
     $rows = array_filter($rows, function ($row) use ($request) {
 
-        // cluster
         if ($request->filled('cluster') && strcasecmp($row['Cluster'] ?? '', $request->cluster) !== 0) {
             return false;
         }
 
-        // salesman
-        if ($request->filled('salesman') && stripos($row['salesman'] ?? '', $request->salesman) === false) {
+        if ($request->filled('typepembelian')) {
+        $filterValue = strtolower(trim($request->typepembelian));
+        $rowValue    = strtolower(trim($row['TypePembelian'] ?? ''));
+        if (strpos($rowValue, $filterValue) === false) {
             return false;
         }
+        }
 
-        // customer name
         if ($request->filled('customername') && stripos($row['CustomerName'] ?? '', $request->customername) === false) {
             return false;
         }
 
-        // type unit
         if ($request->filled('type_unit') && strcasecmp($row['type_unit'] ?? '', $request->type_unit) !== 0) {
             return false;
         }
 
- 
-
         // start-end date range
         if ($request->filled('startdate') || $request->filled('enddate')) {
-            $purchaseDate = isset($row['PurchaseDate']) ? date('mm-dd-yyyy', strtotime($row['PurchaseDate'])) : null;
-            if ($request->filled('startdate') && $purchaseDate < date('mm-dd-yyyy', strtotime($request->startdate))) {
-                return false;
-            }
-            if ($request->filled('enddate') && $purchaseDate > date('mm-dd-yyyy', strtotime($request->enddate))) {
+        $purchaseDate = isset($row['PurchaseDate']) ? strtotime(str_replace('-', '/', $row['PurchaseDate'])) : null;
+
+        if ($request->filled('startdate')) {
+            $startDate = strtotime($request->startdate);
+            if ($purchaseDate < $startDate) {
                 return false;
             }
         }
+
+        if ($request->filled('enddate')) {
+            $endDate = strtotime($request->enddate);
+            if ($purchaseDate > $endDate) {
+                return false;
+            }
+        }
+    }
+
 
         return true;
     });
@@ -128,7 +131,7 @@ class DashboardController extends Controller
         'avgRevenue'   => $avgRevenue,
         'filters'      => $request->all(), // send filters back to blade
     ]);
-}
+    }
 
 
 }
