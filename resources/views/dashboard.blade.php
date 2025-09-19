@@ -24,7 +24,7 @@
             <div class="card text-white bg-success shadow">
                 <div class="card-body">
                     <h6 class="card-title">Total Revenue</h6>
-                    <h2>{{ number_format(($totalRevenue ?? 0) / 1000, 0) }}K</h2>
+                    <h2>{{ number_format($totalRevenue ?? 0) }}</h2>
                 </div>
             </div>
         </div>

@@ -4,37 +4,51 @@ namespace App\Http\Controllers;
 
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 
 class PurchaseLetterController extends Controller
 {
     protected $apiUrl;
+    protected $token;
 
     public function __construct()
     {
         $this->apiUrl = config('jwt.api_url');
+        $this->token = null;
     }
 
     protected function login()
     {
         try {
-            $response = Http::post($this->apiUrl . '/login', [
+            $loginUrl = str_replace('index.php', 'login.php', $this->apiUrl);
+
+            $response = Http::withHeaders([
+                'Content-Type' => 'application/json',
+                'Accept' => 'application/json'
+            ])->post($loginUrl, [
                 'username' => 'testuser',
                 'password' => 'Test123!'
             ]);
 
+            Log::info('Login response status: ' . $response->status());
+            Log::info('Login response: ' . $response->body());
+
             if (!$response->successful()) {
-                Log::error('Login failed: ' . $response->body());
+                Log::error('Login failed with status: ' . $response->status());
                 return null;
             }
 
             $data = $response->json();
-            if (isset($data['token'])) {
-                session(['api_token' => $data['token']]);
-                return $data['token'];
+            if (!isset($data['token'])) {
+                Log::error('No token in response');
+                return null;
             }
 
-            return null;
+            $this->token = $data['token'];
+            Log::info('Login successful');
+            return $this->token;
+
         } catch (\Exception $e) {
             Log::error('Login error: ' . $e->getMessage());
             return null;
@@ -45,7 +59,7 @@ class PurchaseLetterController extends Controller
     {
         try {
             // Try to login if no token exists
-            if (!session('api_token')) {
+            if (!$this->token) {
                 $token = $this->login();
                 if (!$token) {
                     return ['error' => 'Authentication failed'];
@@ -53,7 +67,7 @@ class PurchaseLetterController extends Controller
             }
 
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . session('api_token'),
+                'Authorization' => 'Bearer ' . $this->token,
                 'Accept' => 'application/json'
             ])->get($this->apiUrl);
 
@@ -64,7 +78,7 @@ class PurchaseLetterController extends Controller
                     if ($token) {
                         // Retry the request with new token
                         $response = Http::withHeaders([
-                            'Authorization' => 'Bearer ' . $token,
+                            'Authorization' => 'Bearer ' . $this->token,
                             'Accept' => 'application/json'
                         ])->get($this->apiUrl);
                     }

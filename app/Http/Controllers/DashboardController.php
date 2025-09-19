@@ -6,67 +6,37 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
-use Firebase\JWT\JWT;
-use Firebase\JWT\Key;
 
 class DashboardController extends Controller
 {
-
     protected $apiUrl;
+    protected $jwtController;
 
-    public function __construct()
+    public function __construct(JWTController $jwtController)
     {
         $this->apiUrl = config('jwt.api_url');
-    }
-
-    protected function login()
-    {
-        try {
-            $response = Http::post($this->apiUrl . '/login', [
-                'username' => 'testuser',
-                'password' => 'Test123!'
-            ]);
-
-            if (!$response->successful()) {
-                Log::error('Login failed: ' . $response->body());
-                return null;
-            }
-
-            $data = $response->json();
-            if (isset($data['token'])) {
-                session(['api_token' => $data['token']]);
-                return $data['token'];
-            }
-
-            return null;
-        } catch (\Exception $e) {
-            Log::error('Login error: ' . $e->getMessage());
-            return null;
-        }
+        $this->jwtController = $jwtController;
     }
 
     protected function getData()
-{
-    // dd(session('api_token'));
-    try {
-        if (!session('api_token')) {
-            $token = $this->login();
+    {
+        try {
+            $token = $this->jwtController->getToken();
             if (!$token) {
-                return ['error' => 'Authentication failed, no token'];
+                return ['error' => 'Authentication failed'];
             }
-        }
 
-        $response = Http::withHeaders([
-            'Authorization' => 'Bearer ' . session('api_token'),
-            'Accept' => 'application/json'
-        ])->get($this->apiUrl);
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $token,
+                'Accept' => 'application/json'
+            ])->get($this->apiUrl);
 
-        if (!$response->successful()) {
             if ($response->status() === 401) {
-                $token = $this->login();
+                $token = $this->jwtController->login();
                 if (!$token) {
                     return ['error' => 'Authentication failed after retry'];
                 }
+
                 $response = Http::withHeaders([
                     'Authorization' => 'Bearer ' . $token,
                     'Accept' => 'application/json'
@@ -76,33 +46,27 @@ class DashboardController extends Controller
             if (!$response->successful()) {
                 return ['error' => 'API request failed: ' . $response->body()];
             }
+
+            $data = $response->json();
+            return !empty($data) ? $data : ['error' => 'No data received from API'];
+
+        } catch (\Exception $e) {
+            Log::error('getData error: ' . $e->getMessage());
+            return ['error' => 'Failed to fetch data: ' . $e->getMessage()];
         }
-
-        $data = $response->json();
-        if (empty($data)) {
-            return ['error' => 'No data received from API'];
-        }
-
-        return $data;
-
-    } catch (\Exception $e) {
-        Log::error('getData error: ' . $e->getMessage());
-        return ['error' => 'Failed to fetch data: ' . $e->getMessage()];
     }
-}
-
 
     public function index(Request $request)
     {
         $rows = $this->getData();
-        
+
         if (isset($rows['error'])) {
             return view('dashboard', ['error' => $rows['error']]);
         }
 
+        // filter + aggregate logic stays the same
         $rows = array_filter($rows, fn($row) => is_array($row));
 
-        // Apply filters
         $rows = array_filter($rows, function ($row) use ($request) {
             if ($request->filled('cluster') && strcasecmp($row['Cluster'] ?? '', $request->cluster) !== 0) {
                 return false;
@@ -146,13 +110,11 @@ class DashboardController extends Controller
             return true;
         });
 
-        // Calculate aggregates
         $totalRevenue = array_sum(array_column($rows, 'HrgJualTotal'));
         $numCustomers = count(array_unique(array_column($rows, 'CustomerName')));
         $productsSold = count($rows);
         $avgRevenue   = $productsSold > 0 ? $totalRevenue / $productsSold : 0;
 
-        // Calculate top 10 customers by revenue
         $customerRevenue = [];
         foreach ($rows as $row) {
             $name = $row['CustomerName'] ?? 'Unknown';
@@ -160,7 +122,6 @@ class DashboardController extends Controller
         }
         $customers = collect($customerRevenue)->sortDesc()->take(10);
 
-        // Calculate top 10 products by revenue
         $productRevenue = [];
         foreach ($rows as $row) {
             $product = $row['type_unit'] ?? 'Unknown';
@@ -168,7 +129,6 @@ class DashboardController extends Controller
         }
         $products = collect($productRevenue)->sortDesc()->take(10);
 
-        // Return view with all calculated data
         return view('dashboard', [
             'customers'    => $customers,
             'products'     => $products,

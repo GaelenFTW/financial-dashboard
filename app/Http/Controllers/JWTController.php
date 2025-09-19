@@ -3,75 +3,94 @@
 namespace App\Http\Controllers;
 
 use Firebase\JWT\JWT;
+use Firebase\JWT\Key;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use PDO;
 
-class JWTController extends Controller  {
+class JWTController extends Controller
+{
     protected $key;
     protected $apiUrl;
-    protected $pdo;
 
     public function __construct()
     {
-        $this->key = 'TestingdadasJWT123'; // Ensure this matches your .env JWT_SECRET
-        $this->apiUrl = 'http://localhost/index.php';
-        
-        try {
-            $this->pdo = new PDO(
-                "sqlsrv:Server=localhost\\SQLEXPRESS;Database=DataTest",
-                "intern01",
-                "adelard123"
-            );
-            $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-        } catch (\PDOException $e) {
-            Log::error('Database connection failed: ' . $e->getMessage());
-        }
+        $this->key = 'TestingJWT123'; // ideally from .env
+        $this->apiUrl = config('jwt.api_url');
     }
 
-    public function authenticate()
+    public function login($username = 'testuser', $password = 'Test123!')
     {
         try {
-            // Hardcoded test credentials - replace with your actual test user
-            $username = 'testuser';
-            $password = 'Test123!';
+            $loginUrl = str_replace('index.php', 'login.php', $this->apiUrl);
 
-            $stmt = $this->pdo->prepare("SELECT * FROM Logins WHERE username = :username");
-            $stmt->execute(['username' => $username]);
-            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+            $response = Http::withHeaders([
+                'Content-Type' => 'application/json',
+                'Accept' => 'application/json'
+            ])->post($loginUrl, [
+                'username' => $username,
+                'password' => $password
+            ]);
 
-            if (!$user) {
-                Log::error('Authentication failed: User not found');
-                return false;
+            if (!$response->successful()) {
+                Log::error('Login failed: ' . $response->status());
+                return null;
             }
 
-            if (!password_verify($password, $user['password_hash'])) {
-                Log::error('Authentication failed: Invalid password');
-                return false;
+            $data = $response->json();
+            if (!isset($data['token'])) {
+                Log::error('No token in response');
+                return null;
             }
 
-            $token = $this->generateToken($username);
-            session(['api_token' => $token]);
-            
-            Log::info('Authentication successful for user: ' . $username);
-            return true;
+            session(['api_token' => $data['token']]);
+            return $data['token'];
 
         } catch (\Exception $e) {
-            Log::error('Authentication error: ' . $e->getMessage());
-            return false;
+            Log::error('Login error: ' . $e->getMessage());
+            return null;
         }
     }
 
-    protected function generateToken($username)
+    public function getToken()
     {
-        $payload = [
-            "iss" => "localhost",
-            "aud" => "localhost",
-            "iat" => time(),
-            "exp" => time() + 300, // Token valid for 1 hour
-            "user" => $username
-        ];
+        return session('api_token') ?? $this->login();
+    }
 
-        return JWT::encode($payload, $this->key, 'HS256');
+    public function fetchData()
+    {
+        try {
+            $token = $this->getToken();
+            if (!$token) {
+                return ['error' => 'Authentication failed'];
+            }
+
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $token,
+                'Accept' => 'application/json'
+            ])->get($this->apiUrl);
+
+            if ($response->status() === 401) {
+                $token = $this->login();
+                if (!$token) {
+                    return ['error' => 'Authentication failed after retry'];
+                }
+
+                $response = Http::withHeaders([
+                    'Authorization' => 'Bearer ' . $token,
+                    'Accept' => 'application/json'
+                ])->get($this->apiUrl);
+            }
+
+            if (!$response->successful()) {
+                return ['error' => 'API request failed: ' . $response->body()];
+            }
+
+            $data = $response->json();
+            return !empty($data) ? $data : ['error' => 'No data received from API'];
+
+        } catch (\Exception $e) {
+            Log::error('fetchData error: ' . $e->getMessage());
+            return ['error' => 'Failed to fetch data: ' . $e->getMessage()];
+        }
     }
 }
