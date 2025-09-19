@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Firebase\JWT\JWT;
+use Firebase\JWT\ExpiredException;
 use Firebase\JWT\Key;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -14,27 +15,47 @@ class JWTController extends Controller
 
     public function __construct()
     {
-        $this->key = 'TestingJWT123'; // ideally from .env
+        $this->key = 'TestingJWT123';
         $this->apiUrl = config('jwt.api_url');
+    }
+
+    public function generateToken($username)
+    {
+        $payload = [
+            "iss" => "http://localhost",
+            "aud" => "http://localhost",
+            "iat" => time(),
+            "exp" => time()+10,
+            "user" => $username
+        ];
+
+        return JWT::encode($payload, $this->key, 'HS256');
+    }
+
+
+    public function validateToken($token)
+    {
+        try {
+            $decoded = JWT::decode($token, new Key($this->key, 'HS256'));
+            return ['valid' => true, 'expired' => false, 'data' => (array) $decoded];
+        } catch (ExpiredException $e) {
+            return ['valid' => false, 'expired' => true, 'message' => 'Token expired'];
+        } catch (\Exception $e) {
+            return ['valid' => false, 'expired' => false, 'message' => 'Invalid token: ' . $e->getMessage()];
+        }
     }
 
     public function login($username = 'testuser', $password = 'Test123!')
     {
         try {
             $loginUrl = str_replace('index.php', 'login.php', $this->apiUrl);
-
-            $response = Http::withHeaders([
-                'Content-Type' => 'application/json',
-                'Accept' => 'application/json'
-            ])->post($loginUrl, [
-                'username' => $username,
-                'password' => $password
-            ]);
+            $response = Http::post($loginUrl, compact('username', 'password'));
 
             if (!$response->successful()) {
                 Log::error('Login failed: ' . $response->status());
                 return null;
             }
+            
 
             $data = $response->json();
             if (!isset($data['token'])) {
@@ -42,26 +63,43 @@ class JWTController extends Controller
                 return null;
             }
 
-            session(['api_token' => $data['token']]);
             return $data['token'];
 
         } catch (\Exception $e) {
             Log::error('Login error: ' . $e->getMessage());
             return null;
         }
+        
     }
 
     public function getToken()
     {
-        return session('api_token') ?? $this->login();
+        // Option 1: return external API token
+        // return $this->login();
+
+        // Option 2: return custom 10s JWT for testing
+        return $this->generateToken('testuser');
     }
 
+    // Centralized fetch logic
     public function fetchData()
     {
         try {
+            // $token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdCIsImlhdCI6MTc1ODI2OTE0MCwiZXhwIjoxNzU4MjY5MTUwLCJ1c2VyIjoidGVzdHVzZXIifQ.-bQiKZENdi8rhvPJh_1LxtXjnM1pYGbuvBeHTOHVMSw";
             $token = $this->getToken();
+            // echo $token;
             if (!$token) {
                 return ['error' => 'Authentication failed'];
+            }
+
+            $check = $this->validateToken($token);
+            if (!$check['valid']) {
+                if ($check['expired']) {
+                    return ['error' => 'Token expired'];  
+                    // Or refresh if you want: $token = $this->getToken();
+                } else {
+                    return ['error' => $check['message']];
+                }
             }
 
             $response = Http::withHeaders([
@@ -69,8 +107,9 @@ class JWTController extends Controller
                 'Accept' => 'application/json'
             ])->get($this->apiUrl);
 
+            // Retry on expired/invalid token
             if ($response->status() === 401) {
-                $token = $this->login();
+                $token = $this->getToken();
                 if (!$token) {
                     return ['error' => 'Authentication failed after retry'];
                 }

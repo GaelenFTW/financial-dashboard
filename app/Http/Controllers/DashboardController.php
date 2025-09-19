@@ -14,46 +14,12 @@ class DashboardController extends Controller
 
     public function __construct(JWTController $jwtController)
     {
-        $this->apiUrl = config('jwt.api_url');
         $this->jwtController = $jwtController;
     }
 
     protected function getData()
     {
-        try {
-            $token = $this->jwtController->getToken();
-            if (!$token) {
-                return ['error' => 'Authentication failed'];
-            }
-
-            $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $token,
-                'Accept' => 'application/json'
-            ])->get($this->apiUrl);
-
-            if ($response->status() === 401) {
-                $token = $this->jwtController->login();
-                if (!$token) {
-                    return ['error' => 'Authentication failed after retry'];
-                }
-
-                $response = Http::withHeaders([
-                    'Authorization' => 'Bearer ' . $token,
-                    'Accept' => 'application/json'
-                ])->get($this->apiUrl);
-            }
-
-            if (!$response->successful()) {
-                return ['error' => 'API request failed: ' . $response->body()];
-            }
-
-            $data = $response->json();
-            return !empty($data) ? $data : ['error' => 'No data received from API'];
-
-        } catch (\Exception $e) {
-            Log::error('getData error: ' . $e->getMessage());
-            return ['error' => 'Failed to fetch data: ' . $e->getMessage()];
-        }
+        return $this->jwtController->fetchData();
     }
 
     public function index(Request $request)
@@ -64,7 +30,6 @@ class DashboardController extends Controller
             return view('dashboard', ['error' => $rows['error']]);
         }
 
-        // filter + aggregate logic stays the same
         $rows = array_filter($rows, fn($row) => is_array($row));
 
         $rows = array_filter($rows, function ($row) use ($request) {

@@ -12,95 +12,16 @@ class PurchaseLetterController extends Controller
     protected $apiUrl;
     protected $token;
 
-    public function __construct()
+    public function __construct(JWTController $jwtController)
     {
-        $this->apiUrl = config('jwt.api_url');
-        $this->token = null;
-    }
-
-    protected function login()
-    {
-        try {
-            $loginUrl = str_replace('index.php', 'login.php', $this->apiUrl);
-
-            $response = Http::withHeaders([
-                'Content-Type' => 'application/json',
-                'Accept' => 'application/json'
-            ])->post($loginUrl, [
-                'username' => 'testuser',
-                'password' => 'Test123!'
-            ]);
-
-            Log::info('Login response status: ' . $response->status());
-            Log::info('Login response: ' . $response->body());
-
-            if (!$response->successful()) {
-                Log::error('Login failed with status: ' . $response->status());
-                return null;
-            }
-
-            $data = $response->json();
-            if (!isset($data['token'])) {
-                Log::error('No token in response');
-                return null;
-            }
-
-            $this->token = $data['token'];
-            Log::info('Login successful');
-            return $this->token;
-
-        } catch (\Exception $e) {
-            Log::error('Login error: ' . $e->getMessage());
-            return null;
-        }
+        $this->jwtController = $jwtController;
     }
 
     protected function getData()
     {
-        try {
-            // Try to login if no token exists
-            if (!$this->token) {
-                $token = $this->login();
-                if (!$token) {
-                    return ['error' => 'Authentication failed'];
-                }
-            }
-
-            $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $this->token,
-                'Accept' => 'application/json'
-            ])->get($this->apiUrl);
-
-            if (!$response->successful()) {
-                // If token expired, try to login again
-                if ($response->status() === 401) {
-                    $token = $this->login();
-                    if ($token) {
-                        // Retry the request with new token
-                        $response = Http::withHeaders([
-                            'Authorization' => 'Bearer ' . $this->token,
-                            'Accept' => 'application/json'
-                        ])->get($this->apiUrl);
-                    }
-                }
-
-                if (!$response->successful()) {
-                    return ['error' => 'API request failed: ' . $response->body()];
-                }
-            }
-
-            $data = $response->json();
-            if (empty($data)) {
-                return ['error' => 'No data received from API'];
-            }
-
-            return $data;
-
-        } catch (\Exception $e) {
-            Log::error('getData error: ' . $e->getMessage());
-            return ['error' => 'Failed to fetch data: ' . $e->getMessage()];
-        }
+        return $this->jwtController->fetchData();
     }
+
 
     public function chart()
     {
@@ -136,9 +57,7 @@ class PurchaseLetterController extends Controller
             }
         }
 
-        // ✅ Sort months chronologically
         ksort($months);
-
         $labels   = array_keys($months);
         $paid     = array_column($months, 'paid');
         $open     = array_column($months, 'open');
