@@ -19,18 +19,18 @@ class JWTController extends Controller
         $this->apiUrl = config('jwt.api_url');
     }
 
-    public function generateToken($username)
-    {
-        $payload = [
-            "iss" => "http://localhost",
-            "aud" => "http://localhost",
-            "iat" => time(),
-            "exp" => time()+10,
-            "user" => $username
-        ];
+    // public function generateToken($username)
+    // {
+    //     $payload = [
+    //         "iss" => "http://localhost",
+    //         "aud" => "http://localhost",
+    //         "iat" => time(),
+    //         "exp" => time()+10,
+    //         "user" => $username
+    //     ];
 
-        return JWT::encode($payload, $this->key, 'HS256');
-    }
+    //     return JWT::encode($payload, $this->key, 'HS256');
+    // }
 
 
     public function validateToken($token)
@@ -45,7 +45,7 @@ class JWTController extends Controller
         }
     }
 
-    public function login($username = 'testuser', $password = 'Test123!')
+    public function login($username = '123456789', $password = '123456789')
     {
         try {
             $loginUrl = str_replace('index.php', 'login.php', $this->apiUrl);
@@ -74,11 +74,7 @@ class JWTController extends Controller
 
     public function getToken()
     {
-        // Option 1: return external API token
-        // return $this->login();
-
-        // Option 2: return custom 10s JWT for testing
-        return $this->generateToken('testuser');
+        return $this->login();
     }
 
     // Centralized fetch logic
