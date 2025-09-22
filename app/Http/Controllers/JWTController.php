@@ -45,7 +45,7 @@ class JWTController extends Controller
         }
     }
 
-    public function login($username = '123456789', $password = '123456789')
+    public function login($username = '12345678', $password = '12345678')
     {
         try {
             $loginUrl = str_replace('index.php', 'login.php', $this->apiUrl);
