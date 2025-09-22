@@ -38,10 +38,10 @@ class DashboardController extends Controller
             $userAdminId = (int) $user->AdminID; 
             if ($userAdminId !== 0) {
                 $rows = array_filter($rows, function ($row) use ($userAdminId) {
-                    // $rowAdminId = $row['AdminID']
-                    //     ?? $row['adminid']
-                    //     ?? $row['AdminId']
-                    //     ?? null;
+                    $rowAdminId = $row['AdminID']
+                        ?? $row['adminid']
+                        ?? $row['AdminId']
+                        ?? null;
 
                     return (int) $rowAdminId === $userAdminId;
                 });

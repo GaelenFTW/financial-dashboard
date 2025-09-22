@@ -23,10 +23,27 @@ class PurchaseLetterController extends Controller
     }
 
 
+
+    
     public function chart()
     {
         $rows = $this->getData();
         $months = [];
+
+        $user = auth()->user();
+        if ($user) {
+            $userAdminId = (int) $user->AdminID;
+            if ($userAdminId !== 0) {
+                $rows = array_filter($rows, function ($row) use ($userAdminId) {
+                    $rowAdminId = $row['AdminID']
+                        ?? $row['adminid']
+                        ?? $row['AdminId']
+                        ?? null;
+
+                    return (int) $rowAdminId === $userAdminId;
+                });
+            }
+        }
 
         foreach ($rows as $row) {
             $month = null;
@@ -76,6 +93,20 @@ class PurchaseLetterController extends Controller
         $rows = $this->getData();
         $collection = collect($rows);
 
+        $user = auth()->user();
+        if ($user) {
+            $userAdminId = (int) $user->AdminID;
+            if ($userAdminId !== 0) {
+                $collection = $collection->filter(function ($row) use ($userAdminId) {
+                    $rowAdminId = $row['AdminID']
+                        ?? $row['adminid']
+                        ?? $row['AdminId']
+                        ?? null;
+                    return (int) $rowAdminId === $userAdminId;
+                });
+            }
+        }
+        
         // 🔍 Search filter
         $search = $request->get('search');
         if ($search) {
