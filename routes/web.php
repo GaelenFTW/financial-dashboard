@@ -5,6 +5,8 @@ use App\Http\Controllers\PurchaseLetterController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\JWTController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ManagementReportController;
+
 
 // Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 Route::get('/purchase-letters', [PurchaseLetterController::class, 'index'])->middleware('auth')->name('purchase_letters');
@@ -25,4 +27,4 @@ Route::get('/export', [DashboardController::class, 'exportFilteredData'])
 Route::get('/export/customers', [DashboardController::class, 'exportTopCustomers'])->name('export.top.customers');
 Route::get('/export/products', [DashboardController::class, 'exportTopProducts'])->name('export.top.products');
 
-Route::get('/ManagementReport', [DashboardController::class, 'managementReport'])->middleware('auth');
+Route::get('/management-report', [ManagementReportController::class, 'index']);
