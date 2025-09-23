@@ -2,14 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
-    protected $apiUrl;
     protected $jwtController;
 
     public function __construct(JWTController $jwtController)
@@ -17,104 +18,217 @@ class DashboardController extends Controller
         $this->jwtController = $jwtController;
     }
 
-    protected function getData()
+    protected function getData(): array
     {
-        return $this->jwtController->fetchData();
+        $rows = $this->jwtController->fetchData();
+        return is_array($rows) ? $rows : [];
     }
 
     public function index(Request $request)
-{
-    $rows = $this->getData();
+    {
+        $rows = $this->getData();
 
-    if (isset($rows['error'])) {
-        return view('dashboard', ['error' => $rows['error']]);
-    }
+        if (isset($rows['error'])) {
+            return view('dashboard', ['error' => $rows['error']]);
+        }
 
-    $rows = array_filter($rows, fn($row) => is_array($row));
+        $rows = array_values(array_filter($rows, fn($r) => is_array($r)));
 
-    // 🔑 Apply adminid restrictions
+        // adminid filter
         $user = auth()->user();
-        if ($user) {
-            $userAdminId = (int) $user->AdminID; 
-            if ($userAdminId !== 0) {
-                $rows = array_filter($rows, function ($row) use ($userAdminId) {
-                    $rowAdminId = $row['AdminID']
-                        ?? $row['adminid']
-                        ?? $row['AdminId']
-                        ?? null;
-
-                    return (int) $rowAdminId === $userAdminId;
-                });
-            }
+        $userAdminId = $this->resolveUserAdminId($user);
+        if ($user && $userAdminId !== 0) {
+            $rows = array_values(array_filter($rows, function ($row) use ($userAdminId) {
+                $rowAdminId = $row['AdminID'] ?? $row['adminid'] ?? $row['AdminId'] ?? $row['admin_id'] ?? 0;
+                return (int) $rowAdminId === (int) $userAdminId;
+            }));
         }
 
-    $rows = array_filter($rows, function ($row) use ($request) {
-        if ($request->filled('cluster') && strcasecmp($row['Cluster'] ?? '', $request->cluster) !== 0) {
-            return false;
+        // Apply filters (shared function)
+        $rows = $this->applyFilters($rows, $request);
+
+        $totalRevenue = 0;
+        foreach ($rows as $r) {
+            $val = $r['HrgJualTotal'] ?? 0;
+            $totalRevenue += $this->toFloat($val);
         }
-        if ($request->filled('typepembelian')) {
-            $filterValue = strtolower(trim($request->typepembelian));
-            $rowValue    = strtolower(trim($row['TypePembelian'] ?? ''));
-            if (strpos($rowValue, $filterValue) === false) {
-                return false;
-            }
+        $numCustomers = count(array_unique(array_map(fn($r) => $r['CustomerName'] ?? '', $rows)));
+        $productsSold = count($rows);
+        $avgRevenue = $productsSold > 0 ? ($totalRevenue / $productsSold) : 0;
+
+        // Top 10 customers
+        $customerRevenue = [];
+        foreach ($rows as $row) {
+            $name = $row['CustomerName'] ?? 'Unknown';
+            $customerRevenue[$name] = ($customerRevenue[$name] ?? 0) + $this->toFloat($row['HrgJualTotal'] ?? 0);
         }
-        if ($request->filled('customername') && stripos($row['CustomerName'] ?? '', $request->customername) === false) {
-            return false;
+        $customers = collect($customerRevenue)->sortDesc()->take(10);
+
+        // Top 10 products (type_unit)
+        $productRevenue = [];
+        foreach ($rows as $row) {
+            $product = $row['type_unit'] ?? 'Unknown';
+            $productRevenue[$product] = ($productRevenue[$product] ?? 0) + $this->toFloat($row['HrgJualTotal'] ?? 0);
         }
-        if ($request->filled('type_unit') && strcasecmp($row['type_unit'] ?? '', $request->type_unit) !== 0) {
-            return false;
+        $products = collect($productRevenue)->sortDesc()->take(10);
+
+        return view('dashboard', [
+            'customers'    => $customers,
+            'products'     => $products,
+            'totalRevenue' => $totalRevenue,
+            'numCustomers' => $numCustomers,
+            'productsSold' => $productsSold,
+            'avgRevenue'   => $avgRevenue,
+            'filters'      => $request->all(),
+        ]);
+    }
+
+
+    public function exportFilteredData(Request $request)
+    {
+        $rows = $this->getData();
+        $rows = array_values(array_filter($rows, fn($r) => is_array($r)));
+
+        // Admin filter same as index
+        $user = auth()->user();
+        $userAdminId = $this->resolveUserAdminId($user);
+        if ($user && $userAdminId !== 0) {
+            $rows = array_values(array_filter($rows, function ($row) use ($userAdminId) {
+                $rowAdminId = $row['AdminID'] ?? $row['adminid'] ?? $row['AdminId'] ?? $row['admin_id'] ?? 0;
+                return (int) $rowAdminId === (int) $userAdminId;
+            }));
         }
 
-        // Date range filter
-        if ($request->filled('startdate') || $request->filled('enddate')) {
-            $purchaseDate = isset($row['PurchaseDate']) ? strtotime(str_replace('-', '/', $row['PurchaseDate'])) : null;
-            if ($request->filled('startdate')) {
-                $startDate = strtotime($request->startdate);
-                if ($purchaseDate < $startDate) {
-                    return false;
+        $rows = $this->applyFilters($rows, $request);
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+
+        // Columns (same order you requested)
+        $columns = [
+            "No", "purchaseletter_id", "Cluster", "Block", "Unit", "CustomerName", "PurchaseDate", "LunasDate",
+            "is_ppndtp", "persen_ppndtp", "harga_netto", "TotalPPN", "harga_bbnsertifikat", "harga_bajb",
+            "harga_bphtb", "harga_administrasi", "harga_paket_tambahan", "harga_admsubsidi", "biaya_asuransi",
+            "HrgJualTotal", "disc_collection", "HrgJualTotalminDiscColl", "TypePembelian", "bank_induk", "KPP",
+            "JenisKPR", "Salesman", "Member", "tanggal_akad", "persen_progress_bangun", "type_unit",
+            "Amount_Before_Jan_2024", "Piutang_Before_Jan_2024", "Payment_Before_Jan_2024",
+            "Jan_2024_DueDate", "Jan_2024_Type", "Jan_2024_Piutang", "Jan_2024_CairDate", "Jan_2024_Payment",
+            "Feb_2024_DueDate", "Feb_2024_Type", "Feb_2024_Piutang", "Feb_2024_CairDate", "Feb_2024_Payment",
+            "Mar_2024_DueDate", "Mar_2024_Type", "Mar_2024_Piutang", "Mar_2024_CairDate", "Mar_2024_Payment",
+            "Apr_2024_DueDate", "Apr_2024_Type", "Apr_2024_Piutang", "Apr_2024_CairDate", "Apr_2024_Payment",
+            "May_2024_DueDate", "May_2024_Type", "May_2024_Piutang", "May_2024_CairDate", "May_2024_Payment",
+            "Jun_2024_DueDate", "Jun_2024_Type", "Jun_2024_Piutang", "Jun_2024_CairDate", "Jun_2024_Payment",
+            "Jul_2024_DueDate", "Jul_2024_Type", "Jul_2024_Piutang", "Jul_2024_CairDate", "Jul_2024_Payment",
+            "Aug_2024_DueDate", "Aug_2024_Type", "Aug_2024_Piutang", "Aug_2024_CairDate", "Aug_2024_Payment",
+            "Sep_2024_DueDate", "Sep_2024_Type", "Sep_2024_Piutang", "Sep_2024_CairDate", "Sep_2024_Payment",
+            "Oct_2024_DueDate", "Oct_2024_Type", "Oct_2024_Piutang", "Oct_2024_CairDate", "Oct_2024_Payment",
+            "Piutang_After_Oct_2024", "Payment_After_Oct_2024", "YTD_sd_Oct_2024", "YTD_bayar_Oct_2024", "selisih",
+            "dari_1_sampai_30_DP", "dari_31_sampai_60_DP", "dari_61_sampai_90_DP", "diatas_90_DP", "lebih_bayar",
+            "AdminID"
+        ];
+
+        // header row
+        foreach ($columns as $i => $heading) {
+            $col = Coordinate::stringFromColumnIndex($i + 1);
+            $sheet->setCellValue($col . '1', $heading);
+        }
+
+        $rowIndex = 2;
+        $counter = 1;
+        foreach ($rows as $r) {
+            foreach ($columns as $i => $colName) {
+                $col = Coordinate::stringFromColumnIndex($i + 1);
+                if ($colName === 'No') {
+                    $sheet->setCellValue($col . $rowIndex, $counter);
+                } else {
+                    $value = $r[$colName] ?? $r[strtolower($colName)] ?? '';
+                    $sheet->setCellValue($col . $rowIndex, $value);
                 }
             }
-            if ($request->filled('enddate')) {
-                $endDate = strtotime($request->enddate);
-                if ($purchaseDate > $endDate) {
-                    return false;
+            $rowIndex++;
+            $counter++;
+        }
+
+        $fileName = 'dashboard_filtered.xlsx';
+        $writer = new Xlsx($spreadsheet);
+        $tmp = tempnam(sys_get_temp_dir(), 'dash_export_');
+        $writer->save($tmp);
+
+        return response()->download($tmp, $fileName)->deleteFileAfterSend(true);
+    }
+
+    /* ----------------- helpers ----------------- */
+
+    protected function applyFilters(array $rows, Request $request): array
+    {
+        $cluster = $request->query('cluster');
+        $typepembelian = $request->query('typepembelian');
+        $customername = $request->query('customername');
+        $type_unit = $request->query('type_unit');
+        $start = $request->query('startdate');
+        $end = $request->query('enddate');
+
+        return array_values(array_filter($rows, function ($row) use ($cluster, $typepembelian, $customername, $type_unit, $start, $end) {
+            if ($cluster && stripos($row['Cluster'] ?? '', $cluster) === false) return false;
+            if ($typepembelian && stripos($row['TypePembelian'] ?? '', $typepembelian) === false) return false;
+            if ($customername && stripos($row['CustomerName'] ?? '', $customername) === false) return false;
+            if ($type_unit && stripos($row['type_unit'] ?? '', $type_unit) === false) return false;
+
+            if ($start || $end) {
+                $pd = $this->parseDate($row['PurchaseDate'] ?? null);
+                if (!$pd) return false;
+                if ($start) {
+                    $from = Carbon::parse($start)->startOfDay();
+                    if ($pd->lt($from)) return false;
                 }
+                if ($end) {
+                    $to = Carbon::parse($end)->endOfDay();
+                    if ($pd->gt($to)) return false;
+                }
+            }
+
+            return true;
+        }));
+    }
+
+    // Accept dd-mm-yyyy, d/m/Y, Y-m-d, etc.
+    protected function parseDate($raw)
+    {
+        if (!$raw) return null;
+        $raw = trim($raw);
+
+        // Try common formats
+        $formats = ['d-m-Y', 'd/m/Y', 'Y-m-d', 'Y/m/d', 'd-m-Y H:i:s', 'Y-m-d H:i:s'];
+        foreach ($formats as $fmt) {
+            try {
+                $dt = Carbon::createFromFormat($fmt, $raw);
+                if ($dt) return $dt;
+            } catch (\Exception $e) {
             }
         }
 
-        return true;
-    });
-
-    // 📊 Stats
-    $totalRevenue = array_sum(array_column($rows, 'HrgJualTotal'));
-    $numCustomers = count(array_unique(array_column($rows, 'CustomerName')));
-    $productsSold = count($rows);
-    $avgRevenue   = $productsSold > 0 ? $totalRevenue / $productsSold : 0;
-
-    $customerRevenue = [];
-    foreach ($rows as $row) {
-        $name = $row['CustomerName'] ?? 'Unknown';
-        $customerRevenue[$name] = ($customerRevenue[$name] ?? 0) + (float)($row['HrgJualTotal'] ?? 0);
+        $ts = strtotime(str_replace('-', '/', $raw));
+        if ($ts !== false) {
+            return Carbon::createFromTimestamp($ts);
+        }
+        return null;
     }
-    $customers = collect($customerRevenue)->sortDesc()->take(10);
 
-    $productRevenue = [];
-    foreach ($rows as $row) {
-        $product = $row['type_unit'] ?? 'Unknown';
-        $productRevenue[$product] = ($productRevenue[$product] ?? 0) + (float)($row['HrgJualTotal'] ?? 0);
+    protected function toFloat($val)
+    {
+        if ($val === null || $val === '') return 0.0;
+        $s = (string) $val;
+        $s = str_replace(['.', ' '], ['', ''], $s); // remove dots and spaces
+        if (strpos($s, ',') !== false && substr_count($s, ',') === 1) {
+            $s = str_replace(',', '.', $s);
+        }
+        $s = str_replace(',', '.', $s);
+        return (float) $s;
     }
-    $products = collect($productRevenue)->sortDesc()->take(10);
 
-    return view('dashboard', [
-        'customers'    => $customers,
-        'products'     => $products,
-        'totalRevenue' => $totalRevenue,
-        'numCustomers' => $numCustomers,
-        'productsSold' => $productsSold,
-        'avgRevenue'   => $avgRevenue,
-        'filters'      => $request->all(),
-    ]);
-}
-
+    protected function resolveUserAdminId($user)
+    {
+        if (!$user) return 0;
+        return (int) ($user->AdminID ?? $user->adminid ?? $user->AdminId ?? $user->admin_id ?? 0);
+    }
 }

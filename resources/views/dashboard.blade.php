@@ -46,33 +46,41 @@
         </div>
     </div>
 
-    {{-- Filters --}}
-    <form method="GET" action="{{ route('dashboard') }}" class="row g-3 mb-4">
-        <div class="col-md-3">
-            <input type="text" name="cluster" class="form-control" placeholder="Cluster" value="{{ $filters['cluster'] ?? '' }}">
-        </div>
-        <div class="col-md-3">
-            <input type="text" name="typepembelian" class="form-control" placeholder="Type Pembelian" value="{{ $filters['typepembelian'] ?? '' }}">
-        </div>
-        <div class="col-md-3">
-            <input type="text" name="customername" class="form-control" placeholder="Customer Name" value="{{ $filters['customername'] ?? '' }}">
-        </div>
-        <div class="col-md-3">
-            <input type="text" name="type_unit" class="form-control" placeholder="Type Unit" value="{{ $filters['type_unit'] ?? '' }}">
-        </div>
-        <div class="col-md-3">
-            <input type="date" name="startdate" class="form-control" value="{{ $filters['startdate'] ?? '' }}">
-        </div>
-        <div class="col-md-3">
-            <input type="date" name="enddate" class="form-control" value="{{ $filters['enddate'] ?? '' }}">
-        </div>
-        <div class="col-md-3">
-            <button type="submit" class="btn btn-primary w-100">Search</button>
-        </div>
-        <div class="col-md-3">
-            <a href="{{ route('dashboard') }}" class="btn btn-secondary w-100">Reset</a>
-        </div>
-    </form>
+
+
+{{-- Filters --}}
+<form method="GET" action="{{ route('dashboard') }}" class="row g-3 mb-4">
+    <div class="col-md-3">
+        <input type="text" name="cluster" class="form-control" placeholder="Cluster" value="{{ request('cluster') }}">
+    </div>
+    <div class="col-md-3">
+        <input type="text" name="typepembelian" class="form-control" placeholder="Type Pembelian" value="{{ request('typepembelian') }}">
+    </div>
+    <div class="col-md-3">
+        <input type="text" name="customername" class="form-control" placeholder="Customer Name" value="{{ request('customername') }}">
+    </div>
+    <div class="col-md-3">
+        <input type="text" name="type_unit" class="form-control" placeholder="Type Unit" value="{{ request('type_unit') }}">
+    </div>
+    <div class="col-md-3">
+        <input type="date" name="startdate" class="form-control" value="{{ request('startdate') }}">
+    </div>
+    <div class="col-md-3">
+        <input type="date" name="enddate" class="form-control" value="{{ request('enddate') }}">
+    </div>
+
+    <div class="col-md-2">
+        <button type="submit" class="btn btn-primary w-100">Search</button>
+    </div>
+    <div class="col-md-2">
+        <a href="{{ route('dashboard') }}" class="btn btn-secondary w-100">Reset</a>
+    </div>
+
+    <div class="col-md-2">
+        {{-- Export uses current query string so it exports exactly what you're looking at --}}
+        <a href="{{ route('export.filtered', request()->query()) }}" class="btn btn-success w-100">Export to Excel</a>
+    </div>
+</form>
 
     {{-- Top 10 Customers --}}
     <div class="row mt-5">

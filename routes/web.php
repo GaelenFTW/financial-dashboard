@@ -17,3 +17,7 @@ Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login.form
 Route::post('/login', [AuthController::class, 'login'])->name('login')->middleware('guest');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
 
+
+Route::get('/export', [DashboardController::class, 'exportFilteredData'])
+    ->name('export.filtered')
+    ->middleware('auth');
