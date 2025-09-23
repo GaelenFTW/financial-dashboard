@@ -37,7 +37,7 @@ class DashboardController extends Controller
         // adminid filter
         $user = auth()->user();
         $userAdminId = $this->resolveUserAdminId($user);
-        if ($user && $userAdminId !== 0) {
+        if ($user && $userAdminId !== 999) {
             $rows = array_values(array_filter($rows, function ($row) use ($userAdminId) {
                 $rowAdminId = $row['AdminID'] ?? $row['adminid'] ?? $row['AdminId'] ?? $row['admin_id'] ?? 0;
                 return (int) $rowAdminId === (int) $userAdminId;
