@@ -83,80 +83,87 @@
 </form>
 
     {{-- Top 10 Customers --}}
-    <div class="row mt-5">
-        <div class="col-md-6">
-            <div class="card shadow">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0">Top 10 Customers by Revenue</h5>
-                </div>
-                <div class="card-body p-0">
-                    <table class="table table-hover mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Customer</th>
-                                <th>Revenue</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                        @forelse(($customers ?? collect()) as $name => $revenue)
-                            <tr>
-                                <td>{{ $name }}</td>
-                                <td>{{ number_format($revenue, 0) }}</td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="2" class="text-center">No data</td>
-                            </tr>
-                        @endforelse
-                        </tbody>
-                        <tfoot class="table-light">
-                            <tr>
-                                <th>Total</th>
-                                <th>{{ number_format(($customers ?? collect())->sum(), 0) }}</th>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
+<div class="row mt-5">
+    <div class="col-md-6">
+        <div class="card shadow">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Top 10 Customers by Revenue</h5>
+                <a href="{{ route('export.top.customers', request()->all()) }}" class="btn btn-sm btn-success">
+                    Export to Excel
+                </a>
             </div>
-        </div>
-
-        {{-- Top 10 Products --}}
-        <div class="col-md-6">
-            <div class="card shadow">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0">Top 10 Products by Revenue</h5>
-                </div>
-                <div class="card-body p-0">
-                    <table class="table table-hover mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Product</th>
-                                <th>Revenue</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                        @forelse(($products ?? collect()) as $product => $revenue)
-                            <tr>
-                                <td>{{ $product }}</td>
-                                <td>{{ number_format($revenue, 0) }}</td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="2" class="text-center">No data</td>
-                            </tr>
-                        @endforelse
-                        </tbody>
-                        <tfoot class="table-light">
-                            <tr>
-                                <th>Total</th>
-                                <th>{{ number_format(($products ?? collect())->sum(), 0) }}</th>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Customer</th>
+                            <th>Revenue</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @forelse(($customers ?? collect()) as $name => $revenue)
+                        <tr>
+                            <td>{{ $name }}</td>
+                            <td>{{ number_format($revenue, 0) }}</td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="2" class="text-center">No data</td>
+                        </tr>
+                    @endforelse
+                    </tbody>
+                    <tfoot class="table-light">
+                        <tr>
+                            <th>Total</th>
+                            <th>{{ number_format(($customers ?? collect())->sum(), 0) }}</th>
+                        </tr>
+                    </tfoot>
+                </table>
             </div>
         </div>
     </div>
+
+    {{-- Top 10 Products --}}
+    <div class="col-md-6">
+        <div class="card shadow">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Top 10 Products by Revenue</h5>
+                <a href="{{ route('export.top.products', request()->all()) }}" class="btn btn-sm btn-success">
+                    Export to Excel
+                </a>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Product</th>
+                            <th>Revenue</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @forelse(($products ?? collect()) as $product => $revenue)
+                        <tr>
+                            <td>{{ $product }}</td>
+                            <td>{{ number_format($revenue, 0) }}</td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="2" class="text-center">No data</td>
+                        </tr>
+                    @endforelse
+                    </tbody>
+                    <tfoot class="table-light">
+                        <tr>
+                            <th>Total</th>
+                            <th>{{ number_format(($products ?? collect())->sum(), 0) }}</th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
     
     <div class="mb-4 d-flex justify-content-end">
         <a href="{{ url('/purchase-letters') }}" class="btn btn-outline-primary">

@@ -48,10 +48,17 @@ class DashboardController extends Controller
         $rows = $this->applyFilters($rows, $request);
 
         $totalRevenue = 0;
-        foreach ($rows as $r) {
-            $val = $r['HrgJualTotal'] ?? 0;
-            $totalRevenue += $this->toFloat($val);
+       $rows = array_map(function ($row) {
+        if (isset($row['HrgJualTotal'])) {
+            // Remove commas, spaces, etc. then cast to float
+            $row['HrgJualTotal'] = (float) str_replace([',', ' '], '', $row['HrgJualTotal']);
         }
+        return $row;
+    }, $rows);
+
+    // then safe to sum
+        $totalRevenue = array_sum(array_column($rows, 'HrgJualTotal'));
+
         $numCustomers = count(array_unique(array_map(fn($r) => $r['CustomerName'] ?? '', $rows)));
         $productsSold = count($rows);
         $avgRevenue = $productsSold > 0 ? ($totalRevenue / $productsSold) : 0;
@@ -83,7 +90,71 @@ class DashboardController extends Controller
         ]);
     }
 
+//export 10 customers
+    public function exportTopCustomers(Request $request)
+    {
+        $rows = $this->applyFilters($this->getData(), $request);
 
+        $customerRevenue = [];
+        foreach ($rows as $row) {
+            $name = $row['CustomerName'] ?? 'Unknown';
+            $customerRevenue[$name] = ($customerRevenue[$name] ?? 0) + $this->toFloat($row['HrgJualTotal'] ?? 0);
+        }
+        $customers = collect($customerRevenue)->sortDesc()->take(10);
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setCellValue('A1', 'Customer');
+        $sheet->setCellValue('B1', 'Revenue');
+
+        $rowIndex = 2;
+        foreach ($customers as $name => $revenue) {
+            $sheet->setCellValue("A{$rowIndex}", $name);
+            $sheet->setCellValue("B{$rowIndex}", $revenue);
+            $rowIndex++;
+        }
+
+        $fileName = 'top_customers.xlsx';
+        $writer = new Xlsx($spreadsheet);
+        $tmp = tempnam(sys_get_temp_dir(), 'cust_export_');
+        $writer->save($tmp);
+
+        return response()->download($tmp, $fileName)->deleteFileAfterSend(true);
+    }
+
+//export 10 products
+    public function exportTopProducts(Request $request)
+    {
+        $rows = $this->applyFilters($this->getData(), $request);
+
+        $productRevenue = [];
+        foreach ($rows as $row) {
+            $product = $row['type_unit'] ?? 'Unknown';
+            $productRevenue[$product] = ($productRevenue[$product] ?? 0) + $this->toFloat($row['HrgJualTotal'] ?? 0);
+        }
+        $products = collect($productRevenue)->sortDesc()->take(10);
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setCellValue('A1', 'Product');
+        $sheet->setCellValue('B1', 'Revenue');
+
+        $rowIndex = 2;
+        foreach ($products as $product => $revenue) {
+            $sheet->setCellValue("A{$rowIndex}", $product);
+            $sheet->setCellValue("B{$rowIndex}", $revenue);
+            $rowIndex++;
+        }
+
+        $fileName = 'top_products.xlsx';
+        $writer = new Xlsx($spreadsheet);
+        $tmp = tempnam(sys_get_temp_dir(), 'prod_export_');
+        $writer->save($tmp);
+
+        return response()->download($tmp, $fileName)->deleteFileAfterSend(true);
+    }
+
+    //export filtered
     public function exportFilteredData(Request $request)
     {
         $rows = $this->getData();
@@ -157,7 +228,7 @@ class DashboardController extends Controller
         return response()->download($tmp, $fileName)->deleteFileAfterSend(true);
     }
 
-    /* ----------------- helpers ----------------- */
+    //helpers
 
     protected function applyFilters(array $rows, Request $request): array
     {

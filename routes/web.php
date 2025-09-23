@@ -21,3 +21,7 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middl
 Route::get('/export', [DashboardController::class, 'exportFilteredData'])
     ->name('export.filtered')
     ->middleware('auth');
+
+Route::get('/export/customers', [DashboardController::class, 'exportTopCustomers'])->name('export.top.customers');
+Route::get('/export/products', [DashboardController::class, 'exportTopProducts'])->name('export.top.products');
+
