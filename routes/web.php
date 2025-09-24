@@ -27,4 +27,4 @@ Route::get('/export', [DashboardController::class, 'exportFilteredData'])
 Route::get('/export/customers', [DashboardController::class, 'exportTopCustomers'])->name('export.top.customers');
 Route::get('/export/products', [DashboardController::class, 'exportTopProducts'])->name('export.top.products');
 
-Route::get('/management-report', [ManagementReportController::class, 'index']);
+Route::get('/management-report', [ManagementReportController::class, 'index'])->middleware('auth')->name('management.report');
