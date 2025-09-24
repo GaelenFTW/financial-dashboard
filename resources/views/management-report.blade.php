@@ -77,43 +77,45 @@
         
     @endif
 </div>
+
 {{-- Outstanding A/R Table --}}
 @if(isset($outstanding))
 <div class="mt-5">
-    <h4 class="mb-3">A/R Outstanding</h4>
-    <div class="table-responsive">
-        <table class="table table-bordered">
-            <thead>
-                <tr style="background-color:#007bff; color:white;">
-                    <th class="text-center">A/R OUTSTANDING</th>
-                    <th class="text-center">Sudah Jatuh Tempo</th>
-                    <th class="text-center">Belum Jatuh Tempo</th>
-                    <th class="text-center">Total</th>
-                    <th class="text-center">%</th>
+    <h3>Escrow Summary</h3>
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Sudah Jatuh Tempo</th>
+                <th>Belum Jatuh Tempo</th>
+                <th>Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($outstanding as $row)
+                <tr>
+                    <td class="text-end">{{ number_format($row['total'], 0, ',', '.') }}</td>
+                    <td class="text-end">{{ number_format($row['hutang'], 0, ',', '.') }}</td>
+                    <td class="text-end">{{ number_format($row['total'] + $row['hutang'], 0, ',', '.') }}</td>
                 </tr>
-            </thead>
-            <tbody>
-                @foreach($outstanding as $type => $data)
-                    @php
-                        $jatuh = $data['jatuh_tempo'] ?? 0;
-                        $belum = $data['belum_jatuh_tempo'] ?? 0;
-                        $total = $data['total'] ?? 0;
-                        $grandTotal = $outstanding['TOTAL']['total'] ?? 1;
-                        $percent = $grandTotal > 0 ? ($total / $grandTotal) * 100 : 0;
-                    @endphp
-                    <tr class="{{ $type === 'TOTAL' ? 'table-warning fw-bold' : '' }}">
-                        <td>{{ $type }}</td>
-                        <td class="text-end">{{ number_format($jatuh, 0, ',', '.') }}</td>
-                        <td class="text-end">{{ number_format($belum, 0, ',', '.') }}</td>
-                        <td class="text-end">{{ number_format($total, 0, ',', '.') }}</td>
-                        <td class="text-center">{{ number_format($percent, 0) }}%</td>
-                    </tr>
-                @endforeach
-            </tbody>
-        </table>
-    </div>
+            @endforeach
+
+            {{-- Grand Total --}}
+            @php
+                $grandSudah = array_sum(array_column($escrowTotals, 'total'));
+                $grandBelum = array_sum(array_column($escrowTotals, 'hutang'));
+                $grandAll   = $grandSudah + $grandBelum;
+            @endphp
+            <tr class="table-warning fw-bold">
+                <td class="text-end">{{ number_format($grandSudah, 0, ',', '.') }}</td>
+                <td class="text-end">{{ number_format($grandBelum, 0, ',', '.') }}</td>
+                <td class="text-end">{{ number_format($grandAll, 0, ',', '.') }}</td>
+            </tr>
+        </tbody>
+    </table>
 </div>
 @endif
+
+
 
 <style>
     .table th {

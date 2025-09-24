@@ -213,7 +213,7 @@ public function fetchData2()
 public function login3($username = '12345678', $password = '12345678')
 {
     try {
-        $loginUrl = str_replace('escrow.php', 'login.php', $this->apiUrl2);
+        $loginUrl = str_replace('escrow.php', 'login.php', $this->apiUrl3);
         Log::info('login2 URL: ' . $loginUrl);
 
         $response = Http::post($loginUrl, compact('username', 'password'));
@@ -268,7 +268,7 @@ public function fetchData3()
         $response = Http::withHeaders([
             'Authorization' => 'Bearer ' . $token,
             'Accept' => 'application/json'
-        ])->get($this->apiUrl2);
+        ])->get($this->apiUrl3);
 
         // Retry on expired/invalid token
         if ($response->status() === 401) {
@@ -280,7 +280,7 @@ public function fetchData3()
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $token,
                 'Accept' => 'application/json'
-            ])->get($this->apiUrl2);
+            ])->get($this->apiUrl3);
         }
 
         if (!$response->successful()) {
