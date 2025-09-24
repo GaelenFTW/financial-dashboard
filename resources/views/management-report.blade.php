@@ -3,7 +3,6 @@
 @section('content')
 <div class="container-fluid">
     <h2>Purchase Letters - Management Report</h2>
-    <h4 class="mb-4">Monthly & Year To Date Performance Report</h4>
 
     @if(isset($error))
         <div class="alert alert-danger">{{ $error }}</div>
@@ -75,65 +74,46 @@
             </table>
         </div>
 
-        {{-- Summary Cards --}}
-        @if(isset($summary['TOTAL']) && is_array($summary['TOTAL']))
-        <div class="row mt-4">
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header bg-primary text-white">
-                        <h5>Monthly Performance (Mar 2025)</h5>
-                    </div>
-                    <div class="card-body">
-                        @php
-                            $monthlyTotal = $summary['TOTAL'];
-                            $monthlyTotalTarget = (float)($monthlyTotal['monthly_target'] ?? 0);
-                            $monthlyTotalActual = (float)($monthlyTotal['monthly_actual'] ?? 0);
-                            $monthlyOverallPercent = $monthlyTotalTarget > 0 ? ($monthlyTotalActual / $monthlyTotalTarget) * 100 : 0;
-                        @endphp
-                        <p><strong>Target:</strong> {{ number_format($monthlyTotalTarget, 0, ',', '.') }}</p>
-                        <p><strong>Actual:</strong> {{ number_format($monthlyTotalActual, 0, ',', '.') }}</p>
-                        <p><strong>Achievement:</strong> <span class="badge {{ $monthlyOverallPercent >= 100 ? 'bg-success' : ($monthlyOverallPercent >= 80 ? 'bg-warning' : 'bg-danger') }}">{{ number_format($monthlyOverallPercent, 1) }}%</span></p>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header bg-success text-white">
-                        <h5>Year To Date Performance</h5>
-                    </div>
-                    <div class="card-body">
-                        @php
-                            $ytdTotal = $summary['TOTAL'];
-                            $ytdTotalTarget = (float)($ytdTotal['ytd_target'] ?? 0);
-                            $ytdTotalActual = (float)($ytdTotal['ytd_actual'] ?? 0);
-                            $ytdOverallPercent = $ytdTotalTarget > 0 ? ($ytdTotalActual / $ytdTotalTarget) * 100 : 0;
-                        @endphp
-                        <p><strong>Target:</strong> {{ number_format($ytdTotalTarget, 0, ',', '.') }}</p>
-                        <p><strong>Actual:</strong> {{ number_format($ytdTotalActual, 0, ',', '.') }}</p>
-                        <p><strong>Achievement:</strong> <span class="badge {{ $ytdOverallPercent >= 100 ? 'bg-success' : ($ytdOverallPercent >= 80 ? 'bg-warning' : 'bg-danger') }}">{{ number_format($ytdOverallPercent, 1) }}%</span></p>
-                    </div>
-                </div>
-            </div>
-        </div>
-        @endif
-
-        {{-- Debug Info --}}
-        <div class="mt-4">
-            <small class="text-muted">Total records processed: {{ count($rows ?? []) }}</small>
-        </div>
         
-        {{-- Debug: Show data structure (remove this in production) --}}
-        {{-- 
-        <div class="mt-4">
-            <details>
-                <summary>Debug: Data Structure</summary>
-                <pre>{{ print_r($summary, true) }}</pre>
-            </details>
-        </div>
-        --}}
     @endif
 </div>
+{{-- Outstanding A/R Table --}}
+@if(isset($outstanding))
+<div class="mt-5">
+    <h4 class="mb-3">A/R Outstanding</h4>
+    <div class="table-responsive">
+        <table class="table table-bordered">
+            <thead>
+                <tr style="background-color:#007bff; color:white;">
+                    <th class="text-center">A/R OUTSTANDING</th>
+                    <th class="text-center">Sudah Jatuh Tempo</th>
+                    <th class="text-center">Belum Jatuh Tempo</th>
+                    <th class="text-center">Total</th>
+                    <th class="text-center">%</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($outstanding as $type => $data)
+                    @php
+                        $jatuh = $data['jatuh_tempo'] ?? 0;
+                        $belum = $data['belum_jatuh_tempo'] ?? 0;
+                        $total = $data['total'] ?? 0;
+                        $grandTotal = $outstanding['TOTAL']['total'] ?? 1;
+                        $percent = $grandTotal > 0 ? ($total / $grandTotal) * 100 : 0;
+                    @endphp
+                    <tr class="{{ $type === 'TOTAL' ? 'table-warning fw-bold' : '' }}">
+                        <td>{{ $type }}</td>
+                        <td class="text-end">{{ number_format($jatuh, 0, ',', '.') }}</td>
+                        <td class="text-end">{{ number_format($belum, 0, ',', '.') }}</td>
+                        <td class="text-end">{{ number_format($total, 0, ',', '.') }}</td>
+                        <td class="text-center">{{ number_format($percent, 0) }}%</td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
+</div>
+@endif
 
 <style>
     .table th {

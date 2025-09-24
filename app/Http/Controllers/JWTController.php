@@ -20,6 +20,7 @@ class JWTController extends Controller
         $this->key = 'TestingJWT123';
         $this->apiUrl = config('jwt.api_url');
         $this->apiUrl2 = config('jwt.api_url2');
+        $this->apiUrl3 = config('jwt.api_url3');
 
     }
 
@@ -163,6 +164,94 @@ public function fetchData2()
 {
     try {
         $token = $this->getToken2();
+        if (!$token) {
+            return ['error' => 'Authentication failed'];
+        }
+
+        $check = $this->validateToken($token);
+        if (!$check['valid']) {
+            if ($check['expired']) {
+                return ['error' => 'Token expired'];
+            } else {
+                return ['error' => $check['message']];
+            }
+        }
+
+        $response = Http::withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+            'Accept' => 'application/json'
+        ])->get($this->apiUrl2);
+
+        // Retry on expired/invalid token
+        if ($response->status() === 401) {
+            $token = $this->getToken2(); // retry using getToken2
+            if (!$token) {
+                return ['error' => 'Authentication failed after retry'];
+            }
+
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $token,
+                'Accept' => 'application/json'
+            ])->get($this->apiUrl2);
+        }
+
+        if (!$response->successful()) {
+            return ['error' => 'API request failed: ' . $response->body()];
+        }
+
+        $data = $response->json();
+        return !empty($data) ? $data : ['error' => 'No data received from API'];
+
+    } catch (\Exception $e) {
+        Log::error('fetchData2 error: ' . $e->getMessage());
+        return ['error' => 'Failed to fetch data: ' . $e->getMessage()];
+    }
+}
+
+
+    // login2 - same as login but uses index2.php and apiUrl2
+public function login3($username = '12345678', $password = '12345678')
+{
+    try {
+        $loginUrl = str_replace('escrow.php', 'login.php', $this->apiUrl2);
+        Log::info('login2 URL: ' . $loginUrl);
+
+        $response = Http::post($loginUrl, compact('username', 'password'));
+        Log::info('login2 response: ' . $response->body());
+
+        if (!$response->successful()) {
+            Log::error('Login2 failed: ' . $response->status());
+            return null;
+        }
+
+        $data = $response->json();
+        Log::info('login2 decoded data: ' . json_encode($data));
+
+        if (!isset($data['token'])) {
+            Log::error('No token in login2 response');
+            return null;
+        }
+
+        return $data['token'];
+
+    } catch (\Exception $e) {
+        Log::error('Login2 error: ' . $e->getMessage());
+        return null;
+    }
+}
+
+
+// getToken2 - same as getToken but calls login2
+public function getToken3()
+{
+    return $this->login3();
+}
+
+// fetchData2 - same as fetchData but uses getToken2 and apiUrl2
+public function fetchData3()
+{
+    try {
+        $token = $this->getToken3();
         if (!$token) {
             return ['error' => 'Authentication failed'];
         }
