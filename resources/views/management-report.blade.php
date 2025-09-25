@@ -106,7 +106,7 @@
                         @endphp
                         <tr class="{{ $type === 'TOTAL' ? 'table-warning fw-bold' : '' }}">
                             <td class="fw-bold">{{ $type }}</td>
-                            <td class="text-end">{{ number_format($collectionTarget, 0, ',', '.') }}</td>
+                            <td class="text-end">upcoming</td>
                             <td class="text-end">{{ number_format($ytdTarget, 0, ',', '.') }}</td>
                             <td class="text-end">{{ number_format($ytdActual, 0, ',', '.') }}</td>
                             <td class="text-center {{ $ytdStatusColor }}">{{ number_format($ytdPercent, 1) }}%</td>

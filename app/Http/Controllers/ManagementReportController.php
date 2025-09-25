@@ -13,32 +13,14 @@ class ManagementReportController extends Controller
         $this->jwtController = $jwtController;
     }
 
-    protected function getData(): array
-    {
-        $rows = $this->jwtController->fetchData2();
-        return is_array($rows) ? $rows : [];
-    }
-
-    protected function getData3(): array
-    {
-        $rows3 = $this->jwtController->fetchData3();
-        return is_array($rows3) ? $rows3 : [];
-    }
-
-    protected function getData4(): array
-    {
-        $rows4 = $this->jwtController->fetchData4();
-        return is_array($rows4) ? $rows4 : [];
-    }
-
+ 
 
     public function index(Request $request)
     {
-
-    $rows  = $this->getData();
-    $rows3 = $this->getData3();
-    $rows4 = $this->getData4();
-    dd($rows4);
+        $rows  = $this->jwtController->fetchData('api2', ['index2.php', 'login.php']);
+        $rows3 = $this->jwtController->fetchData('api3', ['escrow.php', 'login.php']);
+        $rows4 = $this->jwtController->fetchData('api4', ['target.php', 'login.php']);
+        // dd($rows4);
 
     if (isset($rows['error'])) {
         return view('management-report', ['error' => $rows['error']]);
@@ -142,8 +124,8 @@ class ManagementReportController extends Controller
                 'collectioncash' => 0,
                 'collectioninhouse' => 0,
                 'collectionkpr' => 0,
-                'total_meeting_target' => 0,
-                'monthly_meeting_target' => 0,
+                // 'total_meeting_target' => 0,
+                // 'monthly_meeting_target' => 0,
             ];
         }
 
@@ -166,7 +148,7 @@ class ManagementReportController extends Controller
         $summary[$type]['collectioncash'] += $collectioncash;
         $summary[$type]['collectioninhouse'] += $collectioninhouse;
         $summary[$type]['collectionkpr'] += $collectionkpr;
-        $summary['TOTAL'] = $totals;
+        // $summary['TOTAL'] = $totals;
 
         
         // $summary[$type]['total_meeting_target'] = 0; // will be set later
@@ -191,7 +173,7 @@ class ManagementReportController extends Controller
         $totals['collectioncash'] += $collectioncash;
         $totals['collectioninhouse'] += $collectioninhouse;
         $totals['collectionkpr'] += $collectionkpr;
-        $totals['total_meeting_target'] = $summary['TOTAL']['monthly_meeting_target'];
+        // $totals['total_meeting_target'] = $summary['TOTAL']['monthly_meeting_target'];
 
 
     }
@@ -285,25 +267,24 @@ class ManagementReportController extends Controller
         }
     }
 
-    // After calculating $summary and $collectionTargets
-        foreach ($summary as $type => &$data) {
-        $data['monthly_meeting_target'] = 0;
-    }
-    unset($data);
+foreach ($summary as $type => &$data) {
+    $data['monthly_meeting_target'] = 0;
+}
 
-    foreach ($summary as $type => &$data) {
-        if ($type === 'CASH') {
-            $data['monthly_meeting_target'] = $collectionTargets[$currentMonth]['cash'] ?? 0;
-        } elseif ($type === 'INHOUSE') {
-            $data['monthly_meeting_target'] = $collectionTargets[$currentMonth]['inhouse'] ?? 0;
-        } elseif ($type === 'KPR') {
-            $data['monthly_meeting_target'] = $collectionTargets[$currentMonth]['kpr'] ?? 0;
-        }
+foreach ($summary as $type => &$data) {
+    if ($type === 'CASH') {
+        $data['monthly_meeting_target'] = $collectionTargets[$currentMonth]['cash'] ?? 0;
+    } elseif ($type === 'INHOUSE') {
+        $data['monthly_meeting_target'] = $collectionTargets[$currentMonth]['inhouse'] ?? 0;
+    } elseif ($type === 'KPR') {
+        $data['monthly_meeting_target'] = $collectionTargets[$currentMonth]['kpr'] ?? 0;
     }
-    $summary['TOTAL']['monthly_meeting_target'] = 
-        ($collectionTargets[$currentMonth]['cash'] ?? 0) +
-        ($collectionTargets[$currentMonth]['inhouse'] ?? 0) +
-        ($collectionTargets[$currentMonth]['kpr'] ?? 0);
+}
+$summary['TOTAL']['monthly_meeting_target'] =
+    ($collectionTargets[$currentMonth]['cash'] ?? 0) +
+    ($collectionTargets[$currentMonth]['inhouse'] ?? 0) +
+    ($collectionTargets[$currentMonth]['kpr'] ?? 0);
+
 
 
     // which month to display? use request param or fallback to current month

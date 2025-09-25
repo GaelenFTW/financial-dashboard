@@ -18,15 +18,10 @@ class DashboardController extends Controller
         $this->jwtController = $jwtController;
     }
 
-    protected function getData(): array
-    {
-        $rows = $this->jwtController->fetchData();
-        return is_array($rows) ? $rows : [];
-    }
 
     public function index(Request $request)
     {
-        $rows = $this->getData();
+        $rows  = $this->jwtController->fetchData('api1', ['index.php', 'login.php']);
 
         if (isset($rows['error'])) {
             return view('dashboard', ['error' => $rows['error']]);
