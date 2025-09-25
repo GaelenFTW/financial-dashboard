@@ -1,132 +1,88 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="container-fluid">
+<div class="container">
     <h2>Purchase Letters - Management Report</h2>
 
-    @if(isset($error))
-    <div class="alert alert-danger">{{ $error }}</div>
-    @else
-        {{-- Monthly Table --}}
-        <div class="table-responsive mb-4">
-            <table class="table table-bordered">
-                <thead>
-                    <tr style="background-color: #28a745; color: white;">
-                        <th rowspan="2" class="align-middle text-center" style="width: 150px;">PAYMENT</th>
-                    </tr>
-                    <form method="GET" action="{{ url()->current() }}" class="mb-3">
-                        <label for="month">Select Month:</label>
-                        <select name="month" id="month" onchange="this.form.submit()" class="form-select" style="width: 200px; display:inline-block;">
-                            @foreach(range(1, 12) as $m)
-                                <option value="{{ $m }}" {{ $m == $currentMonth ? 'selected' : '' }}>
-                                    {{ \Carbon\Carbon::create()->month($m)->format('F') }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </form>
+    {{-- Month Selector --}}
+    <form method="GET" action="{{ route('management.report') }}" class="mb-3">
+        <label for="month">Select Month:</label>
+        <select name="month" id="month" onchange="this.form.submit()">
+            @foreach ([
+                1 => 'January', 2 => 'February', 3 => 'March',
+                4 => 'April', 5 => 'May', 6 => 'June',
+                7 => 'July', 8 => 'August', 9 => 'September',
+                10 => 'October', 11 => 'November', 12 => 'December'
+            ] as $num => $label)
+                <option value="{{ $num }}" {{ $currentMonth == $num ? 'selected' : '' }}>
+                    {{ $label }}
+                </option>
+            @endforeach
+        </select>
+    </form>
 
-                    <tr style="background-color: #90ee90; color: black;">
-                        <th class="text-center">TARGET(Based On Meeting)</th>
-                        <th class="text-center">TARGET (Based on Sales)</th>
-                        <th class="text-center">ACTUAL</th>
-                        <th class="text-center">%</th>
-                        <th class="text-center">STATUS</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach($summary as $type => $data)
-                        @php
-                            // Get data based on selected month
-                            if ($currentMonth == 1) {
-                                $monthlyTarget = isset($data['jan_target']) ? (float)$data['jan_target'] : 0;
-                                $monthlyActual = isset($data['jan_actual']) ? (float)$data['jan_actual'] : 0;
-                            } elseif ($currentMonth == 2) {
-                                $monthlyTarget = isset($data['feb_target']) ? (float)$data['feb_target'] : 0;
-                                $monthlyActual = isset($data['feb_actual']) ? (float)$data['feb_actual'] : 0;
-                            } else {
-                                $monthlyTarget = isset($data['mar_target']) ? (float)$data['mar_target'] : 0;
-                                $monthlyActual = isset($data['mar_actual']) ? (float)$data['mar_actual'] : 0;
-                            }
-                            
-                            $monthlyPercent = $monthlyTarget > 0 ? ($monthlyActual / $monthlyTarget) * 100 : 0;
-                            $monthlyStatus = $monthlyPercent >= 100 ? 'ACHIEVED' : ($monthlyPercent >= 80 ? 'ON TRACK' : 'BELOW TARGET');
-                            $monthlyStatusColor = $monthlyPercent >= 100 ? 'text-success' : ($monthlyPercent >= 80 ? 'text-warning' : 'text-danger');
-                            $targets = $collectionTargets[$currentMonth] ?? ['cash' => 0, 'inhouse' => 0, 'kpr' => 0];
-                            
-                            // Get collection target for this payment type and month
-                            $collectionTarget = 0;
-                            if ($type === 'CASH') {
-                                $collectionTarget = $targets['cash'];
-                            } elseif ($type === 'INHOUSE') {
-                                $collectionTarget = $targets['inhouse'];
-                            } elseif ($type === 'KPR') {
-                                $collectionTarget = $targets['kpr'];
-                            } elseif ($type === 'TOTAL') {
-                                $collectionTarget = $targets['cash'] + $targets['inhouse'] + $targets['kpr'];
-                            }
-                        @endphp
-                        <tr class="{{ $type === 'TOTAL' ? 'table-warning fw-bold' : '' }}">
-                            <td class="fw-bold">{{ $type }}</td>
-                            <td class="text-end">{{ number_format($data['monthly_meeting_target'] ?? 0, 0, ',', '.') }}</td>
-                            <td class="text-end">{{ number_format($monthlyTarget, 0, ',', '.') }}</td>
-                            <td class="text-end">{{ number_format($monthlyActual, 0, ',', '.') }}</td>
-                            <td class="text-center {{ $monthlyStatusColor }}">{{ number_format($monthlyPercent, 1) }}%</td>
-                            <td class="text-center {{ $monthlyStatusColor }}">{{ $monthlyStatus }}</td>
-                        </tr>
-                        
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
-
-        {{-- Year to Date Table --}}
-        <div class="table-responsive">
-            <table class="table table-bordered">
-                <thead>
-                    <tr style="background-color: #28a745; color: white;">
-                        <th rowspan="2" class="align-middle text-center" style="width: 150px;">PAYMENT SYSTEM</th>
-                        <th colspan="5" class="text-center">YEAR TO DATE</th>
-                    </tr>
-                    <tr style="background-color: #90ee90; color: black;">
-                        <th class="text-center">TARGET(Based On Meeting)</th>
-                        <th class="text-center">TARGET(Based On Sales)</th>
-                        <th class="text-center">ACTUAL</th>
-                        <th class="text-center">%</th>
-                        <th class="text-center">STATUS</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach($summary as $type => $data)
-                        @php
-                            $ytdTarget = isset($data['ytd_target']) ? (float)$data['ytd_target'] : 0;
-                            $ytdActual = isset($data['ytd_actual']) ? (float)$data['ytd_actual'] : 0;
-                            $ytdPercent = $ytdTarget > 0 ? ($ytdActual / $ytdTarget) * 100 : 0;
-                            $ytdStatus = $ytdPercent >= 100 ? 'ACHIEVED' : ($ytdPercent >= 80 ? 'ON TRACK' : 'BELOW TARGET');
-                            $ytdStatusColor = $ytdPercent >= 100 ? 'text-success' : ($ytdPercent >= 80 ? 'text-warning' : 'text-danger');
-                        @endphp
-                        <tr class="{{ $type === 'TOTAL' ? 'table-warning fw-bold' : '' }}">
-                            <td class="fw-bold">{{ $type }}</td>
-                            <td class="text-end">upcoming</td>
-                            <td class="text-end">{{ number_format($ytdTarget, 0, ',', '.') }}</td>
-                            <td class="text-end">{{ number_format($ytdActual, 0, ',', '.') }}</td>
-                            <td class="text-center {{ $ytdStatusColor }}">{{ number_format($ytdPercent, 1) }}%</td>
-                            <td class="text-center {{ $ytdStatusColor }}">{{ $ytdStatus }}</td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
-    @endif
-</div>
-
-{{-- Aging Table --}}
-@if(isset($summary))
-<div class="mt-5">
-    <h3>AGING</h3>
-    <table class="table table-bordered text-end">
-        <thead class="table-warning text-center">
+    {{-- MONTHLY PERFORMANCE --}}
+    <table class="table table-bordered text-center align-middle">
+        <thead class="table-warning">
             <tr>
-                <th class="text-start">PAYMENT SYSTEM</th>
+                <th>PAYMENT</th>
+                <th>TARGET (Based On Meeting)</th>
+                <th>TARGET (Based on Sales)</th>
+                <th>ACTUAL</th>
+                <th>%</th>
+                <th>STATUS</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach ($monthlyPerformance as $row)
+                <tr>
+                    <td>{{ trim($row['payment']) }}</td>
+                    <td>{{ number_format($row['meeting_target'], 0, ',', '.') }}</td>
+                    <td>{{ number_format($row['sales_target'], 0, ',', '.') }}</td>
+                    <td>{{ number_format($row['actual'], 0, ',', '.') }}</td>
+                    <td>{{ $row['percentage'] }}%</td>
+                    <td class="{{ $row['status'] == 'ACHIEVED' ? 'text-success' : 'text-danger' }}">
+                        {{ $row['status'] }}
+                    </td>
+                </tr>
+            @endforeach
+        </tbody>
+    </table>
+
+    {{-- YEAR TO DATE --}}
+    <table class="table table-bordered text-center align-middle mt-4">
+        <thead class="table-warning">
+            <tr>
+                <th>PAYMENT SYSTEM</th>
+                <th>TARGET (Based On Meeting)</th>
+                <th>TARGET (Based on Sales)</th>
+                <th>ACTUAL</th>
+                <th>%</th>
+                <th>STATUS</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach ($ytdPerformance as $row)
+                <tr>
+                    <td>{{ $row['payment'] }}</td>
+                    <td>{{ $row['meeting_target'] }}</td>
+                    <td>{{ number_format($row['sales_target'], 0, ',', '.') }}</td>
+                    <td>{{ number_format($row['actual'], 0, ',', '.') }}</td>
+                    <td>{{ $row['percentage'] }}%</td>
+                    <td class="{{ $row['status'] == 'ACHIEVED' ? 'text-success' : 'text-danger' }}">
+                        {{ $row['status'] }}
+                    </td>
+                </tr>
+            @endforeach
+        </tbody>
+    </table>
+
+    {{-- AGING --}}
+    <h4 class="mt-4">AGING</h4>
+    <table class="table table-bordered text-center align-middle">
+        <thead class="table-warning">
+            <tr>
+                <th>PAYMENT SYSTEM</th>
                 <th>&lt; 30 DAYS</th>
                 <th>30 - 60 DAYS</th>
                 <th>60 - 90 DAYS</th>
@@ -135,42 +91,33 @@
             </tr>
         </thead>
         <tbody>
-            @foreach($summary as $type => $data)
-                @if($type !== 'TOTAL')
+            @foreach ($aging as $row)
                 <tr>
-                    <td class="text-start">{{ $type }}</td>
-                    <td>{{ number_format($data['less30days'], 0, ',', '.') }}</td>
-                    <td>{{ number_format($data['more31days'], 0, ',', '.') }}</td>
-                    <td>{{ number_format($data['more61days'], 0, ',', '.') }}</td>
-                    <td>{{ number_format($data['more90days'], 0, ',', '.') }}</td>
-                    <td>{{ number_format($data['lebihbayar'], 0, ',', '.') }}</td>
+                    <td>{{ $row['payment'] }}</td>
+                    <td>{{ number_format($row['lt30'], 0, ',', '.') }}</td>
+                    <td>{{ number_format($row['d30_60'], 0, ',', '.') }}</td>
+                    <td>{{ number_format($row['d60_90'], 0, ',', '.') }}</td>
+                    <td>{{ number_format($row['gt90'], 0, ',', '.') }}</td>
+                    <td>{{ number_format($row['lebih_bayar'], 0, ',', '.') }}</td>
                 </tr>
-                @endif
             @endforeach
-
-            {{-- Totals --}}
-            @php $total = $summary['TOTAL']; @endphp
-            <tr class="fw-bold table-warning">
-                <td class="text-start">TOTAL</td>
-                <td>{{ number_format($total['less30days'], 0, ',', '.') }}</td>
-                <td>{{ number_format($total['more31days'], 0, ',', '.') }}</td>
-                <td>{{ number_format($total['more61days'], 0, ',', '.') }}</td>
-                <td>{{ number_format($total['more90days'], 0, ',', '.') }}</td>
-                <td>{{ number_format($total['lebihbayar'], 0, ',', '.') }}</td>
+            <tr class="fw-bold">
+                <td>TOTAL</td>
+                <td>{{ number_format($agingTotals['lt30'], 0, ',', '.') }}</td>
+                <td>{{ number_format($agingTotals['d30_60'], 0, ',', '.') }}</td>
+                <td>{{ number_format($agingTotals['d60_90'], 0, ',', '.') }}</td>
+                <td>{{ number_format($agingTotals['gt90'], 0, ',', '.') }}</td>
+                <td>{{ number_format($agingTotals['lebih_bayar'], 0, ',', '.') }}</td>
             </tr>
         </tbody>
     </table>
-</div>
-@endif
 
-{{-- OUTSTANDING A/R --}}
-@if(isset($outstanding) && count($outstanding) > 0)
-<div class="mt-5">
-    <h3>A/R OUTSTANDING</h3>
-    <table class="table table-bordered text-end align-middle">
-        <thead class="table-light">
+    {{-- A/R OUTSTANDING --}}
+    <h4 class="mt-4">A/R OUTSTANDING</h4>
+    <table class="table table-bordered text-center align-middle">
+        <thead class="table-warning">
             <tr>
-                <th class="text-start">A/R OUTSTANDING</th>
+                <th>A/R OUTSTANDING</th>
                 <th>Sudah jatuh tempo</th>
                 <th>Belum jatuh tempo</th>
                 <th>Total</th>
@@ -178,45 +125,23 @@
             </tr>
         </thead>
         <tbody>
-            @php
-                $grandTotal = $outstanding['TOTAL']['total'] ?? 0;
-            @endphp
-
-            @foreach($outstanding as $key => $row)
-                @if($key !== 'TOTAL')
-                    @php
-                        $jatuh = $row['jatuh_tempo'] ?? 0;
-                        $belum = $row['belum_jatuh_tempo'] ?? 0;
-                        $sum   = $row['total'] ?? 0;
-                        $pct   = $grandTotal > 0 ? round(($sum / $grandTotal) * 100) : 0;
-                    @endphp
-                    <tr>
-                        <td class="text-start fw-bold">{{ $key }}</td>
-                        <td>{{ number_format($jatuh, 0, ',', '.') }}</td>
-                        <td>{{ number_format($belum, 0, ',', '.') }}</td>
-                        <td>{{ number_format($sum, 0, ',', '.') }}</td>
-                        <td>{{ $pct }}%</td>
-                    </tr>
-                @endif
+            @foreach ($outstanding as $row)
+                <tr>
+                    <td>{{ $row['type'] }}</td>
+                    <td>{{ number_format($row['jatuh_tempo'], 0, ',', '.') }}</td>
+                    <td>{{ number_format($row['belum_jatuh_tempo'], 0, ',', '.') }}</td>
+                    <td>{{ number_format($row['total'], 0, ',', '.') }}</td>
+                    <td>{{ $row['percentage'] }}%</td>
+                </tr>
             @endforeach
-
-            {{-- TOTAL row --}}
-            @php
-                $jatuh = $outstanding['TOTAL']['jatuh_tempo'] ?? 0;
-                $belum = $outstanding['TOTAL']['belum_jatuh_tempo'] ?? 0;
-                $sum   = $outstanding['TOTAL']['total'] ?? 0;
-            @endphp
-            <tr class="table-secondary fw-bold">
-                <td class="text-start">TOTAL</td>
-                <td>{{ number_format($jatuh, 0, ',', '.') }}</td>
-                <td>{{ number_format($belum, 0, ',', '.') }}</td>
-                <td>{{ number_format($sum, 0, ',', '.') }}</td>
-                <td>100%</td>
+            <tr class="fw-bold">
+                <td>TOTAL</td>
+                <td>{{ number_format($outstandingTotals['jatuh_tempo'], 0, ',', '.') }}</td>
+                <td>{{ number_format($outstandingTotals['belum_jatuh_tempo'], 0, ',', '.') }}</td>
+                <td>{{ number_format($outstandingTotals['total'], 0, ',', '.') }}</td>
+                <td>{{ $outstandingTotals['percentage'] }}%</td>
             </tr>
         </tbody>
     </table>
 </div>
-@endif
-
-
 @endsection
