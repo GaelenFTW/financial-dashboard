@@ -78,44 +78,52 @@
     @endif
 </div>
 
-{{-- Outstanding A/R Table --}}
-@if(isset($outstanding))
+
+
+
+{{-- Aging Table --}}
+@if(isset($summary))
 <div class="mt-5">
-    <h3>Escrow Summary</h3>
-    <table class="table table-bordered">
-        <thead>
+    <h3>AGING</h3>
+    <table class="table table-bordered text-end">
+        <thead class="table-warning text-center">
             <tr>
-                <th>Sudah Jatuh Tempo</th>
-                <th>Belum Jatuh Tempo</th>
-                <th>Total</th>
+                <th class="text-start">PAYMENT SYSTEM</th>
+                <th>&lt; 30 DAYS</th>
+                <th>30 - 60 DAYS</th>
+                <th>60 - 90 DAYS</th>
+                <th>&gt; 90 DAYS</th>
+                <th>LEBIH BAYAR</th>
             </tr>
         </thead>
         <tbody>
-            @foreach($outstanding as $row)
+            @foreach($summary as $type => $data)
+                @if($type !== 'TOTAL')
                 <tr>
-                    <td class="text-end">{{ number_format($row['total'], 0, ',', '.') }}</td>
-                    <td class="text-end">{{ number_format($row['hutang'], 0, ',', '.') }}</td>
-                    <td class="text-end">{{ number_format($row['total'] + $row['hutang'], 0, ',', '.') }}</td>
+                    <td class="text-start">{{ $type }}</td>
+                    <td>{{ number_format($data['less30days'], 0, ',', '.') }}</td>
+                    <td>{{ number_format($data['more31days'], 0, ',', '.') }}</td>
+                    <td>{{ number_format($data['more61days'], 0, ',', '.') }}</td>
+                    <td>{{ number_format($data['more90days'], 0, ',', '.') }}</td>
+                    <td>{{ number_format($data['lebihbayar'], 0, ',', '.') }}</td>
                 </tr>
+                @endif
             @endforeach
 
-            {{-- Grand Total --}}
-            @php
-                $grandSudah = array_sum(array_column($escrowTotals, 'total'));
-                $grandBelum = array_sum(array_column($escrowTotals, 'hutang'));
-                $grandAll   = $grandSudah + $grandBelum;
-            @endphp
-            <tr class="table-warning fw-bold">
-                <td class="text-end">{{ number_format($grandSudah, 0, ',', '.') }}</td>
-                <td class="text-end">{{ number_format($grandBelum, 0, ',', '.') }}</td>
-                <td class="text-end">{{ number_format($grandAll, 0, ',', '.') }}</td>
+            {{-- Totals --}}
+            @php $total = $summary['TOTAL']; @endphp
+            <tr class="fw-bold table-warning">
+                <td class="text-start">TOTAL</td>
+                <td>{{ number_format($total['less30days'], 0, ',', '.') }}</td>
+                <td>{{ number_format($total['more31days'], 0, ',', '.') }}</td>
+                <td>{{ number_format($total['more61days'], 0, ',', '.') }}</td>
+                <td>{{ number_format($total['more90days'], 0, ',', '.') }}</td>
+                <td>{{ number_format($total['lebihbayar'], 0, ',', '.') }}</td>
             </tr>
         </tbody>
     </table>
 </div>
 @endif
-
-
 
 <style>
     .table th {
