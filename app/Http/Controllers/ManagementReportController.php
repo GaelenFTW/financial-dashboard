@@ -38,10 +38,14 @@ class ManagementReportController extends Controller
     $rows  = $this->getData();
     $rows3 = $this->getData3();
     $rows4 = $this->getData4();
+    dd($rows4);
 
     if (isset($rows['error'])) {
         return view('management-report', ['error' => $rows['error']]);
     }
+
+    $currentMonth = $request->input('month', now()->month);
+
 
     // ---------- helper to parse numbers robustly ----------
     $parseNumber = function($val) {
@@ -85,6 +89,8 @@ class ManagementReportController extends Controller
         'collectioncash' => 0,
         'collectioninhouse' => 0,
         'collectionkpr' => 0,
+        'total_meeting_target' => 0,
+        'monthly_meeting_target' => 0,
     ];
 
     foreach ($rows as $row) {
@@ -136,6 +142,8 @@ class ManagementReportController extends Controller
                 'collectioncash' => 0,
                 'collectioninhouse' => 0,
                 'collectionkpr' => 0,
+                'total_meeting_target' => 0,
+                'monthly_meeting_target' => 0,
             ];
         }
 
@@ -158,6 +166,11 @@ class ManagementReportController extends Controller
         $summary[$type]['collectioncash'] += $collectioncash;
         $summary[$type]['collectioninhouse'] += $collectioninhouse;
         $summary[$type]['collectionkpr'] += $collectionkpr;
+        $summary['TOTAL'] = $totals;
+
+        
+        // $summary[$type]['total_meeting_target'] = 0; // will be set later
+        // $summary[$type]['monthly_meeting_target'] = 0; // will be
 
         // $totals['jan_target'] += $jantarget;
         // $totals['jan_actual'] += $janactual;
@@ -178,6 +191,9 @@ class ManagementReportController extends Controller
         $totals['collectioncash'] += $collectioncash;
         $totals['collectioninhouse'] += $collectioninhouse;
         $totals['collectionkpr'] += $collectionkpr;
+        $totals['total_meeting_target'] = $summary['TOTAL']['monthly_meeting_target'];
+
+
     }
 
     $summary['TOTAL'] = $totals;
@@ -268,6 +284,27 @@ class ManagementReportController extends Controller
             ];
         }
     }
+
+    // After calculating $summary and $collectionTargets
+        foreach ($summary as $type => &$data) {
+        $data['monthly_meeting_target'] = 0;
+    }
+    unset($data);
+
+    foreach ($summary as $type => &$data) {
+        if ($type === 'CASH') {
+            $data['monthly_meeting_target'] = $collectionTargets[$currentMonth]['cash'] ?? 0;
+        } elseif ($type === 'INHOUSE') {
+            $data['monthly_meeting_target'] = $collectionTargets[$currentMonth]['inhouse'] ?? 0;
+        } elseif ($type === 'KPR') {
+            $data['monthly_meeting_target'] = $collectionTargets[$currentMonth]['kpr'] ?? 0;
+        }
+    }
+    $summary['TOTAL']['monthly_meeting_target'] = 
+        ($collectionTargets[$currentMonth]['cash'] ?? 0) +
+        ($collectionTargets[$currentMonth]['inhouse'] ?? 0) +
+        ($collectionTargets[$currentMonth]['kpr'] ?? 0);
+
 
     // which month to display? use request param or fallback to current month
     $currentMonth = $request->input('month', now()->month);

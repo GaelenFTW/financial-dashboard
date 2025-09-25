@@ -240,7 +240,7 @@ public function fetchData2()
 
             // Retry on expired/invalid token
             if ($response->status() === 401) {
-                $token = $this->getToken2(); // retry using getToken2
+                $token = $this->getToken3(); // retry using getToken2
                 if (!$token) {
                     return ['error' => 'Authentication failed after retry'];
                 }
@@ -316,7 +316,7 @@ public function fetchData2()
 
             // Retry on expired/invalid token
             if ($response->status() === 401) {
-                $token = $this->getToken2(); // retry using getToken2
+                $token = $this->getToken4(); // retry using getToken2
                 if (!$token) {
                     return ['error' => 'Authentication failed after retry'];
                 }

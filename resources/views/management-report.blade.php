@@ -36,18 +36,40 @@
                 <tbody>
                     @foreach($summary as $type => $data)
                         @php
-                            $martarget = isset($data['mar_target']) ? (float)$data['mar_target'] : 0;
-                            $maractual = isset($data['mar_actual']) ? (float)$data['mar_actual'] : 0;
-                            $monthlyPercent = $martarget > 0 ? ($maractual / $martarget) * 100 : 0;
+                            // Get data based on selected month
+                            if ($currentMonth == 1) {
+                                $monthlyTarget = isset($data['jan_target']) ? (float)$data['jan_target'] : 0;
+                                $monthlyActual = isset($data['jan_actual']) ? (float)$data['jan_actual'] : 0;
+                            } elseif ($currentMonth == 2) {
+                                $monthlyTarget = isset($data['feb_target']) ? (float)$data['feb_target'] : 0;
+                                $monthlyActual = isset($data['feb_actual']) ? (float)$data['feb_actual'] : 0;
+                            } else {
+                                $monthlyTarget = isset($data['mar_target']) ? (float)$data['mar_target'] : 0;
+                                $monthlyActual = isset($data['mar_actual']) ? (float)$data['mar_actual'] : 0;
+                            }
+                            
+                            $monthlyPercent = $monthlyTarget > 0 ? ($monthlyActual / $monthlyTarget) * 100 : 0;
                             $monthlyStatus = $monthlyPercent >= 100 ? 'ACHIEVED' : ($monthlyPercent >= 80 ? 'ON TRACK' : 'BELOW TARGET');
                             $monthlyStatusColor = $monthlyPercent >= 100 ? 'text-success' : ($monthlyPercent >= 80 ? 'text-warning' : 'text-danger');
                             $targets = $collectionTargets[$currentMonth] ?? ['cash' => 0, 'inhouse' => 0, 'kpr' => 0];
+                            
+                            // Get collection target for this payment type and month
+                            $collectionTarget = 0;
+                            if ($type === 'CASH') {
+                                $collectionTarget = $targets['cash'];
+                            } elseif ($type === 'INHOUSE') {
+                                $collectionTarget = $targets['inhouse'];
+                            } elseif ($type === 'KPR') {
+                                $collectionTarget = $targets['kpr'];
+                            } elseif ($type === 'TOTAL') {
+                                $collectionTarget = $targets['cash'] + $targets['inhouse'] + $targets['kpr'];
+                            }
                         @endphp
                         <tr class="{{ $type === 'TOTAL' ? 'table-warning fw-bold' : '' }}">
                             <td class="fw-bold">{{ $type }}</td>
-                            <td class="text-end">upcoming</td>
-                            <td class="text-end">{{ number_format($martarget, 0, ',', '.') }}</td>
-                            <td class="text-end">{{ number_format($maractual, 0, ',', '.') }}</td>
+                            <td class="text-end">{{ number_format($data['monthly_meeting_target'] ?? 0, 0, ',', '.') }}</td>
+                            <td class="text-end">{{ number_format($monthlyTarget, 0, ',', '.') }}</td>
+                            <td class="text-end">{{ number_format($monthlyActual, 0, ',', '.') }}</td>
                             <td class="text-center {{ $monthlyStatusColor }}">{{ number_format($monthlyPercent, 1) }}%</td>
                             <td class="text-center {{ $monthlyStatusColor }}">{{ $monthlyStatus }}</td>
                         </tr>
@@ -84,7 +106,7 @@
                         @endphp
                         <tr class="{{ $type === 'TOTAL' ? 'table-warning fw-bold' : '' }}">
                             <td class="fw-bold">{{ $type }}</td>
-                            <td class="text-end">upcoming</td>
+                            <td class="text-end">{{ number_format($collectionTarget, 0, ',', '.') }}</td>
                             <td class="text-end">{{ number_format($ytdTarget, 0, ',', '.') }}</td>
                             <td class="text-end">{{ number_format($ytdActual, 0, ',', '.') }}</td>
                             <td class="text-center {{ $ytdStatusColor }}">{{ number_format($ytdPercent, 1) }}%</td>
