@@ -21,15 +21,23 @@ class ManagementReportController extends Controller
 
     protected function getData3(): array
     {
-        $rows2 = $this->jwtController->fetchData3();
-        return is_array($rows2) ? $rows2 : [];
+        $rows3 = $this->jwtController->fetchData3();
+        return is_array($rows3) ? $rows3 : [];
     }
+
+    protected function getData4(): array
+    {
+        $rows4 = $this->jwtController->fetchData4();
+        return is_array($rows4) ? $rows4 : [];
+    }
+
 
     public function index(Request $request)
     {
 
     $rows  = $this->getData();
-    $rows2 = $this->getData3();
+    $rows3 = $this->getData3();
+    $rows4 = $this->getData4();
 
     if (isset($rows['error'])) {
         return view('management-report', ['error' => $rows['error']]);
@@ -41,15 +49,11 @@ class ManagementReportController extends Controller
         $s = (string) $val;
         $s = trim($s);
 
-        // Handle accounting style: (225,224) = -225224
         if (preg_match('/^\(.*\)$/', $s)) {
             $s = '-' . trim($s, '()');
         }
-
-        // Remove thousand separators
         $s = str_replace(',', '', $s);
 
-        // Handle comma/period decimal confusion
         if (strpos($s, '.') !== false && strpos($s, ',') !== false) {
             $s = str_replace('.', '', $s);    
             $s = str_replace(',', '.', $s);   
@@ -57,7 +61,6 @@ class ManagementReportController extends Controller
             $s = str_replace(',', '.', $s);
         }
 
-        // strip any non-digit/period/minus
         $s = preg_replace('/[^0-9\.\-]/', '', $s);
 
         return is_numeric($s) ? (float) $s : 0.0;
@@ -79,6 +82,9 @@ class ManagementReportController extends Controller
         'harganetto'     => 0,
         'paybeforejan2025' => 0,
         'ytdbayarmar2025' => 0,
+        'collectioncash' => 0,
+        'collectioninhouse' => 0,
+        'collectionkpr' => 0,
     ];
 
     foreach ($rows as $row) {
@@ -99,6 +105,9 @@ class ManagementReportController extends Controller
         $harganetto = $parseNumber($row['harga_netto'] ?? 0);
         $paybeforejan2025 = $parseNumber($row['Payment_Before_Jan_2025'] ?? 0);
         $ytdbayarmar2025 = $parseNumber($row['YTD_bayar_Mar_2025'] ?? 0);
+        $collectioncash = $parseNumber($row['collection_target_cash_v'] ?? 0);
+        $collectioninhouse = $parseNumber($row['collection_target_inhouse_v'] ?? 0);
+        $collectionkpr = $parseNumber($row['collection_target_kpr_v'] ?? 0);
 
 
         if (!isset($summary[$type])) {
@@ -115,6 +124,9 @@ class ManagementReportController extends Controller
                 'harganetto'     => 0,
                 'paybeforejan2025' => 0,
                 'ytdbayarmar2025' => 0,
+                'collectioncash' => 0,
+                'collectioninhouse' => 0,
+                'collectionkpr' => 0,
             ];
         }
 
@@ -130,6 +142,9 @@ class ManagementReportController extends Controller
         $summary[$type]['harganetto']     += $harganetto;
         $summary[$type]['paybeforejan2025'] += $paybeforejan2025;
         $summary[$type]['ytdbayarmar2025'] += $ytdbayarmar2025;
+        $summary[$type]['collectioncash'] += $collectioncash;
+        $summary[$type]['collectioninhouse'] += $collectioninhouse;
+        $summary[$type]['collectionkpr'] += $collectionkpr;
 
         $totals['monthly_target'] += $monthlyTarget;
         $totals['monthly_actual'] += $monthlyActual;
@@ -143,6 +158,9 @@ class ManagementReportController extends Controller
         $totals['harganetto']     += $harganetto;
         $totals['paybeforejan2025'] += $paybeforejan2025;
         $totals['ytdbayarmar2025'] += $ytdbayarmar2025;
+        $totals['collectioncash'] += $collectioncash;
+        $totals['collectioninhouse'] += $collectioninhouse;
+        $totals['collectionkpr'] += $collectionkpr;
     }
 
     $summary['TOTAL'] = $totals;
@@ -160,12 +178,10 @@ class ManagementReportController extends Controller
         'total' => 0,
     ];
 
-    // Build escrowTotals (array of rows with keys total & hutang) for Blade
+    // Build escrow
     $escrowTotals = [];
-
-    // ESCROW
-    if (is_array($rows2) && count($rows2) > 0) {
-        foreach ($rows2 as $r) {
+    if (is_array($rows3) && count($rows3) > 0) {
+        foreach ($rows3 as $r) {
             $totalVal  = $parseNumber($r['Total'] ?? $r['total'] ?? 0);
             $hutangVal = $parseNumber($r['Hutang_Yang_Belum_Jatuh_Tempo'] ?? 0);
 
