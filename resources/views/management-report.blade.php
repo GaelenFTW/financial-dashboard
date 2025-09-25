@@ -12,9 +12,19 @@
             <table class="table table-bordered">
                 <thead>
                     <tr style="background-color: #28a745; color: white;">
-                        <th rowspan="2" class="align-middle text-center" style="width: 150px;">PAYMENT SYSTEM</th>
-                        <th colspan="5" class="text-center">MONTHLY (MAR 2025)</th>
+                        <th rowspan="2" class="align-middle text-center" style="width: 150px;">PAYMENT</th>
                     </tr>
+                    <form method="GET" action="{{ url()->current() }}" class="mb-3">
+                        <label for="month">Select Month:</label>
+                        <select name="month" id="month" onchange="this.form.submit()" class="form-select" style="width: 200px; display:inline-block;">
+                            @foreach(range(1, 12) as $m)
+                                <option value="{{ $m }}" {{ $m == $currentMonth ? 'selected' : '' }}>
+                                    {{ \Carbon\Carbon::create()->month($m)->format('F') }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </form>
+
                     <tr style="background-color: #90ee90; color: black;">
                         <th class="text-center">TARGET(Based On Meeting)</th>
                         <th class="text-center">TARGET (Based on Sales)</th>
@@ -26,20 +36,22 @@
                 <tbody>
                     @foreach($summary as $type => $data)
                         @php
-                            $monthlyTarget = isset($data['monthly_target']) ? (float)$data['monthly_target'] : 0;
-                            $monthlyActual = isset($data['monthly_actual']) ? (float)$data['monthly_actual'] : 0;
-                            $monthlyPercent = $monthlyTarget > 0 ? ($monthlyActual / $monthlyTarget) * 100 : 0;
+                            $martarget = isset($data['mar_target']) ? (float)$data['mar_target'] : 0;
+                            $maractual = isset($data['mar_actual']) ? (float)$data['mar_actual'] : 0;
+                            $monthlyPercent = $martarget > 0 ? ($maractual / $martarget) * 100 : 0;
                             $monthlyStatus = $monthlyPercent >= 100 ? 'ACHIEVED' : ($monthlyPercent >= 80 ? 'ON TRACK' : 'BELOW TARGET');
                             $monthlyStatusColor = $monthlyPercent >= 100 ? 'text-success' : ($monthlyPercent >= 80 ? 'text-warning' : 'text-danger');
+                            $targets = $collectionTargets[$currentMonth] ?? ['cash' => 0, 'inhouse' => 0, 'kpr' => 0];
                         @endphp
                         <tr class="{{ $type === 'TOTAL' ? 'table-warning fw-bold' : '' }}">
                             <td class="fw-bold">{{ $type }}</td>
                             <td class="text-end">upcoming</td>
-                            <td class="text-end">{{ number_format($monthlyTarget, 0, ',', '.') }}</td>
-                            <td class="text-end">{{ number_format($monthlyActual, 0, ',', '.') }}</td>
+                            <td class="text-end">{{ number_format($martarget, 0, ',', '.') }}</td>
+                            <td class="text-end">{{ number_format($maractual, 0, ',', '.') }}</td>
                             <td class="text-center {{ $monthlyStatusColor }}">{{ number_format($monthlyPercent, 1) }}%</td>
                             <td class="text-center {{ $monthlyStatusColor }}">{{ $monthlyStatus }}</td>
                         </tr>
+                        
                     @endforeach
                 </tbody>
             </table>

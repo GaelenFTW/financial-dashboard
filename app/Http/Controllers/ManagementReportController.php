@@ -70,8 +70,8 @@ class ManagementReportController extends Controller
     // === SALES SUMMARY (Monthly + YTD) ===
     $summary = [];
     $totals = [
-        'monthly_target' => 0,
-        'monthly_actual' => 0,
+        'mar_target' => 0,
+        'mar_actual' => 0,
         'ytd_target'     => 0,
         'ytd_actual'     => 0,
         'less30days'     => 0,
@@ -93,8 +93,13 @@ class ManagementReportController extends Controller
             continue;
         }
 
-        $monthlyTarget = $parseNumber($row['Mar_2025_Piutang'] ?? 0);
-        $monthlyActual = $parseNumber($row['Mar_2025_Payment'] ?? 0);
+
+        $jantarget = $parseNumber($row['Jan_2025_Piutang'] ?? 0);
+        $janactual = $parseNumber($row['Jan_2025_Payment'] ?? 0);
+        $febtarget = $parseNumber($row['Feb_2025_Piutang'] ?? 0);
+        $febactual = $parseNumber($row['Feb_2025_Payment'] ?? 0);
+        $martarget = $parseNumber($row['Mar_2025_Piutang'] ?? 0);
+        $maractual = $parseNumber($row['Mar_2025_Payment'] ?? 0);
         $ytdTarget     = $parseNumber($row['YTD_sd_Mar_2025'] ?? 0);
         $ytdActual     = $parseNumber($row['YTD_bayar_Mar_2025'] ?? 0);
         $less30days = $parseNumber($row['dari_1_sampai_30_DP'] ?? 0);
@@ -112,8 +117,12 @@ class ManagementReportController extends Controller
 
         if (!isset($summary[$type])) {
             $summary[$type] = [
-                'monthly_target' => 0,
-                'monthly_actual' => 0,
+                'jan_target' => 0,
+                'jan_actual' => 0,
+                'feb_target' => 0,
+                'feb_actual' => 0,
+                'mar_target' => 0,
+                'mar_actual' => 0,
                 'ytd_target'     => 0,
                 'ytd_actual'     => 0,
                 'less30days'     => 0,
@@ -130,8 +139,12 @@ class ManagementReportController extends Controller
             ];
         }
 
-        $summary[$type]['monthly_target'] += $monthlyTarget;
-        $summary[$type]['monthly_actual'] += $monthlyActual;
+        $summary[$type]['jan_target'] += $jantarget;
+        $summary[$type]['jan_actual'] += $janactual;
+        $summary[$type]['feb_target'] += $febtarget;
+        $summary[$type]['feb_actual'] += $febactual;
+        $summary[$type]['mar_target']     += $martarget;
+        $summary[$type]['mar_actual']     += $maractual;
         $summary[$type]['ytd_target']     += $ytdTarget;
         $summary[$type]['ytd_actual']     += $ytdActual;
         $summary[$type]['less30days']     += $less30days;
@@ -146,8 +159,12 @@ class ManagementReportController extends Controller
         $summary[$type]['collectioninhouse'] += $collectioninhouse;
         $summary[$type]['collectionkpr'] += $collectionkpr;
 
-        $totals['monthly_target'] += $monthlyTarget;
-        $totals['monthly_actual'] += $monthlyActual;
+        // $totals['jan_target'] += $jantarget;
+        // $totals['jan_actual'] += $janactual;
+        // $totals['feb_target'] += $febtarget;
+        // $totals['feb_actual'] += $febactual;
+        $totals['mar_target']     += $martarget;
+        $totals['mar_actual']     += $maractual;
         $totals['ytd_target']     += $ytdTarget;
         $totals['ytd_actual']     += $ytdActual;
         $totals['less30days']     += $less30days;
@@ -237,12 +254,33 @@ class ManagementReportController extends Controller
     }
 
 
+    // rows4 contains targetsales data
+    $collectionTargets = [];
+
+    foreach ($rows4 as $row) {
+        $month = (int)($row['bulan'] ?? 0);
+
+        if ($month > 0) {
+            $collectionTargets[$month] = [
+                'cash'    => (float)($row['collection_target_cash_v'] ?? 0),
+                'inhouse' => (float)($row['collection_target_inhouse_v'] ?? 0),
+                'kpr'     => (float)($row['collection_target_kpr_v'] ?? 0),
+            ];
+        }
+    }
+
+    // which month to display? use request param or fallback to current month
+    $currentMonth = $request->input('month', now()->month);
+
     return view('management-report', [
-        'summary' => $summary,
-        'rows' => $rows,
-        'outstanding' => $outstanding,
-        'escrowTotals' => $escrowTotals,
+        'summary'           => $summary,
+        'rows'              => $rows,
+        'outstanding'       => $outstanding,
+        'escrowTotals'      => $escrowTotals,
+        'collectionTargets' => $collectionTargets,
+        'currentMonth'      => $currentMonth,
     ]);
-}
+
+    }
 
 }
