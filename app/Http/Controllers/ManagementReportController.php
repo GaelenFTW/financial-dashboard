@@ -41,14 +41,20 @@ class ManagementReportController extends Controller
         $s = (string) $val;
         $s = trim($s);
 
+        // Handle accounting style: (225,224) = -225224
+        if (preg_match('/^\(.*\)$/', $s)) {
+            $s = '-' . trim($s, '()');
+        }
+
+        // Remove thousand separators
+        $s = str_replace(',', '', $s);
+
+        // Handle comma/period decimal confusion
         if (strpos($s, '.') !== false && strpos($s, ',') !== false) {
             $s = str_replace('.', '', $s);    
             $s = str_replace(',', '.', $s);   
-        } else {
-            // If only comma present -> treat comma as decimal separator
-            if (strpos($s, ',') !== false && strpos($s, '.') === false) {
-                $s = str_replace(',', '.', $s);
-            }
+        } elseif (strpos($s, ',') !== false && strpos($s, '.') === false) {
+            $s = str_replace(',', '.', $s);
         }
 
         // strip any non-digit/period/minus
@@ -56,6 +62,7 @@ class ManagementReportController extends Controller
 
         return is_numeric($s) ? (float) $s : 0.0;
     };
+
 
     // === SALES SUMMARY (Monthly + YTD) ===
     $summary = [];
@@ -69,6 +76,9 @@ class ManagementReportController extends Controller
         'more61days'     => 0,
         'more90days'     => 0,
         'lebihbayar'     => 0,
+        'harganetto'     => 0,
+        'paybeforejan2025' => 0,
+        'ytdbayarmar2025' => 0,
     ];
 
     foreach ($rows as $row) {
@@ -86,6 +96,9 @@ class ManagementReportController extends Controller
         $more61days = $parseNumber($row['dari_61_sampai_90_DP'] ?? 0);
         $more90days = $parseNumber($row['diatas_90_DP'] ?? 0);
         $lebihbayar = abs($parseNumber($row['lebih_bayar'] ?? 0));
+        $harganetto = $parseNumber($row['harga_netto'] ?? 0);
+        $paybeforejan2025 = $parseNumber($row['Payment_Before_Jan_2025'] ?? 0);
+        $ytdbayarmar2025 = $parseNumber($row['YTD_bayar_Mar_2025'] ?? 0);
 
 
         if (!isset($summary[$type])) {
@@ -99,6 +112,9 @@ class ManagementReportController extends Controller
                 'more61days'     => 0,
                 'more90days'     => 0,
                 'lebihbayar'     => 0,
+                'harganetto'     => 0,
+                'paybeforejan2025' => 0,
+                'ytdbayarmar2025' => 0,
             ];
         }
 
@@ -111,6 +127,9 @@ class ManagementReportController extends Controller
         $summary[$type]['more61days']     += $more61days;
         $summary[$type]['more90days']     += $more90days;
         $summary[$type]['lebihbayar']     += $lebihbayar;
+        $summary[$type]['harganetto']     += $harganetto;
+        $summary[$type]['paybeforejan2025'] += $paybeforejan2025;
+        $summary[$type]['ytdbayarmar2025'] += $ytdbayarmar2025;
 
         $totals['monthly_target'] += $monthlyTarget;
         $totals['monthly_actual'] += $monthlyActual;
@@ -121,6 +140,9 @@ class ManagementReportController extends Controller
         $totals['more61days']     += $more61days;
         $totals['more90days']     += $more90days;
         $totals['lebihbayar']     += $lebihbayar;
+        $totals['harganetto']     += $harganetto;
+        $totals['paybeforejan2025'] += $paybeforejan2025;
+        $totals['ytdbayarmar2025'] += $ytdbayarmar2025;
     }
 
     $summary['TOTAL'] = $totals;
@@ -128,8 +150,9 @@ class ManagementReportController extends Controller
     unset($summary['TOTAL']);
     ksort($summary);
     $summary['TOTAL'] = $total;
+    $agingtotal = $total['less30days'] + $total['more31days'] + $total['more61days'] + $total['more90days'];
 
-    // === OUTSTANDING A/R (ESCROW aggregation from rows2) ===
+    // === OUTSTANDING A/R (ESCROW + AGING) ===
     $outstanding = [];
     $outstandingTotals = [
         'jatuh_tempo' => 0,
@@ -140,38 +163,24 @@ class ManagementReportController extends Controller
     // Build escrowTotals (array of rows with keys total & hutang) for Blade
     $escrowTotals = [];
 
+    // ESCROW
     if (is_array($rows2) && count($rows2) > 0) {
         foreach ($rows2 as $r) {
-            // Parse fields from the escrow JSON (case-insensitive fallback)
-            $totalRaw = $r['Total'] ?? $r['total'] ?? 0;
-            $hutangRaw = $r['Hutang_Yang_Belum_Jatuh_Tempo'] ?? $r['Hutang_Yang_Belum_Jatuh_Tempo'] ?? 0;
+            $totalVal  = $parseNumber($r['Total'] ?? $r['total'] ?? 0);
+            $hutangVal = $parseNumber($r['Hutang_Yang_Belum_Jatuh_Tempo'] ?? 0);
 
-            $totalVal = $parseNumber($totalRaw);
-            $hutangVal = $parseNumber($hutangRaw);
-
-            // push into escrowTotals (Blade will iterate this)
             $escrowTotals[] = [
-                'total' => $totalVal,   // Sudah Jatuh Tempo (per your mapping)
-                'hutang' => $hutangVal, // Belum Jatuh Tempo
+                'total'  => $totalVal,   // Sudah Jatuh Tempo
+                'hutang' => $hutangVal,  // Belum Jatuh Tempo
             ];
 
-            // For the outstanding / TOTAL aggregation use ESCROW key
-            $type = 'ESCROW';
-            if (!isset($outstanding[$type])) {
-                $outstanding[$type] = [
-                    'jatuh_tempo' => 0,
-                    'belum_jatuh_tempo' => 0,
-                    'total' => 0,
-                ];
-            }
-
-            $jatuh = $totalVal; 
+            $jatuh = $totalVal;
             $belum = $hutangVal;
-            $sum = $jatuh + $belum;
+            $sum   = $jatuh + $belum;
 
-            $outstanding[$type]['jatuh_tempo'] += $jatuh;
-            $outstanding[$type]['belum_jatuh_tempo'] += $belum;
-            $outstanding[$type]['total'] += $sum;
+            $outstanding['ESCROW']['jatuh_tempo'] = ($outstanding['ESCROW']['jatuh_tempo'] ?? 0) + $jatuh;
+            $outstanding['ESCROW']['belum_jatuh_tempo'] = ($outstanding['ESCROW']['belum_jatuh_tempo'] ?? 0) + $belum;
+            $outstanding['ESCROW']['total'] = ($outstanding['ESCROW']['total'] ?? 0) + $sum;
 
             $outstandingTotals['jatuh_tempo'] += $jatuh;
             $outstandingTotals['belum_jatuh_tempo'] += $belum;
@@ -179,23 +188,38 @@ class ManagementReportController extends Controller
         }
     }
 
-    // Ensure AGING exists so UI shows both rows (optional)
-    if (!isset($outstanding['AGING'])) {
-        $outstanding['AGING'] = [
-            'jatuh_tempo' => 0,
-            'belum_jatuh_tempo' => 0,
-            'total' => 0,
-        ];
+    // === AGING ===
+    if (isset($summary['TOTAL'])) {
+        $agingTotal = 
+            ($summary['TOTAL']['less30days'] ?? 0) +
+            ($summary['TOTAL']['more31days'] ?? 0) +
+            ($summary['TOTAL']['more61days'] ?? 0) +
+            ($summary['TOTAL']['more90days'] ?? 0);
+            // ($summary['TOTAL']['lebihbayar'] ?? 0);
+
+        $belumAging = 
+            ($summary['TOTAL']['harganetto'] ?? 0) -
+            ($summary['TOTAL']['paybeforejan2025'] ?? 0) -
+            ($summary['TOTAL']['ytdbayarmar2025'] ?? 0)-
+            $agingTotal;
+
+        $outstanding['AGING']['jatuh_tempo'] = $agingTotal;
+        $outstanding['AGING']['belum_jatuh_tempo'] = $belumAging;
+        $outstanding['AGING']['total'] = $agingTotal + $belumAging;
+
+        $outstandingTotals['jatuh_tempo'] += $agingTotal;
+        $outstandingTotals['belum_jatuh_tempo'] += $belumAging;
+        $outstandingTotals['total'] += ($agingTotal + $belumAging);
     }
 
+    // === TOTAL row ===
     $outstanding['TOTAL'] = $outstandingTotals;
 
-    // If no escrow rows provided, ensure escrowTotals at least has one row (prevents empty Blade)
+    // Ensure escrowTotals is not empty for Blade
     if (empty($escrowTotals)) {
-        $escrowTotals = [
-            ['total' => 0, 'hutang' => 0],
-        ];
+        $escrowTotals = [['total' => 0, 'hutang' => 0]];
     }
+
 
     return view('management-report', [
         'summary' => $summary,

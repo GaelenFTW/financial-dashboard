@@ -125,6 +125,62 @@
 </div>
 @endif
 
+{{-- OUTSTANDING A/R --}}
+@if(isset($outstanding) && count($outstanding) > 0)
+<div class="mt-5">
+    <h3>A/R OUTSTANDING</h3>
+    <table class="table table-bordered text-end align-middle">
+        <thead class="table-light">
+            <tr>
+                <th class="text-start">A/R OUTSTANDING</th>
+                <th>Sudah jatuh tempo</th>
+                <th>Belum jatuh tempo</th>
+                <th>Total</th>
+                <th>%</th>
+            </tr>
+        </thead>
+        <tbody>
+            @php
+                $grandTotal = $outstanding['TOTAL']['total'] ?? 0;
+            @endphp
+
+            @foreach($outstanding as $key => $row)
+                @if($key !== 'TOTAL')
+                    @php
+                        $jatuh = $row['jatuh_tempo'] ?? 0;
+                        $belum = $row['belum_jatuh_tempo'] ?? 0;
+                        $sum   = $row['total'] ?? 0;
+                        $pct   = $grandTotal > 0 ? round(($sum / $grandTotal) * 100) : 0;
+                    @endphp
+                    <tr>
+                        <td class="text-start fw-bold">{{ $key }}</td>
+                        <td>{{ number_format($jatuh, 0, ',', '.') }}</td>
+                        <td>{{ number_format($belum, 0, ',', '.') }}</td>
+                        <td>{{ number_format($sum, 0, ',', '.') }}</td>
+                        <td>{{ $pct }}%</td>
+                    </tr>
+                @endif
+            @endforeach
+
+            {{-- TOTAL row --}}
+            @php
+                $jatuh = $outstanding['TOTAL']['jatuh_tempo'] ?? 0;
+                $belum = $outstanding['TOTAL']['belum_jatuh_tempo'] ?? 0;
+                $sum   = $outstanding['TOTAL']['total'] ?? 0;
+            @endphp
+            <tr class="table-secondary fw-bold">
+                <td class="text-start">TOTAL</td>
+                <td>{{ number_format($jatuh, 0, ',', '.') }}</td>
+                <td>{{ number_format($belum, 0, ',', '.') }}</td>
+                <td>{{ number_format($sum, 0, ',', '.') }}</td>
+                <td>100%</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+@endif
+
+
 <style>
     .table th {
         vertical-align: middle;
