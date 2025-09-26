@@ -46,10 +46,11 @@
         </div>
     </div>
 
+    <div>.</div>
 
 
 {{-- Filters --}}
-<form method="GET" action="{{ route('dashboard') }}" class="row g-3 mb-4">
+<form method="GET" action="{{ route('dashboard') }}" class="row g-4 mb-4">
     <div class="col-md-3">
         <input type="text" name="cluster" class="form-control" placeholder="Cluster" value="{{ request('cluster') }}">
     </div>
