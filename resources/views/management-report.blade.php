@@ -53,7 +53,7 @@
     <table class="table table-bordered text-center align-middle mt-4">
         <thead class="table-warning">
             <tr>
-                <th>PAYMENT SYSTEM</th>
+                <th>PAYMENT</th>
                 <th>TARGET (Based On Meeting)</th>
                 <th>TARGET (Based on Sales)</th>
                 <th>ACTUAL</th>
@@ -82,7 +82,7 @@
     <table class="table table-bordered text-center align-middle">
         <thead class="table-warning">
             <tr>
-                <th>PAYMENT SYSTEM</th>
+                <th>PAYMENT</th>
                 <th>&lt; 30 DAYS</th>
                 <th>30 - 60 DAYS</th>
                 <th>60 - 90 DAYS</th>

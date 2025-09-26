@@ -215,7 +215,7 @@ class ManagementReportController extends Controller
                 $data['monthly_meeting_target'] = $collectionTargets[$currentMonth]['kpr'] ?? 0;
             }
         }
-        unset($data);
+        // unset($data);
 
         // TOTAL meeting target = sum of the three
         $summary['TOTAL']['monthly_meeting_target'] = (
@@ -275,32 +275,66 @@ class ManagementReportController extends Controller
             : 0.0;
         $monthlyTotalsCalc['status'] = $monthlyTotalsCalc['percentage'] >= 100 ? 'ACHIEVED' : ($monthlyTotalsCalc['percentage'] >= 80 ? 'ON TRACK' : 'BELOW TARGET');
 
-        // YTD Performance rows and totals
+        // === YTD Performance ===
         $ytdPerformance = [];
-        $ytdTotalsCalc = ['meeting_target' => 'upcoming', 'sales_target' => 0, 'actual' => 0];
+        $ytdTotalsCalc = ['meeting_target' => 0, 'sales_target' => 0, 'actual' => 0];
+
         foreach ($types as $type) {
-            $type = strtoupper(trim($type));
-            $ytdSalesTarget = $summary[$type]['ytd_target'] ?? 0;
-            $ytdActual = $summary[$type]['ytd_actual'] ?? 0;
-            $pct = $ytdSalesTarget > 0 ? round(($ytdActual / $ytdSalesTarget) * 100, 1) : 0.0;
-            $status = $pct >= 100 ? 'ACHIEVED' : ($pct >= 80 ? 'ON TRACK' : 'BELOW TARGET');
+        $type = strtoupper(trim($type));
 
-            $ytdPerformance[] = [
-                'payment' => $type,
-                'meeting_target' => 'upcoming',
-                'sales_target' => $ytdSalesTarget,
-                'actual' => $ytdActual,
-                'percentage' => $pct,
-                'status' => $status,
-            ];
+        if ($type === 'TOTAL') {
+            continue;
+        }
 
-            if ($type !== 'TOTAL') {
-                $ytdTotalsCalc['sales_target'] += $ytdSalesTarget;
-                $ytdTotalsCalc['actual'] += $ytdActual;
+        $meetingTarget = 0;
+        for ($m = 1; $m <= $currentMonth; $m++) {
+            if ($type === 'CASH') {
+                $meetingTarget += $collectionTargets[$m]['cash'] ?? 0;
+            } elseif ($type === 'INHOUSE') {
+                $meetingTarget += $collectionTargets[$m]['inhouse'] ?? 0;
+            } elseif ($type === 'KPR') {
+                $meetingTarget += $collectionTargets[$m]['kpr'] ?? 0;
             }
         }
-        $ytdTotalsCalc['percentage'] = $ytdTotalsCalc['sales_target'] > 0 ? round(($ytdTotalsCalc['actual'] / $ytdTotalsCalc['sales_target']) * 100, 1) : 0.0;
-        $ytdTotalsCalc['status'] = $ytdTotalsCalc['percentage'] >= 100 ? 'ACHIEVED' : ($ytdTotalsCalc['percentage'] >= 80 ? 'ON TRACK' : 'BELOW TARGET');
+
+        $ytdSalesTarget = $summary[$type]['ytd_target'] ?? 0;
+        $ytdActual      = $summary[$type]['ytd_actual'] ?? 0;
+
+        $pct = $ytdSalesTarget > 0 ? round(($ytdActual / $ytdSalesTarget) * 100, 1) : 0.0;
+        $status = $pct >= 100 ? 'ACHIEVED' : ($pct >= 80 ? 'ON TRACK' : 'BELOW TARGET');
+
+        $ytdPerformance[] = [
+            'payment'        => $type,
+            'meeting_target' => $meetingTarget,
+            'sales_target'   => $ytdSalesTarget,
+            'actual'         => $ytdActual,
+            'percentage'     => $pct,
+            'status'         => $status,
+        ];
+
+        $ytdTotalsCalc['meeting_target'] += $meetingTarget;
+        $ytdTotalsCalc['sales_target']   += $ytdSalesTarget;
+        $ytdTotalsCalc['actual']         += $ytdActual;
+    }
+
+
+        // Build TOTAL row
+        $ytdTotalsCalc['percentage'] = $ytdTotalsCalc['sales_target'] > 0
+            ? round(($ytdTotalsCalc['actual'] / $ytdTotalsCalc['sales_target']) * 100, 1)
+            : 0.0;
+
+        $ytdTotalsCalc['status'] = $ytdTotalsCalc['percentage'] >= 100
+            ? 'ACHIEVED'
+            : ($ytdTotalsCalc['percentage'] >= 80 ? 'ON TRACK' : 'BELOW TARGET');
+
+        $ytdPerformance[] = [
+            'payment'        => 'TOTAL',
+            'meeting_target' => $ytdTotalsCalc['meeting_target'],
+            'sales_target'   => $ytdTotalsCalc['sales_target'],
+            'actual'         => $ytdTotalsCalc['actual'],
+            'percentage'     => $ytdTotalsCalc['percentage'],
+            'status'         => $ytdTotalsCalc['status'],
+        ];
 
         // AGING rows and totals
         $aging = [];
