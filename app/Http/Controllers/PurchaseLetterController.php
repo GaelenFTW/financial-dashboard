@@ -16,13 +16,10 @@ class PurchaseLetterController extends Controller
     {
         $this->jwtController = $jwtController;
     }
-
-
-
     
     public function chart()
     {
-        $rows  = $this->jwtController->fetchData('api1', ['index.php', 'login.php']);
+        $rows  = $this->jwtController->fetchData1();
         $months = [];
 
         $user = auth()->user();
@@ -85,7 +82,7 @@ class PurchaseLetterController extends Controller
 
     public function index(Request $request)
     {
-        $rows  = $this->jwtController->fetchData('api1', ['index.php', 'login.php']);
+        $rows  = $this->jwtController->fetchData1();
         $collection = collect($rows);
 
         $user = auth()->user();

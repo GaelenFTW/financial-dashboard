@@ -21,7 +21,7 @@ class DashboardController extends Controller
 
     public function index(Request $request)
     {
-        $rows  = $this->jwtController->fetchData('api1', ['index.php', 'login.php']);
+        $rows  = $this->jwtController->fetchData1('api1', ['index.php', 'login.php']);
 
         if (isset($rows['error'])) {
             return view('dashboard', ['error' => $rows['error']]);
@@ -39,7 +39,6 @@ class DashboardController extends Controller
             }));
         }
 
-        // Apply filters (shared function)
         $rows = $this->applyFilters($rows, $request);
 
         $totalRevenue = 0;
@@ -88,8 +87,8 @@ class DashboardController extends Controller
 //export 10 customers
     public function exportTopCustomers(Request $request)
     {
-        $rows = $this->applyFilters($this->getData(), $request);
-
+        $rows = $this->jwtController->fetchData1();
+        $rows = $this->applyFilters($rows, $request);
         $customerRevenue = [];
         foreach ($rows as $row) {
             $name = $row['CustomerName'] ?? 'Unknown';
@@ -120,7 +119,7 @@ class DashboardController extends Controller
 //export 10 products
     public function exportTopProducts(Request $request)
     {
-        $rows = $this->applyFilters($this->getData(), $request);
+        $rows = $this->jwtController->fetchData1();
 
         $productRevenue = [];
         foreach ($rows as $row) {
@@ -152,7 +151,7 @@ class DashboardController extends Controller
     //export filtered
     public function exportFilteredData(Request $request)
     {
-        $rows = $this->getData();
+        $rows = $this->jwtController->fetchData1();
         $rows = array_values(array_filter($rows, fn($r) => is_array($r)));
 
         // Admin filter same as index
