@@ -6,6 +6,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\JWTController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ManagementReportController;
+use App\Http\Controllers\ExcelUploadController;
 
 
 // Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
@@ -28,3 +29,5 @@ Route::get('/export/customers', [DashboardController::class, 'exportTopCustomers
 Route::get('/export/products', [DashboardController::class, 'exportTopProducts'])->name('export.top.products');
 
 Route::get('/management-report', [ManagementReportController::class, 'index'])->middleware('auth')->name('management.report');
+
+Route::get('/excel-upload',);
