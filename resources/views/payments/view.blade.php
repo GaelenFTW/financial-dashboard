@@ -8,6 +8,7 @@
         <thead>
             <tr>
                 <th>ID</th>
+                <th>Customer Name</th>
                 <th>Amount Before</th>
                 <th>Piutang Before</th>
                 <th>Payment Before</th>
@@ -24,6 +25,7 @@
             @foreach($payments as $p)
             <tr>
                 <td>{{ $p->id }}</td>
+                <td>{{ $p->CustomerName }}</td>
                 <td>{{ $p->Amount_Before_01_tahun }}</td>
                 <td>{{ $p->Piutang_Before_01_tahun }}</td>
                 <td>{{ $p->Payment_Before_01_tahun }}</td>
@@ -39,6 +41,6 @@
         </tbody>
     </table>
 
-    {{ $payments->links() }}
+{{ $payments->links('pagination::bootstrap-5') }}
 </div>
 @endsection

@@ -1,20 +1,38 @@
 <?php
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
 class PurchasePayment extends Model
 {
+    protected $table = 'purchase_payments';
+
     protected $fillable = [
-        'Amount_Before_01_tahun','Piutang_Before_01_tahun','Payment_Before_01_tahun',
-        'tahun01_DueDate','tahun01_Type','tahun01_Piutang','tahun01_CairDate','tahun01_Payment',
-        'tahun02_DueDate','tahun02_Type','tahun02_Piutang','tahun02_CairDate','tahun02_Payment',
-        'tahun03_DueDate','tahun03_Type','tahun03_Piutang','tahun03_CairDate','tahun03_Payment',
-        'tahun04_DueDate','tahun04_Type','tahun04_Piutang','tahun04_CairDate','tahun04_Payment',
-        'tahun05_DueDate','tahun05_Type','tahun05_Piutang','tahun05_CairDate','tahun05_Payment',
-        'Piutang_After_05_tahun','Payment_After_05_tahun','YTD_sd_05_tahun','YTD_bayar_05_tahun',
-        'tahun06_DueDate','tahun06_Type','tahun06_Piutang','tahun06_CairDate','tahun06_Payment',
-        'tahun07_DueDate','tahun07_Type','tahun07_Piutang','tahun07_CairDate','tahun07_Payment',
-        'selisih','dari_1_sampai_30_DP','dari_31_sampai_60_DP','dari_61_sampai_90_DP','diatas_90_DP','lebih_bayar'
+        'No', 'purchaseletter_id', 'is_reportcashin', 'Cluster', 'Block', 'Unit',
+        'CustomerName', 'PurchaseDate', 'LunasDate', 'is_ppndtp', 'persen_ppndtp',
+        'harga_netto', 'TotalPPN', 'harga_bbnsertifikat', 'harga_bajb', 'harga_bphtb',
+        'harga_administrasi', 'harga_paket_tambahan', 'harga_admsubsidi', 'biaya_asuransi',
+        'HrgJualTotal', 'disc_collection', 'HrgJualTotalminDiscColl', 'TypePembelian',
+        'bank_induk', 'KPP', 'JenisKPR', 'Salesman', 'Member', 'tanggal_akad',
+        'persen_progress_bangun', 'type_unit',
+        'Amount_Before_01_tahun', 'Piutang_Before_01_tahun', 'Payment_Before_01_tahun',
+        'Piutang_After_05_tahun', 'Payment_After_05_tahun', 'YTD_sd_05_tahun', 'YTD_bayar_05_tahun',
+        'selisih', 'dari_1_sampai_30_DP', 'dari_31_sampai_60_DP', 'dari_61_sampai_90_DP',
+        'diatas_90_DP', 'lebih_bayar',
     ];
+
+    // Dynamically add tahun fields (01-07)
+    public function __construct(array $attributes = [])
+    {
+        parent::__construct($attributes);
+
+        for ($i = 1; $i <= 7; $i++) {
+            $this->fillable[] = str_pad($i, 2, '0', STR_PAD_LEFT) . '_tahun_DueDate';
+            $this->fillable[] = str_pad($i, 2, '0', STR_PAD_LEFT) . '_tahun_Type';
+            $this->fillable[] = str_pad($i, 2, '0', STR_PAD_LEFT) . '_tahun_Piutang';
+            $this->fillable[] = str_pad($i, 2, '0', STR_PAD_LEFT) . '_tahun_CairDate';
+            $this->fillable[] = str_pad($i, 2, '0', STR_PAD_LEFT) . '_tahun_Payment';
+        }
+    }
 }

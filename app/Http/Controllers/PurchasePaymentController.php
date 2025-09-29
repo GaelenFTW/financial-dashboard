@@ -5,9 +5,12 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\PurchasePayment;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
+use Carbon\Carbon;
 
 class PurchasePaymentController extends Controller
 {
+
     public function uploadForm()
     {
         return view('payments.upload');
@@ -24,11 +27,18 @@ class PurchasePaymentController extends Controller
         $sheet = $spreadsheet->getActiveSheet();
         $rows = $sheet->toArray(null, true, true, true);
 
-        // Mapping Excel headers -> DB columns
+        if (empty($rows)) {
+            return back()->with('error', 'Excel file is empty!');
+        }
+
+        // ✅ First row = headers
+        $headers = array_shift($rows);
+
+        // ✅ Mapping Excel header -> DB column
         $mapping = [
-            'Amount_Before_01_tahun' => 'Amount_Before_01_tahun',
-            'Piutang_Before_01_tahun' => 'Piutang_Before_01_tahun',
-            'Payment_Before_01_tahun' => 'Payment_Before_01_tahun',
+            'Amount_Before_01_tahun'   => 'Amount_Before_01_tahun',
+            'Piutang_Before_01_tahun'  => 'Piutang_Before_01_tahun',
+            'Payment_Before_01_tahun'  => 'Payment_Before_01_tahun',
 
             '01_tahun_DueDate' => 'tahun01_DueDate',
             '01_tahun_Type'    => 'tahun01_Type',
@@ -77,38 +87,70 @@ class PurchasePaymentController extends Controller
             '07_tahun_CairDate'=> 'tahun07_CairDate',
             '07_tahun_Payment' => 'tahun07_Payment',
 
-            'selisih' => 'selisih',
-            'dari_1_sampai_30_DP' => 'dari_1_sampai_30_DP',
-            'dari_31_sampai_60_DP' => 'dari_31_sampai_60_DP',
-            'dari_61_sampai_90_DP' => 'dari_61_sampai_90_DP',
-            'diatas_90_DP' => 'diatas_90_DP',
-            'lebih_bayar' => 'lebih_bayar',
+            'selisih'               => 'selisih',
+            'dari_1_sampai_30_DP'   => 'dari_1_sampai_30_DP',
+            'dari_31_sampai_60_DP'  => 'dari_31_sampai_60_DP',
+            'dari_61_sampai_90_DP'  => 'dari_61_sampai_90_DP',
+            'diatas_90_DP'          => 'diatas_90_DP',
+            'lebih_bayar'           => 'lebih_bayar',
         ];
 
-        // First row = headers
-        $headers = $rows[1];
-        unset($rows[1]);
-
         foreach ($rows as $row) {
+            $rowData = [];
+
+            // ✅ Convert row values into "header => value"
+            foreach ($headers as $col => $headerName) {
+                $rowData[$headerName] = $row[$col] ?? null;
+            }
+
+            // ✅ Must have purchaseletter_id
+            $purchaseLetterId = $rowData['purchaseletter_id'] ?? null;
+            if (empty($purchaseLetterId)) {
+                continue;
+            }
+
             $data = [];
             foreach ($mapping as $excelKey => $dbKey) {
-                // Find which column matches
-                $colIndex = array_search($excelKey, $headers);
-                if ($colIndex !== false) {
-                    $data[$dbKey] = $row[$colIndex] ?? null;
+                $value = $rowData[$excelKey] ?? null;
+
+                // ✅ Handle dates
+                if (str_contains($dbKey, 'Date') && !empty($value)) {
+                    try {
+                        if (is_numeric($value)) {
+                            $date = ExcelDate::excelToDateTimeObject($value);
+                            $value = Carbon::instance($date)->format('Y-m-d');
+                        } else {
+                            $value = Carbon::parse($value)->format('Y-m-d');
+                        }
+                    } catch (\Exception $e) {
+                        $value = null;
+                    }
                 }
+
+                $data[$dbKey] = $value;
             }
-            if (!empty($data)) {
-                PurchasePayment::create($data);
-            }
+
+            // ✅ Save to DB (avoid duplicates)
+            PurchasePayment::updateOrCreate(
+                ['purchaseletter_id' => $purchaseLetterId],
+                $data
+            );
         }
 
         return redirect()->route('payments.view')->with('success', 'Excel imported!');
     }
 
+
     public function view()
     {
         $payments = PurchasePayment::latest()->paginate(20);
         return view('payments.view', compact('payments'));
+    }
+
+
+    public function reset()
+    {
+        PurchasePayment::truncate();
+        return back()->with('success', 'Payments table reset!');
     }
 }
