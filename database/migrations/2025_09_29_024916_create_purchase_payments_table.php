@@ -44,32 +44,35 @@ return new class extends Migration
             $table->decimal('persen_progress_bangun', 10, 2)->nullable();
             $table->string('type_unit')->nullable();
 
-            // Pre & Post tahun fields
-            $table->decimal('Amount_Before_01_tahun', 20, 2)->nullable();
-            $table->decimal('Piutang_Before_01_tahun', 20, 2)->nullable();
-            $table->decimal('Payment_Before_01_tahun', 20, 2)->nullable();
+            // Pre-period
+            $table->decimal('Amount_Before_Jan_2025', 20, 2)->nullable();
+            $table->decimal('Piutang_Before_Jan_2025', 20, 2)->nullable();
+            $table->decimal('Payment_Before_Jan_2025', 20, 2)->nullable();
 
-            // Tahun 01 - 07 fields
-            for ($i = 1; $i <= 7; $i++) {
-                $table->date(str_pad($i, 2, '0', STR_PAD_LEFT) . '_tahun_DueDate')->nullable();
-                $table->string(str_pad($i, 2, '0', STR_PAD_LEFT) . '_tahun_Type')->nullable();
-                $table->decimal(str_pad($i, 2, '0', STR_PAD_LEFT) . '_tahun_Piutang', 20, 2)->nullable();
-                $table->date(str_pad($i, 2, '0', STR_PAD_LEFT) . '_tahun_CairDate')->nullable();
-                $table->decimal(str_pad($i, 2, '0', STR_PAD_LEFT) . '_tahun_Payment', 20, 2)->nullable();
+            // Example for Jan–Jun 2025
+            $months = ['Jan_2025','Feb_2025','Mar_2025','Apr_2025','May_2025','Jun_2025'];
+            foreach ($months as $m) {
+                $table->date("{$m}_DueDate")->nullable();
+                $table->string("{$m}_Type")->nullable();
+                $table->decimal("{$m}_Piutang", 20, 2)->nullable();
+                $table->date("{$m}_CairDate")->nullable();
+                $table->decimal("{$m}_Payment", 20, 2)->nullable();
             }
 
-            $table->decimal('Piutang_After_05_tahun', 20, 2)->nullable();
-            $table->decimal('Payment_After_05_tahun', 20, 2)->nullable();
-            $table->decimal('YTD_sd_05_tahun', 20, 2)->nullable();
-            $table->decimal('YTD_bayar_05_tahun', 20, 2)->nullable();
+            // After June
+            $table->decimal('Piutang_After_Jun_2025', 20, 2)->nullable();
+            $table->decimal('Payment_After_Jun_2025', 20, 2)->nullable();
+            $table->decimal('YTD_sd_Jun_2025', 20, 2)->nullable();
+            $table->decimal('YTD_bayar_Jun_2025', 20, 2)->nullable();
 
+            // Other helper columns
             $table->decimal('selisih', 20, 2)->nullable();
             $table->decimal('dari_1_sampai_30_DP', 20, 2)->nullable();
             $table->decimal('dari_31_sampai_60_DP', 20, 2)->nullable();
             $table->decimal('dari_61_sampai_90_DP', 20, 2)->nullable();
             $table->decimal('diatas_90_DP', 20, 2)->nullable();
             $table->decimal('lebih_bayar', 20, 2)->nullable();
-            $table->int('helper_tahun')->nullable();
+            $table->integer('helper_tahun')->nullable();
 
             $table->timestamps();
         });

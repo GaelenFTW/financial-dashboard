@@ -19,6 +19,12 @@
                 <th>05 Tahun Payment</th>
                 <th>YTD Bayar</th>
                 <th>Lebih Bayar</th>
+
+                {{-- new columns --}}
+                <th>Piutang After</th>
+                <th>Payment After</th>
+                <th>YTD sd</th>
+                <th>YTD Bayar (After)</th>
             </tr>
         </thead>
         <tbody>
@@ -36,11 +42,17 @@
                 <td>{{ $p->tahun05_Payment }}</td>
                 <td>{{ $p->YTD_bayar_05_tahun }}</td>
                 <td>{{ $p->lebih_bayar }}</td>
+
+                {{-- new fields --}}
+                <td>{{ $p->Piutang_After_Jun_2025 ?? '-' }}</td>
+                <td>{{ $p->Payment_After_Jun_2025 ?? '-' }}</td>
+                <td>{{ $p->YTD_sd_Jun_2025 ?? '-' }}</td>
+                <td>{{ $p->YTD_bayar_Jun_2025 ?? '-' }}</td>
             </tr>
             @endforeach
         </tbody>
     </table>
 
-{{ $payments->links('pagination::bootstrap-5') }}
+    {{ $payments->links('pagination::bootstrap-5') }}
 </div>
 @endsection

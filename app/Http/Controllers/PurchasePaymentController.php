@@ -79,41 +79,37 @@ class PurchasePaymentController extends Controller
 
 
     protected function generateMonthColumns($endDate, $data)
-    {
-        $columns = [];
-        $targetDate = Carbon::parse($endDate);
-        $monthIndex = 1;
+{
+    $columns = [];
+    $targetDate = Carbon::parse($endDate);
 
-        // Generate columns from month 1 up to the target month
-        $currentDate = Carbon::parse($targetDate)->startOfMonth();
-        
-        while ($monthIndex <= $targetDate->month || ($monthIndex <= 12 && $targetDate->month == 12)) {
-            $monthKey = str_pad($monthIndex, 2, '0', STR_PAD_LEFT);
-            
-            $columns["{$monthKey}_tahun_DueDate"] = $this->parseDate($data["{$monthKey}_tahun_DueDate"] ?? null);
-            $columns["{$monthKey}_tahun_Type"] = $data["{$monthKey}_tahun_Type"] ?? null;
-            $columns["{$monthKey}_tahun_Piutang"] = $this->toFloat($data["{$monthKey}_tahun_Piutang"] ?? null);
-            $columns["{$monthKey}_tahun_CairDate"] = $this->parseDate($data["{$monthKey}_tahun_CairDate"] ?? null);
-            $columns["{$monthKey}_tahun_Payment"] = $this->toFloat($data["{$monthKey}_tahun_Payment"] ?? null);
-            
-            // Only add YTD columns for the last month
-            if ($monthIndex == $targetDate->month) {
-                $columns["Piutang_After_{$monthKey}_tahun"] = $this->toFloat($data["Piutang_After_{$monthKey}_tahun"] ?? null);
-                $columns["Payment_After_{$monthKey}_tahun"] = $this->toFloat($data["Payment_After_{$monthKey}_tahun"] ?? null);   
-                $columns["YTD_sd_{$monthKey}_tahun"] = $this->toFloat($data["YTD_sd_{$monthKey}_tahun"] ?? null);
-                $columns["YTD_bayar_{$monthKey}_tahun"] = $this->toFloat($data["YTD_bayar_{$monthKey}_tahun"] ?? null);
-            }
-            
-            $monthIndex++;
-            
-            // Stop at the target month
-            if ($monthIndex > $targetDate->month) {
-                break;
-            }
+    // Start from January of the target year
+    $currentDate = Carbon::create($targetDate->year, 1, 1);
+
+    while ($currentDate->lte($targetDate)) {
+        $monthYear = $currentDate->format('M_Y'); // e.g. Jan_2025
+
+        // Map Excel columns
+        $columns["{$monthYear}_DueDate"]  = $this->parseDate($data["{$monthYear}_DueDate"] ?? null);
+        $columns["{$monthYear}_Type"]     = $data["{$monthYear}_Type"] ?? null;
+        $columns["{$monthYear}_Piutang"]  = $this->toFloat($data["{$monthYear}_Piutang"] ?? null);
+        $columns["{$monthYear}_CairDate"] = $this->parseDate($data["{$monthYear}_CairDate"] ?? null);
+        $columns["{$monthYear}_Payment"]  = $this->toFloat($data["{$monthYear}_Payment"] ?? null);
+
+        // Add YTD / After columns only for the final month
+        if ($currentDate->month == $targetDate->month) {
+            $columns["Piutang_After_{$monthYear}"] = $this->toFloat($data["Piutang_After_{$monthYear}"] ?? null);
+            $columns["Payment_After_{$monthYear}"] = $this->toFloat($data["Payment_After_{$monthYear}"] ?? null);
+            $columns["YTD_sd_{$monthYear}"]        = $this->toFloat($data["YTD_sd_{$monthYear}"] ?? null);
+            $columns["YTD_bayar_{$monthYear}"]     = $this->toFloat($data["YTD_bayar_{$monthYear}"] ?? null);
         }
 
-        return $columns;
+        $currentDate->addMonth();
     }
+
+    return $columns;
+}
+
 
     public function upload(Request $request)
 {
