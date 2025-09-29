@@ -69,6 +69,7 @@ return new class extends Migration
             $table->decimal('dari_61_sampai_90_DP', 20, 2)->nullable();
             $table->decimal('diatas_90_DP', 20, 2)->nullable();
             $table->decimal('lebih_bayar', 20, 2)->nullable();
+            $table->int('helper_tahun')->nullable();
 
             $table->timestamps();
         });
