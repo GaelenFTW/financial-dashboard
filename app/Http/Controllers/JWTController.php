@@ -21,6 +21,7 @@ class JWTController extends Controller
             'api2' => config('jwt.api_url2'),
             'api3' => config('jwt.api_url3'),
             'api4' => config('jwt.api_url4'),
+            'api5' => config('jwt.api_url5'),
         ];
     }
 
@@ -106,4 +107,5 @@ class JWTController extends Controller
     public function fetchData2() { return $this->fetchData('api2', ['index2.php', 'login.php']); }
     public function fetchData3() { return $this->fetchData('api3', ['escrow.php', 'login.php']); }
     public function fetchData4() { return $this->fetchData('api4', ['target.php', 'login.php']); }
+    public function fetchData5() { return $this->fetchData('api5', ['upload.php', 'login.php']); }
 }
