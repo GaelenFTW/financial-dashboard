@@ -7,6 +7,7 @@ use App\Http\Controllers\JWTController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ManagementReportController;
 use App\Http\Controllers\ExcelUploadController;
+use App\Http\Controllers\PurchasePaymentController;
 
 
 // Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
@@ -30,4 +31,6 @@ Route::get('/export/products', [DashboardController::class, 'exportTopProducts']
 
 Route::get('/management-report', [ManagementReportController::class, 'index'])->middleware('auth')->name('management.report');
 
-Route::get('/excel-upload',);
+Route::get('/payments/upload', [PurchasePaymentController::class, 'uploadForm'])->name('payments.upload.form');
+Route::post('/payments/upload', [PurchasePaymentController::class, 'upload'])->name('payments.upload');
+Route::get('/payments/view', [PurchasePaymentController::class, 'view'])->name('payments.view');

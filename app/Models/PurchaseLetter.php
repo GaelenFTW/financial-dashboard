@@ -9,7 +9,7 @@ class PurchaseLetter extends Model
 {
     use HasFactory;
 
-    protected $table = 'Worksheet$';
+    // protected $table = 'Worksheet$';
     public $timestamps = false; // ⬅️ disable created_at / updated_at
 
     protected $fillable = [
