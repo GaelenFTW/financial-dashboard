@@ -10,9 +10,11 @@ use App\Http\Controllers\ExcelUploadController;
 use App\Http\Controllers\PurchasePaymentController;
 
 
-// Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
-Route::get('/purchase-letters', [PurchaseLetterController::class, 'index'])->middleware('auth')->name('purchase_letters');
-Route::get('/purchase-letters/charts', [PurchaseLetterController::class, 'chart'])->middleware('auth')->name('purchase_letters/chart');
+// Purchase Letters Routes
+Route::get('/purchase-letters', [PurchaseLetterController::class, 'index'])->name('purchase_letters.index');
+Route::get('/purchase-letters/chart', [PurchaseLetterController::class, 'chart'])->name('purchase_letters.chart');
+Route::get('/purchase-letters/export', [PurchaseLetterController::class, 'export'])->name('purchase_letters.export');
+Route::get('/purchase-letters/{id}', [PurchaseLetterController::class, 'show'])->name('purchase_letters.show');
 Route::get('/', [DashboardController::class, 'index'])->middleware('auth')->name('dashboard');
 
 Route::get('/register', [AuthController::class, 'showRegisterForm'])->name('register.form')->middleware('guest');
@@ -34,3 +36,5 @@ Route::get('/management-report', [ManagementReportController::class, 'index'])->
 Route::get('/payments/upload', [PurchasePaymentController::class, 'uploadForm'])->name('payments.upload.form');
 Route::post('/payments/upload', [PurchasePaymentController::class, 'upload'])->name('payments.upload');
 Route::get('/payments/view', [PurchasePaymentController::class, 'view'])->name('payments.view');
+// In your routes/web.php file, add:
+Route::get('/payments/export', [PurchasePaymentController::class, 'export'])->name('payments.export');

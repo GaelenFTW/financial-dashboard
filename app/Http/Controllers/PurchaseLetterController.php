@@ -2,65 +2,62 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
+use App\Models\PurchasePayment;
+use Carbon\Carbon;
 
 class PurchaseLetterController extends Controller
 {
-    protected $apiUrl;
-    protected $token;
-
-    public function __construct(JWTController $jwtController)
-    {
-        $this->jwtController = $jwtController;
-    }
-    
     public function chart()
     {
-        $rows  = $this->jwtController->fetchData1();
-        $months = [];
+        $query = PurchasePayment::query();
 
+        // Apply admin filter
         $user = auth()->user();
         if ($user) {
-            $userAdminId = (int) $user->AdminID;
-            if ($userAdminId !== 0) {
-                $rows = array_filter($rows, function ($row) use ($userAdminId) {
-                    $rowAdminId = $row['AdminID']
-                        ?? $row['adminid']
-                        ?? $row['AdminId']
-                        ?? null;
-
-                    return (int) $rowAdminId === $userAdminId;
-                });
+            $userAdminId = (int) ($user->AdminID ?? 0);
+            if ($userAdminId !== 999 && $userAdminId !== 0) {
+                $query->where('AdminID', $userAdminId);
             }
         }
 
-        foreach ($rows as $row) {
+        $payments = $query->get();
+        $months = [];
+
+        foreach ($payments as $payment) {
             $month = null;
-            if (!empty($row['PurchaseDate'])) {
-                $dt = \DateTime::createFromFormat('d-m-Y', $row['PurchaseDate']);
-                if ($dt) {
-                    $month = $dt->format('Y-m'); // normalize to YYYY-MM
+            if ($payment->PurchaseDate) {
+                try {
+                    $dt = Carbon::parse($payment->PurchaseDate);
+                    $month = $dt->format('Y-m');
+                } catch (\Exception $e) {
+                    continue;
                 }
             }
 
             if ($month) {
-                $months[$month] = $months[$month] ?? [
-                    'paid'    => 0,
-                    'open'    => 0,
-                    'overdue' => 0,
-                ];
+                if (!isset($months[$month])) {
+                    $months[$month] = [
+                        'paid'    => 0,
+                        'open'    => 0,
+                        'overdue' => 0,
+                    ];
+                }
 
-                $amount = (float) ($row['HrgJualTotal'] ?? 0);
+                $amount = (float) ($payment->HrgJualTotal ?? 0);
 
-                if (!empty($row['LunasDate'])) {
+                if ($payment->LunasDate) {
                     $months[$month]['paid'] += $amount;
                 } else {
                     $months[$month]['open'] += $amount;
-                    if ($dt && $dt < new \DateTime()) {
-                        $months[$month]['overdue'] += $amount;
+                    
+                    try {
+                        $purchaseDate = Carbon::parse($payment->PurchaseDate);
+                        if ($purchaseDate->lt(Carbon::now())) {
+                            $months[$month]['overdue'] += $amount;
+                        }
+                    } catch (\Exception $e) {
+                        // Skip if date parsing fails
                     }
                 }
             }
@@ -82,50 +79,105 @@ class PurchaseLetterController extends Controller
 
     public function index(Request $request)
     {
-        $rows  = $this->jwtController->fetchData1();
-        $collection = collect($rows);
+        $query = PurchasePayment::query();
 
+        // Apply admin filter
         $user = auth()->user();
         if ($user) {
-            $userAdminId = (int) $user->AdminID;
-            if ($userAdminId !== 0) {
-                $collection = $collection->filter(function ($row) use ($userAdminId) {
-                    $rowAdminId = $row['AdminID']
-                        ?? $row['adminid']
-                        ?? $row['AdminId']
-                        ?? null;
-                    return (int) $rowAdminId === $userAdminId;
-                });
+            $userAdminId = (int) ($user->AdminID ?? 0);
+            if ($userAdminId !== 999 && $userAdminId !== 0) {
+                $query->where('AdminID', $userAdminId);
             }
         }
-        
-        // 🔍 Search filter
+
+        // Search filter
         $search = $request->get('search');
         if ($search) {
-            $collection = $collection->filter(function ($row) use ($search) {
-                $search = strtolower($search);
-
-                return str_contains(strtolower($row['CustomerName'] ?? ''), $search) ||
-                       str_contains(strtolower($row['Cluster'] ?? ''), $search) ||
-                       str_contains(strtolower($row['PurchaseDate'] ?? ''), $search) ||
-                       str_contains(strtolower($row['Unit'] ?? ''), $search) ||
-                       str_contains(strtolower($row['TypePembelian'] ?? ''), $search);
+            $query->where(function ($q) use ($search) {
+                $q->where('CustomerName', 'like', '%' . $search . '%')
+                  ->orWhere('Cluster', 'like', '%' . $search . '%')
+                  ->orWhere('Unit', 'like', '%' . $search . '%')
+                  ->orWhere('TypePembelian', 'like', '%' . $search . '%')
+                  ->orWhere('PurchaseDate', 'like', '%' . $search . '%');
             });
         }
 
-        // Pagination
-        $perPage     = 10;
-        $currentPage = $request->get('page', 1);
-        $pagedData   = $collection->forPage($currentPage, $perPage);
+        // Order by PurchaseDate descending
+        $query->orderBy('PurchaseDate', 'desc');
 
-        $letters = new LengthAwarePaginator(
-            $pagedData,
-            $collection->count(),
-            $perPage,
-            $currentPage,
-            ['path' => $request->url(), 'query' => $request->query()]
-        );
+        // Paginate
+        $letters = $query->paginate(10)->appends(['search' => $search]);
 
         return view('purchase_letters.index', compact('letters', 'search'));
+    }
+
+    public function show($id)
+    {
+        $letter = PurchasePayment::where('purchaseletter_id', $id)->firstOrFail();
+        
+        return view('purchase_letters.show', compact('letter'));
+    }
+
+    public function export(Request $request)
+    {
+        $query = PurchasePayment::query();
+
+        // Apply admin filter
+        $user = auth()->user();
+        if ($user) {
+            $userAdminId = (int) ($user->AdminID ?? 0);
+            if ($userAdminId !== 999 && $userAdminId !== 0) {
+                $query->where('AdminID', $userAdminId);
+            }
+        }
+
+        // Search filter
+        $search = $request->get('search');
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('CustomerName', 'like', '%' . $search . '%')
+                  ->orWhere('Cluster', 'like', '%' . $search . '%')
+                  ->orWhere('Unit', 'like', '%' . $search . '%')
+                  ->orWhere('TypePembelian', 'like', '%' . $search . '%')
+                  ->orWhere('PurchaseDate', 'like', '%' . $search . '%');
+            });
+        }
+
+        $payments = $query->get();
+
+        if ($payments->isEmpty()) {
+            return redirect()->back()->with('error', 'No data to export');
+        }
+
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+
+        // Get column names dynamically
+        $firstRecord = $payments->first();
+        $columns = array_keys($firstRecord->getAttributes());
+
+        // Set headers
+        foreach ($columns as $i => $heading) {
+            $col = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i + 1);
+            $sheet->setCellValue($col . '1', $heading);
+        }
+
+        // Fill data
+        $rowIndex = 2;
+        foreach ($payments as $payment) {
+            foreach ($columns as $i => $colName) {
+                $col = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i + 1);
+                $value = $payment->$colName ?? '';
+                $sheet->setCellValue($col . $rowIndex, $value);
+            }
+            $rowIndex++;
+        }
+
+        $fileName = 'purchase_letters_' . date('Y-m-d_His') . '.xlsx';
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $tmp = tempnam(sys_get_temp_dir(), 'letters_export_');
+        $writer->save($tmp);
+
+        return response()->download($tmp, $fileName)->deleteFileAfterSend(true);
     }
 }

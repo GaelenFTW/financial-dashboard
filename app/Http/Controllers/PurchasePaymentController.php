@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 use App\Models\PurchasePayment;
 use Carbon\Carbon;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use Illuminate\Support\Facades\DB;
+
 
 class PurchasePaymentController extends Controller
 {
@@ -77,142 +79,186 @@ class PurchasePaymentController extends Controller
         return (int) $this->toFloat($val);
     }
 
-
-    protected function generateMonthColumns($endDate, $data)
-{
-    $columns = [];
-    $targetDate = Carbon::parse($endDate);
-
-    // Start from January of the target year
-    $currentDate = Carbon::create($targetDate->year, 1, 1);
-
-    while ($currentDate->lte($targetDate)) {
-        $monthYear = $currentDate->format('M_Y'); // e.g. Jan_2025
-
-        // Map Excel columns
-        $columns["{$monthYear}_DueDate"]  = $this->parseDate($data["{$monthYear}_DueDate"] ?? null);
-        $columns["{$monthYear}_Type"]     = $data["{$monthYear}_Type"] ?? null;
-        $columns["{$monthYear}_Piutang"]  = $this->toFloat($data["{$monthYear}_Piutang"] ?? null);
-        $columns["{$monthYear}_CairDate"] = $this->parseDate($data["{$monthYear}_CairDate"] ?? null);
-        $columns["{$monthYear}_Payment"]  = $this->toFloat($data["{$monthYear}_Payment"] ?? null);
-
-        // Add YTD / After columns only for the final month
-        if ($currentDate->month == $targetDate->month) {
-            $columns["Piutang_After_{$monthYear}"] = $this->toFloat($data["Piutang_After_{$monthYear}"] ?? null);
-            $columns["Payment_After_{$monthYear}"] = $this->toFloat($data["Payment_After_{$monthYear}"] ?? null);
-            $columns["YTD_sd_{$monthYear}"]        = $this->toFloat($data["YTD_sd_{$monthYear}"] ?? null);
-            $columns["YTD_bayar_{$monthYear}"]     = $this->toFloat($data["YTD_bayar_{$monthYear}"] ?? null);
+    /**
+     * Detect and extract month/year patterns from headers
+     * Matches patterns like: Jan_2025, Feb_2025, Mar_2025, etc.
+     */
+    protected function detectMonthYearColumns($headers)
+    {
+        $monthYearColumns = [];
+        
+        // Pattern to match: Jan_2025, Feb_2025, etc.
+        $pattern = '/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)_(\d{4})_(.+)$/';
+        
+        foreach ($headers as $header) {
+            if (preg_match($pattern, $header, $matches)) {
+                $month = $matches[1];
+                $year = $matches[2];
+                $field = $matches[3]; // DueDate, Type, Piutang, CairDate, Payment
+                
+                $key = "{$month}_{$year}";
+                
+                if (!isset($monthYearColumns[$key])) {
+                    $monthYearColumns[$key] = [];
+                }
+                
+                $monthYearColumns[$key][$field] = $header;
+            }
+            
+            // Also detect YTD columns like YTD_sd_Jun_2025, YTD_bayar_Jun_2025
+            if (preg_match('/^(YTD_sd|YTD_bayar)_(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)_(\d{4})$/', $header, $matches)) {
+                $ytdType = $matches[1];
+                $month = $matches[2];
+                $year = $matches[3];
+                $key = "{$month}_{$year}";
+                
+                if (!isset($monthYearColumns[$key])) {
+                    $monthYearColumns[$key] = [];
+                }
+                
+                $monthYearColumns[$key][$ytdType] = $header;
+            }
+            
+            // Detect Before columns like Amount_Before_Jan_2025
+            if (preg_match('/^(Amount|Piutang|Payment)_Before_(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)_(\d{4})$/', $header, $matches)) {
+                $field = $matches[1];
+                $month = $matches[2];
+                $year = $matches[3];
+                $key = "Before_{$month}_{$year}";
+                
+                if (!isset($monthYearColumns[$key])) {
+                    $monthYearColumns[$key] = [];
+                }
+                
+                $monthYearColumns[$key][$field] = $header;
+            }
+            
+            // Detect After columns like Piutang_After_Jun_2025
+            if (preg_match('/^(Piutang|Payment)_After_(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)_(\d{4})$/', $header, $matches)) {
+                $field = $matches[1];
+                $month = $matches[2];
+                $year = $matches[3];
+                $key = "After_{$month}_{$year}";
+                
+                if (!isset($monthYearColumns[$key])) {
+                    $monthYearColumns[$key] = [];
+                }
+                
+                $monthYearColumns[$key][$field] = $header;
+            }
         }
-
-        $currentDate->addMonth();
+        
+        return $monthYearColumns;
     }
-
-    return $columns;
-}
 
 
     public function upload(Request $request)
-{
-    $request->validate([
-        'file' => 'required|mimes:xlsx,xls,csv',
-        'end_date' => 'required|date' // User must provide the target date
-    ]);
+    {
+        $request->validate([
+            'file' => 'required|mimes:xlsx,xls,csv'
+        ]);
 
-    $file = $request->file('file');
-    $endDate = $request->input('end_date');
-    
-    $spreadsheet = IOFactory::load($file->getRealPath());
-    $sheet = $spreadsheet->getActiveSheet();
-    $rows = $sheet->toArray(null, true, true, true);
+        $file = $request->file('file');
+        
+        $spreadsheet = IOFactory::load($file->getRealPath());
+        $sheet = $spreadsheet->getActiveSheet();
+        $rows = $sheet->toArray(null, true, true, true);
 
-    $header = array_shift($rows);
+        $header = array_shift($rows);
+        
+        // Detect month/year columns from headers
+        $dynamicColumns = $this->detectMonthYearColumns($header);
 
-    $successCount = 0;
-    $errorCount = 0;
+        $successCount = 0;
+        $errorCount = 0;
 
-    foreach ($rows as $rowIndex => $row) {
-        try {
-            $data = [];
-            foreach ($header as $colKey => $colName) {
-                $data[$colName] = $row[$colKey] ?? null;
+        foreach ($rows as $rowIndex => $row) {
+            try {
+                $data = [];
+                foreach ($header as $colKey => $colName) {
+                    $data[$colName] = $row[$colKey] ?? null;
+                }
+
+                // Base columns
+                $columns = [
+                    'purchaseletter_id'          => $data['purchaseletter_id'] ?? null,
+                    'No'                        => $this->toFloat($data['No'] ?? null),
+                    'is_reportcashin'           => $this->toFloat($data['is_reportcashin'] ?? null),
+                    'Cluster'                   => $data['Cluster'] ?? null,
+                    'Block'                     => $data['Block'] ?? null,
+                    'Unit'                      => $data['Unit'] ?? null,
+                    'CustomerName'              => $data['CustomerName'] ?? null,
+                    'PurchaseDate'              => $this->parseDate($data['PurchaseDate'] ?? null),
+                    'LunasDate'                 => $this->parseDate($data['LunasDate'] ?? null),
+                    'is_ppndtp'                 => $this->toFloat($data['is_ppndtp'] ?? null),
+                    'persen_ppndtp'             => $this->toFloat($data['persen_ppndtp'] ?? null),
+                    'harga_netto'               => $this->toFloat($data['harga_netto'] ?? null),
+                    'TotalPPN'                  => $this->toFloat($data['TotalPPN'] ?? null),
+                    'harga_bbnsertifikat'       => $this->toFloat($data['harga_bbnsertifikat'] ?? null),
+                    'harga_bajb'                => $this->toFloat($data['harga_bajb'] ?? null),
+                    'harga_bphtb'               => $this->toFloat($data['harga_bphtb'] ?? null),
+                    'harga_administrasi'        => $this->toFloat($data['harga_administrasi'] ?? null),
+                    'harga_paket_tambahan'      => $this->toFloat($data['harga_paket_tambahan'] ?? null),
+                    'harga_admsubsidi'          => $this->toFloat($data['harga_admsubsidi'] ?? null),
+                    'biaya_asuransi'            => $this->toFloat($data['biaya_asuransi'] ?? null),
+                    'HrgJualTotal'              => $this->toFloat($data['HrgJualTotal'] ?? null),
+                    'disc_collection'           => $this->toFloat($data['disc_collection'] ?? null),
+                    'HrgJualTotalminDiscColl'   => $this->toFloat($data['HrgJualTotalminDiscColl'] ?? null),
+                    'TypePembelian'             => $data['TypePembelian'] ?? null,
+                    'bank_induk'                => $data['bank_induk'] ?? null,
+                    'KPP'                       => $data['KPP'] ?? null,
+                    'JenisKPR'                  => $data['JenisKPR'] ?? null,
+                    'Member'                    => $data['Member'] ?? null,
+                    'Salesman'                  => $data['Salesman'] ?? null,
+                    'tanggal_akad'              => $this->parseDate($data['tanggal_akad'] ?? null),
+                    'persen_progress_bangun'    => $this->toFloat($data['persen_progress_bangun'] ?? null),
+                    'type_unit'                 => $data['type_unit'] ?? null,
+                    'selisih'                   => $this->toFloat($data['selisih'] ?? null),
+                    'dari_1_sampai_30_DP'       => $this->toFloat($data['dari_1_sampai_30_DP'] ?? null),
+                    'dari_31_sampai_60_DP'      => $this->toFloat($data['dari_31_sampai_60_DP'] ?? null),
+                    'dari_61_sampai_90_DP'      => $this->toFloat($data['dari_61_sampai_90_DP'] ?? null),
+                    'diatas_90_DP'              => $this->toFloat($data['diatas_90_DP'] ?? null),
+                    'lebih_bayar'               => $this->toFloat($data['lebih_bayar'] ?? null),
+                    'helper_tahun'              => $this->toInt($data['helper_tahun'] ?? null),
+                ];
+
+                // Add dynamic month/year columns
+                foreach ($dynamicColumns as $key => $fields) {
+                    foreach ($fields as $fieldType => $excelColumn) {
+                        if (isset($data[$excelColumn])) {
+                            if ($fieldType === 'DueDate' || $fieldType === 'CairDate') {
+                                $columns[$excelColumn] = $this->parseDate($data[$excelColumn]);
+                            } elseif ($fieldType === 'Type') {
+                                $columns[$excelColumn] = $data[$excelColumn];
+                            } else {
+                                $columns[$excelColumn] = $this->toFloat($data[$excelColumn]);
+                            }
+                        }
+                    }
+                }
+
+                // Upsert into SQL Server
+                DB::connection('sqlsrv')
+                    ->table('purchase_payments')
+                    ->updateOrInsert(
+                        ['purchaseletter_id' => $columns['purchaseletter_id']],
+                        $columns
+                    );
+
+                $successCount++;
+            } catch (\Exception $e) {
+                $errorCount++;
+                \Log::error("Error importing row " . ($rowIndex + 2) . ": " . $e->getMessage());
             }
-
-            // Static columns
-            $staticColumns = [
-                'purchaseletter_id'          => $data['purchaseletter_id'] ?? null, // ✅ added
-                'No'                        => $this->toFloat($data['No'] ?? null),
-                'is_reportcashin'           => $this->toFloat($data['is_reportcashin'] ?? null),
-                'Cluster'                   => $data['Cluster'] ?? null,
-                'Block'                     => $data['Block'] ?? null,
-                'Unit'                      => $data['Unit'] ?? null,
-                'CustomerName'              => $data['CustomerName'] ?? null,
-                'PurchaseDate'              => $this->parseDate($data['PurchaseDate'] ?? null),
-                'LunasDate'                 => $this->parseDate($data['LunasDate'] ?? null),
-                'is_ppndtp'                 => $this->toFloat($data['is_ppndtp'] ?? null),
-                'persen_ppndtp'             => $this->toFloat($data['persen_ppndtp'] ?? null),
-                'harga_netto'               => $this->toFloat($data['harga_netto'] ?? null),
-                'TotalPPN'                  => $this->toFloat($data['TotalPPN'] ?? null),
-                'harga_bbnsertifikat'       => $this->toFloat($data['harga_bbnsertifikat'] ?? null),
-                'harga_bajb'                => $this->toFloat($data['harga_bajb'] ?? null),
-                'harga_bphtb'               => $this->toFloat($data['harga_bphtb'] ?? null),
-                'harga_administrasi'        => $this->toFloat($data['harga_administrasi'] ?? null),
-                'harga_paket_tambahan'      => $this->toFloat($data['harga_paket_tambahan'] ?? null),
-                'harga_admsubsidi'          => $this->toFloat($data['harga_admsubsidi'] ?? null),
-                'biaya_asuransi'            => $this->toFloat($data['biaya_asuransi'] ?? null),
-                'HrgJualTotal'              => $this->toFloat($data['HrgJualTotal'] ?? null),
-                'disc_collection'           => $this->toFloat($data['disc_collection'] ?? null),
-                'HrgJualTotalminDiscColl'   => $this->toFloat($data['HrgJualTotalminDiscColl'] ?? null),
-                'TypePembelian'             => $data['TypePembelian'] ?? null,
-                'bank_induk'                => $data['bank_induk'] ?? null,
-                'KPP'                       => $data['KPP'] ?? null,
-                'JenisKPR'                  => $data['JenisKPR'] ?? null,
-                'Member'                    => $data['Member'] ?? null,
-                'Salesman'                  => $data['Salesman'] ?? null,
-                'tanggal_akad'              => $this->parseDate($data['tanggal_akad'] ?? null),
-                'persen_progress_bangun'    => $this->toFloat($data['persen_progress_bangun'] ?? null),
-                'type_unit'                 => $data['type_unit'] ?? null,
-                'Amount_Before_01_tahun'    => $this->toFloat($data['Amount_Before_01_tahun'] ?? null),
-                'Piutang_Before_01_tahun'   => $this->toFloat($data['Piutang_Before_01_tahun'] ?? null),
-                'Payment_Before_01_tahun'   => $this->toFloat($data['Payment_Before_01_tahun'] ?? null),
-            ];
-
-            // Generate dynamic month columns
-            $dynamicColumns = $this->generateMonthColumns($endDate, $data);
-
-            // After month columns
-            $afterColumns = [
-                'selisih'                   => $this->toFloat($data['selisih'] ?? null),
-                'dari_1_sampai_30_DP'       => $this->toFloat($data['dari_1_sampai_30_DP'] ?? null),
-                'dari_31_sampai_60_DP'      => $this->toFloat($data['dari_31_sampai_60_DP'] ?? null),
-                'dari_61_sampai_90_DP'      => $this->toFloat($data['dari_61_sampai_90_DP'] ?? null),
-                'diatas_90_DP'              => $this->toFloat($data['diatas_90_DP'] ?? null),
-                'lebih_bayar'               => $this->toFloat($data['lebih_bayar'] ?? null),
-                'helper_tahun'              => $this->toInt($data['helper_tahun'] ?? null),
-            ];
-
-            // Merge all columns
-            $allColumns = array_merge($staticColumns, $dynamicColumns, $afterColumns);
-
-            // Insert/Update into dbo.purchase_payments
-            PurchasePayment::updateOrCreate(
-                ['purchaseletter_id' => $staticColumns['purchaseletter_id']],
-                $allColumns
-            );
-
-            $successCount++;
-        } catch (\Exception $e) {
-            $errorCount++;
-            \Log::error("Error importing row " . ($rowIndex + 2) . ": " . $e->getMessage());
         }
-    }
 
-    $message = "Upload completed: {$successCount} records successful";
-    if ($errorCount > 0) {
-        $message .= ", {$errorCount} records failed. Check logs for details.";
-    }
+        $message = "Upload completed: {$successCount} records successful";
+        if ($errorCount > 0) {
+            $message .= ", {$errorCount} records failed. Check logs for details.";
+        }
 
-    return redirect()->back()->with('success', $message);
-}
+        return redirect()->back()->with('success', $message);
+    }
 
     
     public function uploadForm()
@@ -220,9 +266,131 @@ class PurchasePaymentController extends Controller
         return view('payments.upload');
     }
 
-    public function view()
+    public function view(Request $request)
     {
-        $payments = PurchasePayment::paginate(20);
-        return view('payments.view', compact('payments'));
+        $query = PurchasePayment::query();
+        
+        // Apply filters
+        if ($request->filled('cluster')) {
+            $query->where('Cluster', 'like', '%' . $request->cluster . '%');
+        }
+
+        if ($request->filled('block')) {
+            $query->where('Block', 'like', '%' . $request->block . '%');
+        }
+
+        if ($request->filled('unit')) {
+            $query->where('Unit', 'like', '%' . $request->unit . '%');
+        }
+
+        if ($request->filled('customer')) {
+            $query->where('CustomerName', 'like', '%' . $request->customer . '%');
+        }
+
+        if ($request->filled('typepembelian')) {
+            $query->where('TypePembelian', 'like', '%' . $request->typepembelian . '%');
+        }
+
+        if ($request->filled('type_unit')) {
+            $query->where('type_unit', 'like', '%' . $request->type_unit . '%');
+        }
+
+        if ($request->filled('salesman')) {
+            $query->where('Salesman', 'like', '%' . $request->salesman . '%');
+        }
+
+        if ($request->filled('startdate')) {
+            $query->whereDate('PurchaseDate', '>=', $request->startdate);
+        }
+
+        if ($request->filled('enddate')) {
+            $query->whereDate('PurchaseDate', '<=', $request->enddate);
+        }
+
+        $payments = $query->orderBy('PurchaseDate', 'desc')->paginate(20);
+        
+        return view('payments.view', [
+            'payments' => $payments,
+            'filters' => $request->all()
+        ]);
+    }
+
+    public function export(Request $request)
+    {
+        $query = PurchasePayment::query();
+        
+        // Apply same filters as view
+        if ($request->filled('cluster')) {
+            $query->where('Cluster', 'like', '%' . $request->cluster . '%');
+        }
+
+        if ($request->filled('block')) {
+            $query->where('Block', 'like', '%' . $request->block . '%');
+        }
+
+        if ($request->filled('unit')) {
+            $query->where('Unit', 'like', '%' . $request->unit . '%');
+        }
+
+        if ($request->filled('customername')) {
+            $query->where('CustomerName', 'like', '%' . $request->customername . '%');
+        }
+
+        if ($request->filled('typepembelian')) {
+            $query->where('TypePembelian', 'like', '%' . $request->typepembelian . '%');
+        }
+
+        if ($request->filled('type_unit')) {
+            $query->where('type_unit', 'like', '%' . $request->type_unit . '%');
+        }
+
+        if ($request->filled('salesman')) {
+            $query->where('Salesman', 'like', '%' . $request->salesman . '%');
+        }
+
+        if ($request->filled('startdate')) {
+            $query->whereDate('PurchaseDate', '>=', $request->startdate);
+        }
+
+        if ($request->filled('enddate')) {
+            $query->whereDate('PurchaseDate', '<=', $request->enddate);
+        }
+
+        $payments = $query->get();
+
+        if ($payments->isEmpty()) {
+            return redirect()->back()->with('error', 'No data to export');
+        }
+
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+
+        // Get column names dynamically
+        $firstRecord = $payments->first();
+        $columns = array_keys($firstRecord->getAttributes());
+
+        // Set headers
+        foreach ($columns as $i => $heading) {
+            $col = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i + 1);
+            $sheet->setCellValue($col . '1', $heading);
+        }
+
+        // Fill data
+        $rowIndex = 2;
+        foreach ($payments as $payment) {
+            foreach ($columns as $i => $colName) {
+                $col = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i + 1);
+                $value = $payment->$colName ?? '';
+                $sheet->setCellValue($col . $rowIndex, $value);
+            }
+            $rowIndex++;
+        }
+
+        $fileName = 'purchase_payments_' . date('Y-m-d_His') . '.xlsx';
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $tmp = tempnam(sys_get_temp_dir(), 'payment_export_');
+        $writer->save($tmp);
+
+        return response()->download($tmp, $fileName)->deleteFileAfterSend(true);
     }
 }
