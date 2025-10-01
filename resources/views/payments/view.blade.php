@@ -39,7 +39,7 @@
                             <input type="text" name="cluster" value="{{ request('cluster') }}" class="form-control" placeholder="Cluster">
                         </div>
                         <div class="col-md-3">
-                            <input type="text" name="salesman" value="{{ request('salesman') }}" class="form-control" placeholder="Salesman">
+                            <input type="text" name="TypePembelian" value="{{ request('TypePembelian') }}" class="form-control" placeholder="Type Pembelian">
                         </div>
                         <div class="col-md-2">
                             <button type="submit" class="btn btn-secondary w-100">

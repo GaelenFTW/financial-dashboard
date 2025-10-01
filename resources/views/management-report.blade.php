@@ -50,6 +50,15 @@
     </table>
 
     {{-- YEAR TO DATE --}}
+    @php
+        // cari nama kolom YTD yang terpakai
+        $ytdTargetCol = collect(array_keys($ytdPerformance[0] ?? []))
+            ->first(fn($c) => str_starts_with($c, 'YTD_sd_'));
+        $ytdActualCol = collect(array_keys($ytdPerformance[0] ?? []))
+            ->first(fn($c) => str_starts_with($c, 'YTD_bayar_'));
+
+    @endphp
+
     <table class="table table-bordered text-center align-middle mt-4">
         <thead class="table-warning">
             <tr>
@@ -65,17 +74,18 @@
             @foreach ($ytdPerformance as $row)
                 <tr style="{{ $loop->last ? 'font-weight: bold;' : '' }}">
                     <td>{{ $row['payment'] }}</td>
-                    <td>{{ $row['meeting_target'] }}</td>
+                    <td>{{ number_format($row['meeting_target'], 0, ',', '.') }}</td>
                     <td>{{ number_format($row['sales_target'], 0, ',', '.') }}</td>
                     <td>{{ number_format($row['actual'], 0, ',', '.') }}</td>
                     <td>{{ $row['percentage'] }}%</td>
-                    <td  class="{{ $row['status'] == 'ACHIEVED' ? 'text-success' : 'text-danger' }}">
+                    <td class="{{ $row['status'] == 'ACHIEVED' ? 'text-success' : 'text-danger' }}">
                         {{ $row['status'] }}
                     </td>
                 </tr>
             @endforeach
         </tbody>
     </table>
+
 
     {{-- AGING --}}
     <h4 class="mt-4">AGING</h4>
@@ -98,7 +108,7 @@
                     <td>{{ number_format($row['d30_60'], 0, ',', '.') }}</td>
                     <td>{{ number_format($row['d60_90'], 0, ',', '.') }}</td>
                     <td>{{ number_format($row['gt90'], 0, ',', '.') }}</td>
-                    <td>-{{ number_format($row['lebih_bayar'], 0, ',', '.') }}</td>
+                    <td>({{ number_format($row['lebih_bayar'], 0, ',', '.') }})</td>
                 </tr>
             @endforeach
             <tr class="fw-bold">
@@ -107,7 +117,7 @@
                 <td>{{ number_format($agingTotals['d30_60'], 0, ',', '.') }}</td>
                 <td>{{ number_format($agingTotals['d60_90'], 0, ',', '.') }}</td>
                 <td>{{ number_format($agingTotals['gt90'], 0, ',', '.') }}</td>
-                <td>-{{ number_format($agingTotals['lebih_bayar'], 0, ',', '.') }}</td>
+                <td>({{ number_format($agingTotals['lebih_bayar'], 0, ',', '.') }})</td>
             </tr>
         </tbody>
     </table>

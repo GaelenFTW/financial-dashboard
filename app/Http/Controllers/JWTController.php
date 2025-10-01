@@ -39,7 +39,7 @@ class JWTController extends Controller
     }
 
     /** Generic login method */
-    public function login($apiKey, $username = '12345678', $password = '12345678', $loginReplace = null)
+    public function login($apiKey, $username = '1234567890', $password = '1234567890', $loginReplace = null)
     {
         try {
             $url = $this->apiUrls[$apiKey];
@@ -61,44 +61,53 @@ class JWTController extends Controller
     }
 
     /** Generic getToken method */
-    public function getToken($apiKey, $username = '12345678', $password = '12345678', $loginReplace = null)
+    public function getToken($apiKey, $username = '1234567890', $password = '1234567890', $loginReplace = null)
     {
         return $this->login($apiKey, $username, $password, $loginReplace);
     }
 
-    /** Generic fetchData method */
+    /** Generic fetchData method - now handles APIs with JWT disabled */
     public function fetchData($apiKey, $loginReplace = null)
     {
         try {
-            $token = $this->getToken($apiKey, '12345678', '12345678', $loginReplace);
-            if (!$token) return ['error' => 'Authentication failed'];
+            // First, try without authentication (for APIs with JWT disabled)
+            $response = Http::get($this->apiUrls[$apiKey]);
 
-            $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $token,
-                'Accept' => 'application/json'
-            ])->get($this->apiUrls[$apiKey]);
+            // If successful, return data
+            if ($response->successful()) {
+                $data = $response->json();
+                return is_array($data) && !empty($data) ? $data : [];
+            }
 
-            // Retry once on 401
+            // If 401, try with JWT authentication
             if ($response->status() === 401) {
-                $token = $this->getToken($apiKey, '12345678', '12345678', $loginReplace);
-                if (!$token) return ['error' => 'Authentication failed after retry'];
+                $token = $this->getToken($apiKey, '1234567890', '1234567890', $loginReplace);
+                if (!$token) {
+                    Log::warning("Authentication failed for [$apiKey], returning empty array");
+                    return [];
+                }
 
                 $response = Http::withHeaders([
                     'Authorization' => 'Bearer ' . $token,
                     'Accept' => 'application/json'
                 ])->get($this->apiUrls[$apiKey]);
+
+                if (!$response->successful()) {
+                    Log::warning("API request failed for [$apiKey]: " . $response->status());
+                    return [];
+                }
+
+                $data = $response->json();
+                return is_array($data) && !empty($data) ? $data : [];
             }
 
-            if (!$response->successful()) {
-                return ['error' => 'API request failed: ' . $response->body()];
-            }
-
-            $data = $response->json();
-            return is_array($data) && !empty($data) ? $data : ['error' => 'No data received from API'];
+            // For other errors, log and return empty array
+            Log::warning("API request failed for [$apiKey]: " . $response->status());
+            return [];
 
         } catch (\Exception $e) {
             Log::error("fetchData error [$apiKey]: " . $e->getMessage());
-            return ['error' => 'Failed to fetch data: ' . $e->getMessage()];
+            return [];
         }
     }
 
