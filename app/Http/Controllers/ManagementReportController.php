@@ -320,8 +320,7 @@ class ManagementReportController extends Controller
                 'meeting_target' => $meetingTarget,
                 'sales_target'   => $salesTarget,
                 'actual'         => $actual,
-                'pct_meeting'    => $meetingTarget > 0 ? round(($actual / $meetingTarget) * 100, 1) : 0.0,
-                'pct_sales'      => $salesTarget > 0 ? round(($actual / $salesTarget) * 100, 1) : 0.0,
+                'percentage'     => $pct,
                 'status'         => $status,
             ];
 
@@ -367,8 +366,7 @@ class ManagementReportController extends Controller
                 'meeting_target' => $meetingTarget,
                 'sales_target'   => $ytdSalesTarget,
                 'actual'         => $ytdActual,
-                'pct_meeting'    => $meetingTarget > 0 ? round(($ytdActual / $meetingTarget) * 100, 1) : 0.0,
-                'pct_sales'      => $ytdSalesTarget > 0 ? round(($ytdActual / $ytdSalesTarget) * 100, 1) : 0.0,
+                'percentage'     => $pct,
                 'status'         => $status,
             ];
 

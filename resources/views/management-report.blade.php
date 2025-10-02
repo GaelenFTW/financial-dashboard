@@ -29,8 +29,7 @@
                 <th>TARGET (Based On Meeting)</th>
                 <th>TARGET (Based on Sales)</th>
                 <th>ACTUAL</th>
-                <th>% (Meeting)</th>
-                <th>% (Sales)</th>
+                <th>% </th>
                 <th>STATUS</th>
             </tr>
         </thead>
@@ -41,8 +40,7 @@
                     <td>{{ number_format($row['meeting_target'], 0, ',', '.') }}</td>
                     <td>{{ number_format($row['sales_target'], 0, ',', '.') }}</td>
                     <td>{{ number_format($row['actual'], 0, ',', '.') }}</td>
-                    <td>{{ $row['pct_meeting'] }}%</td>
-                    <td>{{ $row['pct_sales'] }}%</td>
+                    <td>{{ $row['percentage'] }}%</td>
                     <td class="{{ $row['status'] == 'ACHIEVED' ? 'text-success' : 'text-danger' }}">
                         {{ $row['status'] }}
                     </td>
@@ -68,8 +66,7 @@
                 <th>TARGET (Based On Meeting)</th>
                 <th>TARGET (Based on Sales)</th>
                 <th>ACTUAL</th>
-                <th>% (Meeting)</th>
-                <th>% (Sales)</th>
+                <th>% </th>
                 <th>STATUS</th>
             </tr>
         </thead>
@@ -80,8 +77,7 @@
                     <td>{{ number_format($row['meeting_target'], 0, ',', '.') }}</td>
                     <td>{{ number_format($row['sales_target'], 0, ',', '.') }}</td>
                     <td>{{ number_format($row['actual'], 0, ',', '.') }}</td>
-                    <td>{{ $row['pct_meeting'] }}%</td>
-                    <td>{{ $row['pct_sales'] }}%</td>
+                    <td>{{ $row['percentage'] }}%</td>
                     <td class="{{ $row['status'] == 'ACHIEVED' ? 'text-success' : 'text-danger' }}">
                         {{ $row['status'] }}
                     </td>
