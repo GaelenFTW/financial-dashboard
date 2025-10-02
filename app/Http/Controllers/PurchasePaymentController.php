@@ -6,8 +6,6 @@ use Illuminate\Http\Request;
 use App\Models\PurchasePayment;
 use Carbon\Carbon;
 use PhpOffice\PhpSpreadsheet\IOFactory;
-use Illuminate\Support\Facades\DB;
-
 
 class PurchasePaymentController extends Controller
 {
@@ -151,7 +149,6 @@ class PurchasePaymentController extends Controller
         return $monthYearColumns;
     }
 
-
     public function upload(Request $request)
     {
         $request->validate([
@@ -179,9 +176,8 @@ class PurchasePaymentController extends Controller
                     $data[$colName] = $row[$colKey] ?? null;
                 }
 
-                // Base columns
+                // Build the columns to insert/update
                 $columns = [
-                    'purchaseletter_id'          => $data['purchaseletter_id'] ?? null,
                     'No'                        => $this->toFloat($data['No'] ?? null),
                     'is_reportcashin'           => $this->toFloat($data['is_reportcashin'] ?? null),
                     'Cluster'                   => $data['Cluster'] ?? null,
@@ -226,25 +222,26 @@ class PurchasePaymentController extends Controller
                 foreach ($dynamicColumns as $key => $fields) {
                     foreach ($fields as $fieldType => $excelColumn) {
                         if (isset($data[$excelColumn])) {
+                            // Map to database column names
+                            $dbColumn = $excelColumn;
+                            
                             if ($fieldType === 'DueDate' || $fieldType === 'CairDate') {
-                                $columns[$excelColumn] = $this->parseDate($data[$excelColumn]);
+                                $columns[$dbColumn] = $this->parseDate($data[$excelColumn]);
                             } elseif ($fieldType === 'Type') {
-                                $columns[$excelColumn] = $data[$excelColumn];
+                                $columns[$dbColumn] = $data[$excelColumn];
                             } else {
-                                $columns[$excelColumn] = $this->toFloat($data[$excelColumn]);
+                                // Piutang, Payment, Amount, YTD_sd, YTD_bayar
+                                $columns[$dbColumn] = $this->toFloat($data[$excelColumn]);
                             }
                         }
                     }
                 }
 
-                // Upsert into SQL Server
-                DB::connection('sqlsrv')
-                    ->table('purchase_payments')
-                    ->updateOrInsert(
-                        ['purchaseletter_id' => $columns['purchaseletter_id']],
-                        $columns
-                    );
-
+                PurchasePayment::updateOrCreate(
+                    ['purchaseletter_id' => $data['purchaseletter_id']],
+                    $columns
+                );
+                
                 $successCount++;
             } catch (\Exception $e) {
                 $errorCount++;
@@ -259,7 +256,6 @@ class PurchasePaymentController extends Controller
 
         return redirect()->back()->with('success', $message);
     }
-
     
     public function uploadForm()
     {
@@ -283,8 +279,8 @@ class PurchasePaymentController extends Controller
             $query->where('Unit', 'like', '%' . $request->unit . '%');
         }
 
-        if ($request->filled('customer')) {
-            $query->where('CustomerName', 'like', '%' . $request->customer . '%');
+        if ($request->filled('customername')) {
+            $query->where('CustomerName', 'like', '%' . $request->customername . '%');
         }
 
         if ($request->filled('typepembelian')) {
