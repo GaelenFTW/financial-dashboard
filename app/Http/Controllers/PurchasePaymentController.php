@@ -6,146 +6,195 @@ use Illuminate\Http\Request;
 use App\Models\PurchasePayment;
 use Carbon\Carbon;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Log;
 
 class PurchasePaymentController extends Controller
 {
     protected function parseDate($raw)
     {
-        if (!$raw) return null;
-        $raw = trim($raw);
+        if ($raw === null || $raw === '') return null;
 
-        $formats = ['d-m-Y', 'd/m/Y', 'Y-m-d', 'Y/m/d', 'd-m-Y H:i:s', 'Y-m-d H:i:s'];
+        // If it's already a Carbon instance or DateTime, return as Carbon
+        if ($raw instanceof Carbon) return $raw;
+        if ($raw instanceof \DateTime) return Carbon::instance($raw);
+
+        $raw = trim((string)$raw);
+
+        // Remove common excel timezone suffix or milliseconds formatting if present
+        $raw = preg_replace('/\.0+$/', '', $raw);
+
+        // Common formats to try first
+        $formats = [
+            'd-m-Y', 'd/m/Y', 'Y-m-d', 'Y/m/d',
+            'd-m-Y H:i:s', 'Y-m-d H:i:s', 'd/m/Y H:i:s', 'Y/m/d H:i:s',
+            'd-m-Y H:i', 'Y-m-d H:i', 'd/m/Y H:i', 'Y/m/d H:i'
+        ];
+
         foreach ($formats as $fmt) {
             try {
                 $dt = Carbon::createFromFormat($fmt, $raw);
-                if ($dt) return $dt;
+                if ($dt !== false) return $dt;
             } catch (\Exception $e) {
+                // continue
             }
         }
 
+        // Fallback to strtotime (handles many localized formats)
         $ts = strtotime(str_replace('-', '/', $raw));
         if ($ts !== false) {
             return Carbon::createFromTimestamp($ts);
         }
+
         return null;
     }
 
     protected function toFloat($val)
     {
         if ($val === null || $val === '') return null;
-        
-        $s = trim((string) $val);
-        
+
+        // Keep numeric and negative parentheses support
+        $s = trim((string)$val);
+
+        // Remove non-breaking spaces
+        $s = str_replace("\xc2\xa0", '', $s);
+
+        // Convert (123) to -123
+        if (preg_match('/^\((.*)\)$/', $s, $m)) {
+            $s = '-' . $m[1];
+        }
+
+        // If already numeric-ish
         if (is_numeric($s)) {
-            return (float) $s;
+            return (float)$s;
         }
-        if (strtoupper($s) === 'NULL') {
-            return null;
-        }
+
+        // If textual "NULL"
+        if (strtoupper($s) === 'NULL') return null;
+
+        // Remove spaces
+        $s = str_replace(' ', '', $s);
+
+        // Count separators
         $dotCount = substr_count($s, '.');
         $commaCount = substr_count($s, ',');
-        
-        $s = str_replace(' ', '', $s);
-        
-        if ($dotCount > 1 || ($dotCount >= 1 && $commaCount === 1 && strrpos($s, ',') > strrpos($s, '.'))) {
-            $s = str_replace('.', '', $s);
-            $s = str_replace(',', '.', $s);
-        }
-        else if ($commaCount > 1 || ($commaCount >= 1 && $dotCount === 1 && strrpos($s, '.') > strrpos($s, ','))) {
-            $s = str_replace(',', '', $s);
-        }
-        else if ($commaCount === 1 && $dotCount === 0) {
-            $s = str_replace(',', '.', $s);
-        }
-        else if ($dotCount === 1 && $commaCount === 1) {
+
+        // If both exist, decide which is decimal by position
+        if ($dotCount > 0 && $commaCount > 0) {
             $lastDot = strrpos($s, '.');
             $lastComma = strrpos($s, ',');
             if ($lastComma > $lastDot) {
+                // comma is decimal
                 $s = str_replace('.', '', $s);
                 $s = str_replace(',', '.', $s);
             } else {
+                // dot is decimal
                 $s = str_replace(',', '', $s);
             }
+        } elseif ($commaCount > 0 && $dotCount === 0) {
+            // only comma -> decimal
+            $s = str_replace(',', '.', $s);
+        } else {
+            // remove thousand separators if more than one dot
+            if ($dotCount > 1) $s = str_replace('.', '', $s);
         }
-        
-        return is_numeric($s) ? (float) $s : null;
+
+        // strip any non numeric/period/minus
+        $s = preg_replace('/[^0-9\.\-]/', '', $s);
+
+        return is_numeric($s) ? (float)$s : null;
     }
 
     protected function toInt($val)
     {
         if ($val === null || $val === '') return null;
-        return (int) $this->toFloat($val);
+        $f = $this->toFloat($val);
+        return $f === null ? null : (int)$f;
+    }
+
+    /**
+     * Normalize single header string: remove BOM, NBSP, trim
+     */
+    protected function normalizeHeader(string $h): string
+    {
+        // Remove BOM
+        $h = preg_replace('/^\xEF\xBB\xBF/', '', $h);
+
+        // Replace non-breaking spaces with normal space
+        $h = str_replace("\xc2\xa0", ' ', $h);
+
+        // Trim and collapse whitespace
+        $h = trim($h);
+        $h = preg_replace('/\s+/', ' ', $h);
+
+        // Collapse spaces around underscores and remove accidental trailing/leading underscores
+        $h = preg_replace('/\s*_\s*/', '_', $h);
+        $h = trim($h, '_');
+
+        // Keep underscores as-is (don't force underscores)
+        return $h;
     }
 
     /**
      * Detect and extract month/year patterns from headers
-     * Matches patterns like: Jan_2025, Feb_2025, Mar_2025, etc.
+     * Accepts array of header strings
      */
     protected function detectMonthYearColumns($headers)
     {
         $monthYearColumns = [];
-        
-        // Pattern to match: Jan_2025, Feb_2025, etc.
-        $pattern = '/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)_(\d{4})_(.+)$/';
-        
+
+        $pattern = '/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)_(\d{4})_(.+)$/i';
+
         foreach ($headers as $header) {
-            if (preg_match($pattern, $header, $matches)) {
+            $h = (string)$header;
+            if (preg_match($pattern, $h, $matches)) {
                 $month = $matches[1];
                 $year = $matches[2];
-                $field = $matches[3]; // DueDate, Type, Piutang, CairDate, Payment
-                
+                $field = $matches[3];
+
                 $key = "{$month}_{$year}";
-                
+
                 if (!isset($monthYearColumns[$key])) {
                     $monthYearColumns[$key] = [];
                 }
-                
-                $monthYearColumns[$key][$field] = $header;
+
+                // preserve original header string
+                $monthYearColumns[$key][$field] = $h;
             }
-            
-            // Also detect YTD columns like YTD_sd_Jun_2025, YTD_bayar_Jun_2025
-            if (preg_match('/^(YTD_sd|YTD_bayar)_(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)_(\d{4})$/', $header, $matches)) {
+
+            // YTD patterns
+            if (preg_match('/^(YTD_sd|YTD_bayar)_(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)_(\d{4})$/i', $h, $matches)) {
                 $ytdType = $matches[1];
                 $month = $matches[2];
                 $year = $matches[3];
                 $key = "{$month}_{$year}";
-                
+
                 if (!isset($monthYearColumns[$key])) {
                     $monthYearColumns[$key] = [];
                 }
-                
-                $monthYearColumns[$key][$ytdType] = $header;
+
+                $monthYearColumns[$key][$ytdType] = $h;
             }
-            
-            // Detect Before columns like Amount_Before_Jan_2025
-            if (preg_match('/^(Amount|Piutang|Payment)_Before_(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)_(\d{4})$/', $header, $matches)) {
+
+            // Before / After patterns
+            if (preg_match('/^(Amount|Piutang|Payment)_Before_(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)_(\d{4})$/i', $h, $matches)) {
                 $field = $matches[1];
                 $month = $matches[2];
                 $year = $matches[3];
                 $key = "Before_{$month}_{$year}";
-                
-                if (!isset($monthYearColumns[$key])) {
-                    $monthYearColumns[$key] = [];
-                }
-                
-                $monthYearColumns[$key][$field] = $header;
+                if (!isset($monthYearColumns[$key])) $monthYearColumns[$key] = [];
+                $monthYearColumns[$key][$field] = $h;
             }
-            
-            // Detect After columns like Piutang_After_Jun_2025
-            if (preg_match('/^(Piutang|Payment)_After_(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)_(\d{4})$/', $header, $matches)) {
+            if (preg_match('/^(Piutang|Payment)_After_(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)_(\d{4})$/i', $h, $matches)) {
                 $field = $matches[1];
                 $month = $matches[2];
                 $year = $matches[3];
                 $key = "After_{$month}_{$year}";
-                
-                if (!isset($monthYearColumns[$key])) {
-                    $monthYearColumns[$key] = [];
-                }
-                
-                $monthYearColumns[$key][$field] = $header;
+                if (!isset($monthYearColumns[$key])) $monthYearColumns[$key] = [];
+                $monthYearColumns[$key][$field] = $h;
             }
         }
-        
+
         return $monthYearColumns;
     }
 
@@ -158,38 +207,64 @@ class PurchasePaymentController extends Controller
 
         $file = $request->file('file');
         $dataYear = $request->input('data_year');
-        
+
         $spreadsheet = IOFactory::load($file->getRealPath());
         $sheet = $spreadsheet->getActiveSheet();
         $rows = $sheet->toArray(null, true, true, true);
 
-        $header = array_shift($rows);
-        
-        // Detect year from headers (e.g., Jan_2025_Piutang -> 2025)
+        if (empty($rows)) {
+            return redirect()->back()->with('error', 'Uploaded file is empty');
+        }
+
+        // Extract header row and normalize each header string
+        $header = array_shift($rows); // header map: columnLetter => headerString
+        $headerCleanMap = []; // columnLetter => cleanedHeaderString
+        foreach ($header as $colKey => $colName) {
+            $clean = $this->normalizeHeader((string)$colName);
+            $headerCleanMap[$colKey] = $clean;
+        }
+
+        // Build a simple array of cleaned header strings for detection routines
+        $cleanHeadersFlat = array_values($headerCleanMap);
+
+        // Detect year from headers (if present)
         $detectedYear = null;
-        foreach ($header as $col) {
-            if (preg_match('/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)_(\d{4})_/', $col, $matches)) {
+        foreach ($cleanHeadersFlat as $col) {
+            if (preg_match('/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)_(\d{4})_/i', $col, $matches)) {
                 $detectedYear = (int)$matches[2];
                 break;
             }
         }
-        
-        // Use detected year or fallback to provided year
+
+        // final year choice
         $yearToUse = $detectedYear ?? $dataYear;
-        
-        \Log::info("Upload: Detected year={$detectedYear}, User selected year={$dataYear}, Using year={$yearToUse}");
+        Log::info("Upload: Detected year={$detectedYear}, User selected year={$dataYear}, Using year={$yearToUse}");
+
+        // Build dynamic mapping info from the cleaned headers
+        $dynamicColumns = $this->detectMonthYearColumns($cleanHeadersFlat);
+
+        // Get actual DB columns (case-sensitive as returned by DB) and prepare lower-case map
+        $tableColumns = Schema::getColumnListing((new PurchasePayment)->getTable());
+        $tableColsLowerMap = [];
+        foreach ($tableColumns as $c) {
+            $tableColsLowerMap[strtolower($c)] = $c;
+        }
 
         $successCount = 0;
         $errorCount = 0;
 
+        // expected per-month subfields
+        $monthSubfields = ['DueDate', 'Type', 'Piutang', 'CairDate', 'Payment'];
+
         foreach ($rows as $rowIndex => $row) {
             try {
+                // Build data keyed by cleaned header names (this helps for static fields lookup)
                 $data = [];
-                foreach ($header as $colKey => $colName) {
-                    $data[$colName] = $row[$colKey] ?? null;
+                foreach ($headerCleanMap as $colKey => $cleanHeader) {
+                    $data[$cleanHeader] = $row[$colKey] ?? null;
                 }
 
-                // Build the columns to insert/update
+                // Build base columns using user's original mapping logic (kept)
                 $columns = [
                     'No'                        => $this->toFloat($data['No'] ?? null),
                     'is_reportcashin'           => $this->toFloat($data['is_reportcashin'] ?? null),
@@ -229,36 +304,218 @@ class PurchasePaymentController extends Controller
                     'diatas_90_DP'              => $this->toFloat($data['diatas_90_DP'] ?? null),
                     'lebih_bayar'               => $this->toFloat($data['lebih_bayar'] ?? null),
                     'helper_tahun'              => $this->toInt($data['helper_tahun'] ?? null),
+                    // ensure data_year is set from user selection or detected header
+                    'data_year'                 => $yearToUse,
                 ];
 
-                // Add dynamic month/year columns
-                foreach ($dynamicColumns as $key => $fields) {
-                    foreach ($fields as $fieldType => $excelColumn) {
-                        if (isset($data[$excelColumn])) {
-                            // Map to database column names
-                            $dbColumn = $excelColumn;
-                            
-                            if ($fieldType === 'DueDate' || $fieldType === 'CairDate') {
-                                $columns[$dbColumn] = $this->parseDate($data[$excelColumn]);
-                            } elseif ($fieldType === 'Type') {
-                                $columns[$dbColumn] = $data[$excelColumn];
+                // Add computed year/month fields derived from PurchaseDate (fallback to data_year)
+                if (!empty($columns['PurchaseDate'])) {
+                    $parsed = $columns['PurchaseDate'];
+                    if ($parsed instanceof Carbon) {
+                        $columns['year'] = $parsed->year;
+                        $columns['month'] = $parsed->month;
+                    } else {
+                        try {
+                            $dt = Carbon::parse($parsed);
+                            $columns['year'] = $dt->year;
+                            $columns['month'] = $dt->month;
+                        } catch (\Exception $e) {
+                            $columns['year'] = $yearToUse;
+                            $columns['month'] = null;
+                        }
+                    }
+                } else {
+                    $columns['year'] = $yearToUse;
+                    $columns['month'] = null;
+                }
+
+                // -------------------------
+                // Robust mapping for dynamic month/year columns:
+                // Look for headers containing month + year + subfield and map their cell values.
+                // -------------------------
+                foreach ($dynamicColumns as $monthYearKey => $fields) {
+                    // monthYearKey e.g. "Jan_2024"
+                    $parts = explode('_', $monthYearKey, 2);
+                    if (count($parts) < 2) continue;
+                    $month = $parts[0];
+                    $year = $parts[1];
+
+                    foreach ($monthSubfields as $sub) {
+                        $foundColKey = null;
+                        $foundHeader = null;
+
+                        // find the column letter that contains month, year and sub (case-insensitive)
+                        foreach ($headerCleanMap as $colKey => $cleanHeader) {
+                            $h = strtolower($cleanHeader);
+                            if (strpos($h, strtolower($month)) !== false
+                                && strpos($h, (string)$year) !== false
+                                && strpos($h, strtolower($sub)) !== false) {
+                                $foundColKey = $colKey;
+                                $foundHeader = $cleanHeader;
+                                break;
+                            }
+                        }
+
+                        if (!$foundColKey) {
+                            // not found: skip this subfield
+                            continue;
+                        }
+
+                        $rawVal = $row[$foundColKey] ?? null;
+                        if ($rawVal === null || $rawVal === '') {
+                            $value = null;
+                        } else {
+                            if (stripos($sub, 'DueDate') !== false || stripos($sub, 'CairDate') !== false) {
+                                $value = $this->parseDate($rawVal);
+                            } elseif (stripos($sub, 'Type') !== false) {
+                                $value = (string)$rawVal;
                             } else {
-                                // Piutang, Payment, Amount, YTD_sd, YTD_bayar
-                                $columns[$dbColumn] = $this->toFloat($data[$excelColumn]);
+                                $value = $this->toFloat($rawVal);
+                            }
+                        }
+
+                        // Try DB generic name (e.g. Jan_Year_DueDate)
+                        $dbGeneric = "{$month}_Year_{$sub}";
+                        $lg = strtolower($dbGeneric);
+
+                        if (isset($tableColsLowerMap[$lg])) {
+                            $actualDbCol = $tableColsLowerMap[$lg];
+                            $columns[$actualDbCol] = $value;
+                        } else {
+                            // fallback: if DB stores the exact excel header name (with year), map it too
+                            $foundHeaderLower = strtolower($foundHeader);
+                            if (isset($tableColsLowerMap[$foundHeaderLower])) {
+                                $actualDbCol = $tableColsLowerMap[$foundHeaderLower];
+                                $columns[$actualDbCol] = $value;
+                            } else {
+                                // if still not found try a couple of common alternate patterns:
+                                // e.g. "Jan_2024_DueDate" (exact) -> check its lower-case presence
+                                $exactExcel = "{$month}_{$year}_{$sub}";
+                                $exactLower = strtolower($exactExcel);
+                                if (isset($tableColsLowerMap[$exactLower])) {
+                                    $columns[$tableColsLowerMap[$exactLower]] = $value;
+                                } else {
+                                    // skip silently if DB doesn't have the column
+                                }
                             }
                         }
                     }
                 }
 
-                PurchasePayment::updateOrCreate(
-                    ['purchaseletter_id' => $data['purchaseletter_id']],
-                    $columns
-                );
-                
+                // Also handle Before / After / YTD style headers across all cleaned headers (in case they were not in dynamicColumns)
+                foreach ($cleanHeadersFlat as $cleanHeader) {
+                    $rawVal = $data[$cleanHeader] ?? null;
+                    $hLower = strtolower($cleanHeader);
+
+                    // Amount/Piutang/Payment_Before_Month_Year  => DB: Amount_Before_Month_Year or Amount_Before_Month_Year (but we prefer *_Before_<Month>_Year)
+                    if (preg_match('/^(amount|piutang|payment)_before_(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)_(\d{4})$/i', $cleanHeader, $m)) {
+                        $field = $m[1];
+                        $month = $m[2];
+                        // generic db name:
+                        $dbGeneric = ucfirst(strtolower($field)) . "_Before_" . $month . "_Year"; // example: Amount_Before_Jan_Year
+                        $lg = strtolower($dbGeneric);
+                        if (isset($tableColsLowerMap[$lg])) {
+                            $columns[$tableColsLowerMap[$lg]] = $this->toFloat($rawVal);
+                        } else {
+                            $exactLower = strtolower($cleanHeader);
+                            if (isset($tableColsLowerMap[$exactLower])) {
+                                $columns[$tableColsLowerMap[$exactLower]] = $this->toFloat($rawVal);
+                            }
+                        }
+                    }
+
+                    // Piutang/Payment_After_Month_Year
+                    if (preg_match('/^(piutang|payment)_after_(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)_(\d{4})$/i', $cleanHeader, $m)) {
+                        $field = $m[1];
+                        $month = $m[2];
+                        $dbGeneric = ucfirst(strtolower($field)) . "_After_" . $month . "_Year";
+                        $lg = strtolower($dbGeneric);
+                        if (isset($tableColsLowerMap[$lg])) {
+                            $columns[$tableColsLowerMap[$lg]] = $this->toFloat($rawVal);
+                        } else {
+                            $exactLower = strtolower($cleanHeader);
+                            if (isset($tableColsLowerMap[$exactLower])) {
+                                $columns[$tableColsLowerMap[$exactLower]] = $this->toFloat($rawVal);
+                            }
+                        }
+                    }
+
+                    // YTD_sd / YTD_bayar
+                    if (preg_match('/^(ytd_sd|ytd_bayar)_(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)_(\d{4})$/i', $cleanHeader, $m)) {
+                        $ytd = $m[1];
+                        $month = $m[2];
+                        $dbGeneric = strtoupper($ytd) . "_" . ucfirst(strtolower($month)) . "_Year"; // This builds YTD_SD_Jan_Year which might not match exactly; so fallback to exact cleaned header
+                        $exactLower = strtolower($cleanHeader);
+                        if (isset($tableColsLowerMap[$exactLower])) {
+                            $columns[$tableColsLowerMap[$exactLower]] = $this->toFloat($rawVal);
+                        } else {
+                            // as last resort try replacing year with _Year_ pattern
+                            $tryGeneric = str_replace("_{$yearToUse}", "_Year", $cleanHeader);
+                            if (isset($tableColsLowerMap[strtolower($tryGeneric)])) {
+                                $columns[$tableColsLowerMap[strtolower($tryGeneric)]] = $this->toFloat($rawVal);
+                            }
+                        }
+                    }
+                }
+
+                // Finally, map $columns keys to exact DB column names using case-insensitive matching
+                $finalColumns = [];
+                foreach ($columns as $k => $v) {
+                    $lk = strtolower($k);
+                    if (isset($tableColsLowerMap[$lk])) {
+                        $finalColumns[$tableColsLowerMap[$lk]] = $v;
+                    }
+                }
+
+                // Ensure data_year is definitely present if DB has it
+                if (isset($tableColsLowerMap['data_year'])) {
+                    $finalColumns[$tableColsLowerMap['data_year']] = $yearToUse;
+                }
+
+                // Find purchaseletter_id value from cleaned data (case-insensitive)
+                $purchaseValue = null;
+                foreach ($data as $k => $v) {
+                    $lk = strtolower($k);
+                    if (in_array($lk, ['purchaseletter_id', 'purchase_letter_id', 'purchaseletterid', 'purchase letter id'])) {
+                        $purchaseValue = $v;
+                        break;
+                    }
+                }
+
+                // Figure out the actual DB column name for purchaseletter_id (if it exists)
+                $dbPurchaseCol = null;
+                foreach (['purchaseletter_id', 'purchase_letter_id', 'purchaseletterid'] as $possible) {
+                    if (isset($tableColsLowerMap[$possible])) {
+                        $dbPurchaseCol = $tableColsLowerMap[$possible];
+                        break;
+                    }
+                }
+
+                // Perform create/update
+                if ($purchaseValue === null || $purchaseValue === '') {
+                    // No unique key value provided — create a new row
+                    if (!empty($finalColumns)) {
+                        PurchasePayment::create($finalColumns);
+                    }
+                } else {
+                    if ($dbPurchaseCol) {
+                        PurchasePayment::updateOrCreate(
+                            [$dbPurchaseCol => $purchaseValue],
+                            $finalColumns
+                        );
+                    } else {
+                        // fallback: try updateOrCreate with plain key
+                        PurchasePayment::updateOrCreate(
+                            ['purchaseletter_id' => $purchaseValue],
+                            $finalColumns
+                        );
+                    }
+                }
+
                 $successCount++;
             } catch (\Exception $e) {
                 $errorCount++;
-                \Log::error("Error importing row " . ($rowIndex + 2) . ": " . $e->getMessage());
+                Log::error("Error importing row " . ($rowIndex + 2) . ": " . $e->getMessage());
             }
         }
 
@@ -269,7 +526,7 @@ class PurchasePaymentController extends Controller
 
         return redirect()->back()->with('success', $message);
     }
-    
+
     public function uploadForm()
     {
         return view('payments.upload');
@@ -278,7 +535,7 @@ class PurchasePaymentController extends Controller
     public function view(Request $request)
     {
         $query = PurchasePayment::query();
-        
+
         // Apply filters
         if ($request->filled('cluster')) {
             $query->where('Cluster', 'like', '%' . $request->cluster . '%');
@@ -317,7 +574,7 @@ class PurchasePaymentController extends Controller
         }
 
         $payments = $query->orderBy('PurchaseDate', 'desc')->paginate(20);
-        
+
         return view('payments.view', [
             'payments' => $payments,
             'filters' => $request->all()
@@ -327,40 +584,32 @@ class PurchasePaymentController extends Controller
     public function export(Request $request)
     {
         $query = PurchasePayment::query();
-        
+
         // Apply same filters as view
         if ($request->filled('cluster')) {
             $query->where('Cluster', 'like', '%' . $request->cluster . '%');
         }
-
         if ($request->filled('block')) {
             $query->where('Block', 'like', '%' . $request->block . '%');
         }
-
         if ($request->filled('unit')) {
             $query->where('Unit', 'like', '%' . $request->unit . '%');
         }
-
         if ($request->filled('customername')) {
             $query->where('CustomerName', 'like', '%' . $request->customername . '%');
         }
-
         if ($request->filled('typepembelian')) {
             $query->where('TypePembelian', 'like', '%' . $request->typepembelian . '%');
         }
-
         if ($request->filled('type_unit')) {
             $query->where('type_unit', 'like', '%' . $request->type_unit . '%');
         }
-
         if ($request->filled('salesman')) {
             $query->where('Salesman', 'like', '%' . $request->salesman . '%');
         }
-
         if ($request->filled('startdate')) {
             $query->whereDate('PurchaseDate', '>=', $request->startdate);
         }
-
         if ($request->filled('enddate')) {
             $query->whereDate('PurchaseDate', '<=', $request->enddate);
         }
@@ -390,6 +639,10 @@ class PurchasePaymentController extends Controller
             foreach ($columns as $i => $colName) {
                 $col = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i + 1);
                 $value = $payment->$colName ?? '';
+                // If Carbon, format it
+                if ($value instanceof Carbon) {
+                    $value = $value->format('Y-m-d H:i:s');
+                }
                 $sheet->setCellValue($col . $rowIndex, $value);
             }
             $rowIndex++;

@@ -10,6 +10,10 @@ class PurchasePayment extends Model
     use HasFactory;
 
     protected $table = 'purchase_payments';
+    protected $primaryKey = 'No'; // or purchaseletter_id, whichever is correct
+    public $incrementing = false;
+    public $timestamps = false;
+
 
     protected $fillable = [
         'No', 'purchaseletter_id', 'is_reportcashin', 'Cluster', 'Block', 'Unit',
@@ -36,6 +40,7 @@ class PurchasePayment extends Model
 
         'selisih', 'dari_1_sampai_30_DP', 'dari_31_sampai_60_DP',
         'dari_61_sampai_90_DP', 'diatas_90_DP', 'lebih_bayar',
+        'year', 'month','data_year'
     ];
 
     protected $casts = [
