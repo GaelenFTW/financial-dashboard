@@ -28,6 +28,24 @@
                         @csrf
 
                         <div class="mb-3">
+                            <label for="data_year" class="form-label">Data Year <span class="text-danger">*</span></label>
+                            <select name="data_year" id="data_year" class="form-select @error('data_year') is-invalid @enderror" required>
+                                <option value="">-- Select Year --</option>
+                                @for($y = 2020; $y <= date('Y') + 2; $y++)
+                                    <option value="{{ $y }}" {{ old('data_year', date('Y')) == $y ? 'selected' : '' }}>
+                                        {{ $y }}
+                                    </option>
+                                @endfor
+                            </select>
+                            <div class="form-text">
+                                Select the year of the data you're uploading. The system will normalize column names but track the year.
+                            </div>
+                            @error('data_year')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <div class="mb-3">
                             <label for="file" class="form-label">Excel File <span class="text-danger">*</span></label>
                             <input type="file" 
                                    class="form-control @error('file') is-invalid @enderror" 

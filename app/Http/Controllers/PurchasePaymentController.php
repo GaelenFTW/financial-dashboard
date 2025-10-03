@@ -152,10 +152,12 @@ class PurchasePaymentController extends Controller
     public function upload(Request $request)
     {
         $request->validate([
-            'file' => 'required|mimes:xlsx,xls,csv'
+            'file' => 'required|mimes:xlsx,xls,csv',
+            'data_year' => 'required|integer|min:2020|max:2100'
         ]);
 
         $file = $request->file('file');
+        $dataYear = $request->input('data_year');
         
         $spreadsheet = IOFactory::load($file->getRealPath());
         $sheet = $spreadsheet->getActiveSheet();
@@ -163,8 +165,19 @@ class PurchasePaymentController extends Controller
 
         $header = array_shift($rows);
         
-        // Detect month/year columns from headers
-        $dynamicColumns = $this->detectMonthYearColumns($header);
+        // Detect year from headers (e.g., Jan_2025_Piutang -> 2025)
+        $detectedYear = null;
+        foreach ($header as $col) {
+            if (preg_match('/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)_(\d{4})_/', $col, $matches)) {
+                $detectedYear = (int)$matches[2];
+                break;
+            }
+        }
+        
+        // Use detected year or fallback to provided year
+        $yearToUse = $detectedYear ?? $dataYear;
+        
+        \Log::info("Upload: Detected year={$detectedYear}, User selected year={$dataYear}, Using year={$yearToUse}");
 
         $successCount = 0;
         $errorCount = 0;
