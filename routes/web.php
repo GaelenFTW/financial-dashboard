@@ -9,9 +9,6 @@ use App\Http\Controllers\ManagementReportController;
 use App\Http\Controllers\ExcelUploadController;
 use App\Http\Controllers\PurchasePaymentController;
 
-use App\Http\Controllers\MappingTestController;
-use App\Http\Controllers\ImportDebugController;
-
 
 // Purchase Letters Routes
 Route::get('/purchase-letters', [PurchaseLetterController::class, 'index'])->name('purchase_letters.index');
@@ -34,15 +31,8 @@ Route::get('/export', [DashboardController::class, 'exportFilteredData'])
 Route::get('/export/customers', [DashboardController::class, 'exportTopCustomers'])->name('export.top.customers');
 Route::get('/export/products', [DashboardController::class, 'exportTopProducts'])->name('export.top.products');
 
-Route::get('/management-report', [ManagementReportController::class, 'index'])->middleware('auth')->name('management.report');
+Route::get('/management-report', [ManagementReportController::class, 'index'])->name('management.report');
 
 Route::get('/payments/upload', [PurchasePaymentController::class, 'uploadForm'])->name('payments.upload.form');
 Route::post('/payments/upload', [PurchasePaymentController::class, 'upload'])->name('payments.upload');
-Route::get('/payments/view', [PurchasePaymentController::class, 'view'])->name('payments.view');
-// In your routes/web.php file, add:
-Route::get('/payments/export', [PurchasePaymentController::class, 'export'])->name('payments.export');
-
-
-
-Route::post('/test-mapping', [MappingTestController::class, 'testMapping'])->name('mapping.test');
-Route::post('/debug-excel', [ImportDebugController::class, 'debugExcel'])->name('debug.excel');
+Route::get('/payments/view', [PurchasePaymentController::class, 'view'])->name('payments.view');    
