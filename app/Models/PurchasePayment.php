@@ -4,62 +4,106 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Carbon\Carbon;
 
 class PurchasePayment extends Model
 {
     use HasFactory;
 
     protected $table = 'purchase_payments';
-    protected $primaryKey = 'No'; // or purchaseletter_id, whichever is correct
+    protected $primaryKey = 'No';
     public $incrementing = false;
     public $timestamps = false;
 
+    protected $fillable = [];
+    protected $casts = [];
 
-    protected $fillable = [
-        'No', 'purchaseletter_id', 'is_reportcashin', 'Cluster', 'Block', 'Unit',
-        'CustomerName', 'PurchaseDate', 'LunasDate', 'is_ppndtp', 'persen_ppndtp',
-        'harga_netto', 'TotalPPN', 'harga_bbnsertifikat', 'harga_bajb', 'harga_bphtb',
-        'harga_administrasi', 'harga_paket_tambahan', 'harga_admsubsidi', 'biaya_asuransi',
-        'HrgJualTotal', 'disc_collection', 'HrgJualTotalminDiscColl', 'TypePembelian',
-        'bank_induk', 'KPP', 'JenisKPR', 'Salesman', 'Member', 'tanggal_akad',
-        'persen_progress_bangun', 'type_unit',
+    /**
+     * Constructor: dynamically generate fillable & casts just like in controller
+     */
+    public function __construct(array $attributes = [])
+    {
+        parent::__construct($attributes);
 
-        'Amount_Before_Jan_2025', 'Piutang_Before_Jan_2025', 'Payment_Before_Jan_2025',
+        $this->fillable = $this->generateFillable();
+        $this->casts = $this->generateCasts();
+    }
 
-        // Monthly columns Jan – Jun 2025
-        'Jan_2025_DueDate', 'Jan_2025_Type', 'Jan_2025_Piutang', 'Jan_2025_CairDate', 'Jan_2025_Payment',
-        'Feb_2025_DueDate', 'Feb_2025_Type', 'Feb_2025_Piutang', 'Feb_2025_CairDate', 'Feb_2025_Payment',
-        'Mar_2025_DueDate', 'Mar_2025_Type', 'Mar_2025_Piutang', 'Mar_2025_CairDate', 'Mar_2025_Payment',
-        'Apr_2025_DueDate', 'Apr_2025_Type', 'Apr_2025_Piutang', 'Apr_2025_CairDate', 'Apr_2025_Payment',
-        'May_2025_DueDate', 'May_2025_Type', 'May_2025_Piutang', 'May_2025_CairDate', 'May_2025_Payment',
-        'Jun_2025_DueDate', 'Jun_2025_Type', 'Jun_2025_Piutang', 'Jun_2025_CairDate', 'Jun_2025_Payment',
+    /**
+     * Base (non-monthly) columns — permanent
+     */
+    protected function baseColumns(): array
+    {
+        return [
+            'No', 'purchaseletter_id', 'is_reportcashin', 'Cluster', 'Block', 'Unit',
+            'CustomerName', 'PurchaseDate', 'LunasDate', 'is_ppndtp', 'persen_ppndtp',
+            'harga_netto', 'TotalPPN', 'harga_bbnsertifikat', 'harga_bajb', 'harga_bphtb',
+            'harga_administrasi', 'harga_paket_tambahan', 'harga_admsubsidi', 'biaya_asuransi',
+            'HrgJualTotal', 'disc_collection', 'HrgJualTotalminDiscColl', 'TypePembelian',
+            'bank_induk', 'KPP', 'JenisKPR', 'Salesman', 'Member', 'tanggal_akad',
+            'persen_progress_bangun', 'type_unit', 'selisih', 'dari_1_sampai_30_DP',
+            'dari_31_sampai_60_DP', 'dari_61_sampai_90_DP', 'diatas_90_DP', 'lebih_bayar',
+            'year', 'month', 'data_year'
+        ];
+    }
 
-        // After June summary
-        'Piutang_After_Jun_2025', 'Payment_After_Jun_2025',
-        'YTD_sd_Jun_2025', 'YTD_bayar_Jun_2025',
+    /**
+     * Dynamically generate fillable columns for the given year
+     */
+    protected function generateFillable(int $year = null): array
+    {
+        $year = $year ?: date('Y');
+        $fillable = $this->baseColumns();
 
-        'selisih', 'dari_1_sampai_30_DP', 'dari_31_sampai_60_DP',
-        'dari_61_sampai_90_DP', 'diatas_90_DP', 'lebih_bayar',
-        'year', 'month','data_year'
-    ];
+        $months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-    protected $casts = [
-        'PurchaseDate'   => 'date',
-        'LunasDate'      => 'date',
-        'tanggal_akad'   => 'date',
+        // Before columns
+        $fillable[] = "Amount_Before_Jan_{$year}";
+        $fillable[] = "Piutang_Before_Jan_{$year}";
+        $fillable[] = "Payment_Before_Jan_{$year}";
 
-        // Cast monthly due dates + cair dates
-        'Jan_2025_DueDate' => 'date',
-        'Jan_2025_CairDate' => 'date',
-        'Feb_2025_DueDate' => 'date',
-        'Feb_2025_CairDate' => 'date',
-        'Mar_2025_DueDate' => 'date',
-        'Mar_2025_CairDate' => 'date',
-        'Apr_2025_DueDate' => 'date',
-        'Apr_2025_CairDate' => 'date',
-        'May_2025_DueDate' => 'date',
-        'May_2025_CairDate' => 'date',
-        'Jun_2025_DueDate' => 'date',
-        'Jun_2025_CairDate' => 'date',
-    ];
+        // Monthly columns
+        foreach ($months as $month) {
+            $fillable[] = "{$month}_{$year}_DueDate";
+            $fillable[] = "{$month}_{$year}_Type";
+            $fillable[] = "{$month}_{$year}_Piutang";
+            $fillable[] = "{$month}_{$year}_CairDate";
+            $fillable[] = "{$month}_{$year}_Payment";
+
+            // After and YTD columns (month-specific)
+            $fillable[] = "Piutang_After_{$month}_{$year}";
+            $fillable[] = "Payment_After_{$month}_{$year}";
+            $fillable[] = "YTD_sd_{$month}_{$year}";
+            $fillable[] = "YTD_bayar_{$month}_{$year}";
+        }
+
+        // Generic After/YTD (no month)
+        $fillable[] = "Piutang_After_{$year}";
+        $fillable[] = "Payment_After_{$year}";
+        $fillable[] = "YTD_sd_{$year}";
+        $fillable[] = "YTD_bayar_{$year}";
+
+        return $fillable;
+    }
+
+    /**
+     * Automatically cast all *_DueDate and *_CairDate fields as dates
+     */
+    protected function generateCasts(int $year = null): array
+    {
+        $year = $year ?: date('Y');
+        $casts = [
+            'PurchaseDate' => 'date',
+            'LunasDate' => 'date',
+            'tanggal_akad' => 'date',
+        ];
+
+        $months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        foreach ($months as $month) {
+            $casts["{$month}_{$year}_DueDate"] = 'date';
+            $casts["{$month}_{$year}_CairDate"] = 'date';
+        }
+
+        return $casts;
+    }
 }

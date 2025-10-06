@@ -9,6 +9,9 @@ use App\Http\Controllers\ManagementReportController;
 use App\Http\Controllers\ExcelUploadController;
 use App\Http\Controllers\PurchasePaymentController;
 
+use App\Http\Controllers\MappingTestController;
+use App\Http\Controllers\ImportDebugController;
+
 
 // Purchase Letters Routes
 Route::get('/purchase-letters', [PurchaseLetterController::class, 'index'])->name('purchase_letters.index');
@@ -38,3 +41,8 @@ Route::post('/payments/upload', [PurchasePaymentController::class, 'upload'])->n
 Route::get('/payments/view', [PurchasePaymentController::class, 'view'])->name('payments.view');
 // In your routes/web.php file, add:
 Route::get('/payments/export', [PurchasePaymentController::class, 'export'])->name('payments.export');
+
+
+
+Route::post('/test-mapping', [MappingTestController::class, 'testMapping'])->name('mapping.test');
+Route::post('/debug-excel', [ImportDebugController::class, 'debugExcel'])->name('debug.excel');
