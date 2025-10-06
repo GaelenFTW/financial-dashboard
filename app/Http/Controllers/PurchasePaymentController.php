@@ -196,9 +196,7 @@ class PurchasePaymentController extends Controller
                     'dari_61_sampai_90_DP' => $this->toFloat($data['dari_61_sampai_90_DP'] ?? null),
                     'diatas_90_DP' => $this->toFloat($data['diatas_90_DP'] ?? null),
                     'lebih_bayar' => $this->toFloat($data['lebih_bayar'] ?? null),
-                    'month' => $month,
-                    'year' => $year,
-                    'project_id' =>$project_id, 
+                    'month' => $yearToUse,
                 ];
 
                 // Apply mappings
@@ -226,7 +224,7 @@ class PurchasePaymentController extends Controller
                                 $type = 'datetime2';
                             } elseif (strpos($colName, 'Type') !== false || in_array($colName, ['Cluster', 'Block', 'Unit', 'CustomerName', 'TypePembelian', 'bank_induk', 'KPP', 'JenisKPR', 'Member', 'Salesman', 'type_unit'])) {
                                 $type = 'nvarchar(255)';
-                            } elseif ($colName === 'year') {
+                            } elseif ($colName === 'data_year') {
                                 $type = 'int';
                             } else {
                                 $type = 'decimal(20,2)';
