@@ -82,17 +82,16 @@ class PurchasePaymentController extends Controller
     public function upload(Request $request)
     {
         $request->validate([
-            'year'       => 'required|integer|min:2020|max:' . (date('Y') + 2),
-            'month'      => 'required|integer|min:1|max:12',
+            'file' => 'required|mimes:xlsx,xls,csv',
+            'data_year' => 'required|integer|min:2020|max:2100',
+            'data_month' => 'required|integer|min:1|max:12',
             'project_id' => 'required|integer',
-            'file'       => 'required|file|mimes:xlsx,xls,csv',
         ]);
 
-
         $file = $request->file('file');
-        $year = $request->input('year');
-        $month = $request->input('month');
-        $project_id = $request->input('project_id');
+        $dataYear = $request->input('data_year');
+        $dataMonth = $request->input('data_month');
+        $projectId = $request->input('project_id');
         
         $spreadsheet = IOFactory::load($file->getRealPath());
         $sheet = $spreadsheet->getActiveSheet();
@@ -109,8 +108,8 @@ class PurchasePaymentController extends Controller
             }
         }
         
-        $yearToUse = $detectedYear ?? $year;
-        Log::info("Upload: Detected year={$detectedYear}, User selected year={$year}, Using year={$yearToUse}");
+        $yearToUse = $detectedYear ?? $dataYear;
+        Log::info("Upload: Detected year={$detectedYear}, User selected year={$dataYear}, Using year={$yearToUse}");
 
         // Build column mappings
         $monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -196,7 +195,9 @@ class PurchasePaymentController extends Controller
                     'dari_61_sampai_90_DP' => $this->toFloat($data['dari_61_sampai_90_DP'] ?? null),
                     'diatas_90_DP' => $this->toFloat($data['diatas_90_DP'] ?? null),
                     'lebih_bayar' => $this->toFloat($data['lebih_bayar'] ?? null),
-                    'month' => $yearToUse,
+                    'data_year' => $yearToUse,
+                    'data_month' => $dataMonth,
+                    'project_id' => $projectId,
                 ];
 
                 // Apply mappings
@@ -224,7 +225,7 @@ class PurchasePaymentController extends Controller
                                 $type = 'datetime2';
                             } elseif (strpos($colName, 'Type') !== false || in_array($colName, ['Cluster', 'Block', 'Unit', 'CustomerName', 'TypePembelian', 'bank_induk', 'KPP', 'JenisKPR', 'Member', 'Salesman', 'type_unit'])) {
                                 $type = 'nvarchar(255)';
-                            } elseif ($colName === 'data_year') {
+                            } elseif (in_array($colName, ['data_year', 'data_month', 'project_id'])) {
                                 $type = 'int';
                             } else {
                                 $type = 'decimal(20,2)';
