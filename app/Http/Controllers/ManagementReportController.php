@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Illuminate\Support\Facades\Response;
 use Illuminate\Http\Request;
 use App\Models\PurchasePayment;
 use Carbon\Carbon;
@@ -436,4 +439,100 @@ class ManagementReportController extends Controller
             'currentYear' => $currentYear,
         ]);
     }
+
+    public function export(Request $request)
+    {
+    $month = (int)$request->input('month', now()->month);
+    $year = (int)$request->input('year', now()->year);
+    $projectId = $request->input('project_id');
+
+    // Call the same index logic but in-memory (reuse existing data prep)
+    $request->merge([
+        'month' => $month,
+        'year' => $year,
+        'project_id' => $projectId
+    ]);
+
+    // Reuse the same logic from index()
+    $viewData = $this->index($request)->getData();
+
+    // Extract from view data
+    $monthlyPerformance = $viewData['monthlyPerformance'] ?? [];
+    $ytdPerformance = $viewData['ytdPerformance'] ?? [];
+    $aging = $viewData['aging'] ?? [];
+    $outstanding = $viewData['outstanding'] ?? [];
+
+    $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+
+    // --- Monthly Performance Sheet ---
+    $sheet1 = $spreadsheet->getActiveSheet();
+    $sheet1->setTitle('Monthly Performance');
+    $sheet1->fromArray(['PAYMENT SYSTEM','MEETING TARGET','SALES TARGET','ACTUAL','% (Meeting)','% (Sales)','STATUS'], NULL, 'A1');
+
+    $rowNum = 2;
+    foreach ($monthlyPerformance as $row) {
+        $sheet1->setCellValue("A$rowNum", $row['payment']);
+        $sheet1->setCellValue("B$rowNum", $row['meeting_target']);
+        $sheet1->setCellValue("C$rowNum", $row['sales_target']);
+        $sheet1->setCellValue("D$rowNum", $row['actual']);
+        $sheet1->setCellValue("E$rowNum", $row['meeting_target'] > 0 ? round($row['actual'] / $row['meeting_target'] * 100, 1) : 0);
+        $sheet1->setCellValue("F$rowNum", $row['percentage']);
+        $sheet1->setCellValue("G$rowNum", $row['status']);
+        $rowNum++;
+    }
+
+    // --- YTD Performance Sheet ---
+    $ytdSheet = $spreadsheet->createSheet();
+    $ytdSheet->setTitle('YTD Performance');
+    $ytdSheet->fromArray(['PAYMENT SYSTEM','MEETING TARGET','SALES TARGET','ACTUAL','% (Sales)','STATUS'], NULL, 'A1');
+    $rowNum = 2;
+    foreach ($ytdPerformance as $row) {
+        $ytdSheet->setCellValue("A$rowNum", $row['payment']);
+        $ytdSheet->setCellValue("B$rowNum", $row['meeting_target']);
+        $ytdSheet->setCellValue("C$rowNum", $row['sales_target']);
+        $ytdSheet->setCellValue("D$rowNum", $row['actual']);
+        $ytdSheet->setCellValue("E$rowNum", $row['percentage']);
+        $ytdSheet->setCellValue("F$rowNum", $row['status']);
+        $rowNum++;
+    }
+
+    // --- Aging Sheet ---
+    $agingSheet = $spreadsheet->createSheet();
+    $agingSheet->setTitle('Aging');
+    $agingSheet->fromArray(['PAYMENT SYSTEM','<30 DAYS','31–60 DAYS','61–90 DAYS','>90 DAYS','LEBIH BAYAR'], NULL, 'A1');
+    $rowNum = 2;
+    foreach ($aging as $row) {
+        $agingSheet->setCellValue("A$rowNum", $row['payment']);
+        $agingSheet->setCellValue("B$rowNum", $row['lt30']);
+        $agingSheet->setCellValue("C$rowNum", $row['d30_60']);
+        $agingSheet->setCellValue("D$rowNum", $row['d60_90']);
+        $agingSheet->setCellValue("E$rowNum", $row['gt90']);
+        $agingSheet->setCellValue("F$rowNum", $row['lebih_bayar']);
+        $rowNum++;
+    }
+
+    // --- Outstanding Sheet ---
+    $outSheet = $spreadsheet->createSheet();
+    $outSheet->setTitle('Outstanding');
+    $outSheet->fromArray(['TYPE','JATUH TEMPO','BELUM JATUH TEMPO','TOTAL','%'], NULL, 'A1');
+    $rowNum = 2;
+    foreach ($outstanding as $row) {
+        $outSheet->setCellValue("A$rowNum", $row['type']);
+        $outSheet->setCellValue("B$rowNum", $row['jatuh_tempo']);
+        $outSheet->setCellValue("C$rowNum", $row['belum_jatuh_tempo']);
+        $outSheet->setCellValue("D$rowNum", $row['total']);
+        $outSheet->setCellValue("E$rowNum", $row['percentage']);
+        $rowNum++;
+    }
+
+    $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+    $fileName = "Management_Report_{$year}_{$month}.xlsx";
+
+    return response()->streamDownload(function() use ($writer) {
+        $writer->save('php://output');
+    }, $fileName, [
+        'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    ]);
+}
+
 }

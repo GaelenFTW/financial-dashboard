@@ -77,11 +77,15 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-2 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary w-100">
-                        <i class="fas fa-search"></i> View Report
-                    </button>
-                </div>
+                    <div class="col-md-3 d-flex align-items-end gap-2">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-search"></i> View Report
+                        </button>
+                        <a href="{{ route('management.report.export', request()->query()) }}" class="btn btn-success w-100">
+                            <i class="fas fa-file-export"></i> Export
+                        </a>
+                    </div>
+
             </form>
         </div>
     </div>

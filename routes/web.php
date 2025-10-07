@@ -32,6 +32,8 @@ Route::get('/export/customers', [DashboardController::class, 'exportTopCustomers
 Route::get('/export/products', [DashboardController::class, 'exportTopProducts'])->name('export.top.products');
 
 Route::get('/management-report', [ManagementReportController::class, 'index'])->name('management.report');
+Route::get('management-report/export', [ManagementReportController::class, 'export'])->name('management.report.export');
+
 
 Route::get('/payments/upload', [PurchasePaymentController::class, 'uploadForm'])->name('payments.upload.form');
 Route::post('/payments/upload', [PurchasePaymentController::class, 'upload'])->name('payments.upload');
