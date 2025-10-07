@@ -17,26 +17,17 @@ class ManagementReportController extends Controller
 
     public function index(Request $request)
     {
-        // Month/year selection from Blade
         $currentMonth = (int)$request->input('month', now()->month);
         $currentYear = (int)$request->input('year', now()->year);
-        
-        // Optional project filter
         $projectId = $request->input('project_id');
 
-        // Fetch data from SQL Server filtered by data_year (and optionally project_id)
         $query = PurchasePayment::where('data_year', $currentYear);
-        
         if ($projectId) {
             $query->where('project_id', $projectId);
         }
-        
         $payments = $query->get();
-        $rows = $payments->map(function($payment) {
-            return $payment->toArray();
-        })->toArray();
-        
-        // Fetch escrow and target from API (as before)
+        $rows = $payments->map(fn($p) => $p->toArray())->toArray();
+
         $rows3 = $this->jwtController->fetchData('api3', ['escrow.php', 'login.php']);
         $rows4 = $this->jwtController->fetchData('api4', ['target.php', 'login.php']);
 
@@ -44,11 +35,6 @@ class ManagementReportController extends Controller
             return view('management-report', ['error' => 'No data found. Please upload Excel file first.']);
         }
 
-        // Month selection
-        $currentMonth = (int)$request->input('month', now()->month);
-        $currentYear = (int)$request->input('year', now()->year);
-
-        // Helper: robust number parser
         $parseNumber = function ($val) {
             if ($val === null || $val === '') return 0.0;
             $s = trim((string)$val);
@@ -65,7 +51,6 @@ class ManagementReportController extends Controller
             return is_numeric($s) ? (float)$s : 0.0;
         };
 
-        // Month maps
         $monthShortUc = [
             1 => 'Jan', 2 => 'Feb', 3 => 'Mar', 4 => 'Apr',
             5 => 'May', 6 => 'Jun', 7 => 'Jul', 8 => 'Aug',
@@ -73,7 +58,6 @@ class ManagementReportController extends Controller
         ];
         $monthShortLc = array_map('strtolower', $monthShortUc);
 
-        // Build summary structure dynamically
         $summary = [];
         $totals = [
             'ytd_target' => 0, 'ytd_actual' => 0,
@@ -82,29 +66,25 @@ class ManagementReportController extends Controller
             'paybeforejan' => 0, 'ytdbayar' => 0,
             'monthly_meeting_target' => 0,
         ];
-
-        // Initialize monthly target/actual keys for totals
         foreach ($monthShortLc as $m) {
             $totals["{$m}_target"] = 0;
             $totals["{$m}_actual"] = 0;
         }
 
-        // Populate summary from $rows (NORMALIZE TYPE HERE)
         foreach ($rows as $row) {
             $rawType = $row['TypePembelian'] ?? '';
             $type = strtoupper(trim($rawType));
-
             if ($type === '' || $type === 'UNKNOWN') continue;
 
             if (!isset($summary[$type])) {
                 $summary[$type] = $totals;
             }
 
-            // Monthly fields (Jan..Dec) - now using normalized Year columns
+            // monthly targets/actuals
             foreach ($monthShortUc as $num => $shortUc) {
                 $lc = $monthShortLc[$num];
-                $pField = "{$shortUc}_Year_Piutang";  // Changed from {$shortUc}_{$currentYear}_Piutang
-                $aField = "{$shortUc}_Year_Payment";  // Changed from {$shortUc}_{$currentYear}_Payment
+                $pField = "{$shortUc}_Year_Piutang";
+                $aField = "{$shortUc}_Year_Payment";
 
                 $tVal = $parseNumber($row[$pField] ?? 0);
                 $aVal = $parseNumber($row[$aField] ?? 0);
@@ -116,55 +96,46 @@ class ManagementReportController extends Controller
                 $totals["{$lc}_actual"] += $aVal;
             }
 
-            // YTD calculation: sum all months from January to current month
-            // No need to use pre-calculated YTD columns, calculate dynamically
-            // This is done after the monthly loop completes
+            // YTD accumulation per type (fixed)
+            if (!isset($summary[$type]['ytd_target'])) {
+                $summary[$type]['ytd_target'] = 0;
+                $summary[$type]['ytd_actual'] = 0;
+            }
+            $ytdTarget = 0;
+            $ytdActual = 0;
+            for ($m = 1; $m <= $currentMonth; $m++) {
+                $lc = $monthShortLc[$m];
+                $pField = "{$monthShortUc[$m]}_Year_Piutang";
+                $aField = "{$monthShortUc[$m]}_Year_Payment";
+
+                $ytdTarget += $parseNumber($row[$pField] ?? 0);
+                $ytdActual += $parseNumber($row[$aField] ?? 0);
+            }
+            $summary[$type]['ytd_target'] += $ytdTarget;
+            $summary[$type]['ytd_actual'] += $ytdActual;
+
+            // other accumulations
             $summary[$type]['less30days'] += $parseNumber($row['dari_1_sampai_30_DP'] ?? 0);
             $summary[$type]['more31days'] += $parseNumber($row['dari_31_sampai_60_DP'] ?? 0);
             $summary[$type]['more61days'] += $parseNumber($row['dari_61_sampai_90_DP'] ?? 0);
             $summary[$type]['more90days'] += $parseNumber($row['diatas_90_DP'] ?? 0);
             $summary[$type]['lebihbayar'] += abs($parseNumber($row['lebih_bayar'] ?? 0));
             $summary[$type]['harganetto'] += $parseNumber($row['harga_netto'] ?? 0);
-            
-            $beforeColumn = "Payment_Before_01_tahun";
-            $summary[$type]['paybeforejan'] += $parseNumber($row[$beforeColumn] ?? 0);
-            // $summary[$type]['ytdbayar'] += $parseNumber($row[$ytdPaymentColumn] ?? 0);
+            $summary[$type]['paybeforejan'] += $parseNumber($row['Payment_Before_01_Year'] ?? 0);
+            $summary[$type]['ytdbayar'] += $ytdActual;
 
-
-            $ytdTarget = 0;
-            $ytdActual = 0;
-            foreach ($monthShortUc as $num => $shortUc) {
-                if ($num > $currentMonth) break; // only up to selected month
-                $lc = $monthShortLc[$num];
-                $pField = "{$shortUc}_Year_Piutang";
-                $aField = "{$shortUc}_Year_Payment";
-
-                $ytdTarget += $parseNumber($row[$pField] ?? 0);
-                $ytdActual += $parseNumber($row[$aField] ?? 0);
-            }
-
-            $summary[$type]['ytd_target'] = $ytdTarget;
-            $summary[$type]['ytd_actual'] = $ytdActual;
-
+            // totals accumulation
             $totals['ytd_target'] += $ytdTarget;
             $totals['ytd_actual'] += $ytdActual;
-            $summary[$type]['ytdbayar'] = $ytdActual; // if needed
-
-
-            // accumulate totals
-            // $totals['ytd_target'] += $parseNumber($row[$ytdColumn] ?? 0);
-            // $totals['ytd_actual'] += $parseNumber($row[$ytdPaymentColumn] ?? 0);
             $totals['less30days'] += $parseNumber($row['dari_1_sampai_30_DP'] ?? 0);
             $totals['more31days'] += $parseNumber($row['dari_31_sampai_60_DP'] ?? 0);
             $totals['more61days'] += $parseNumber($row['dari_61_sampai_90_DP'] ?? 0);
             $totals['more90days'] += $parseNumber($row['diatas_90_DP'] ?? 0);
             $totals['lebihbayar'] += abs($parseNumber($row['lebih_bayar'] ?? 0));
             $totals['harganetto'] += $parseNumber($row['harga_netto'] ?? 0);
-            $totals['paybeforejan'] += $parseNumber($row[$beforeColumn] ?? 0);
-            // $totals['ytdbayar'] += $parseNumber($row[$ytdPaymentColumn] ?? 0);
+            $totals['paybeforejan'] += $parseNumber($row['Payment_Before_01_Year'] ?? 0);
+            $totals['ytdbayar'] += $ytdActual;
         }
-
-        // put totals into summary
 
         // ESCROW & OUTSTANDING building (from API)
         $escrowTotals = [];
@@ -231,26 +202,47 @@ class ManagementReportController extends Controller
         }
 
         // inject meeting targets into summary per-type
+      // filter targets by current project
+        $filteredTargets = [];
+        if (!empty($projectId) && is_array($rows4)) {
+            foreach ($rows4 as $r) {
+                if ((int)($r['project_id'] ?? 0) === (int)$projectId) {
+                    $month = (int)($r['bulan'] ?? 0);
+                    if ($month >= 1 && $month <= 12) {
+                        $filteredTargets[$month] = [
+                            'cash' => $parseNumber($r['collection_target_cash_v'] ?? 0),
+                            'inhouse' => $parseNumber($r['collection_target_inhouse_v'] ?? 0),
+                            'kpr' => $parseNumber($r['collection_target_kpr_v'] ?? 0),
+                        ];
+                    }
+                }
+            }
+        }
+
         foreach ($summary as $typeKey => &$data) {
             $cleanType = strtoupper(trim($typeKey));
             $data['monthly_meeting_target'] = 0;
 
-            if ($cleanType === 'CASH') {
-                $data['monthly_meeting_target'] = $collectionTargets[$currentMonth]['cash'] ?? 0;
-            } elseif ($cleanType === 'INHOUSE') {
-                $data['monthly_meeting_target'] = $collectionTargets[$currentMonth]['inhouse'] ?? 0;
-            } elseif ($cleanType === 'KPR') {
-                $data['monthly_meeting_target'] = $collectionTargets[$currentMonth]['kpr'] ?? 0;
+            if (isset($filteredTargets[$currentMonth])) {
+                switch ($cleanType) {
+                    case 'CASH':
+                        $data['monthly_meeting_target'] = $filteredTargets[$currentMonth]['cash'] ?? 0;
+                        break;
+                    case 'INHOUSE':
+                        $data['monthly_meeting_target'] = $filteredTargets[$currentMonth]['inhouse'] ?? 0;
+                        break;
+                    case 'KPR':
+                        $data['monthly_meeting_target'] = $filteredTargets[$currentMonth]['kpr'] ?? 0;
+                        break;
+                }
             }
         }
         unset($data);
 
         // TOTAL meeting target
-        $summary['TOTAL']['monthly_meeting_target'] = (
-            ($collectionTargets[$currentMonth]['cash'] ?? 0) +
-            ($collectionTargets[$currentMonth]['inhouse'] ?? 0) +
-            ($collectionTargets[$currentMonth]['kpr'] ?? 0)
-        );
+        $summary['TOTAL']['monthly_meeting_target'] = ($filteredTargets[$currentMonth]['cash'] ?? 0)
+            + ($filteredTargets[$currentMonth]['inhouse'] ?? 0)
+            + ($filteredTargets[$currentMonth]['kpr'] ?? 0);
 
         // Build presentation arrays for Blade
         $preferred = ['CASH', 'INHOUSE', 'KPR'];
@@ -323,14 +315,21 @@ class ManagementReportController extends Controller
             $type = strtoupper(trim($type));
             if ($type === 'TOTAL') continue;
 
+            // YTD meeting target sums only months for this project_id
             $meetingTarget = 0;
             for ($m = 1; $m <= $currentMonth; $m++) {
-                if ($type === 'CASH') {
-                    $meetingTarget += $collectionTargets[$m]['cash'] ?? 0;
-                } elseif ($type === 'INHOUSE') {
-                    $meetingTarget += $collectionTargets[$m]['inhouse'] ?? 0;
-                } elseif ($type === 'KPR') {
-                    $meetingTarget += $collectionTargets[$m]['kpr'] ?? 0;
+                if (isset($filteredTargets[$m])) {
+                    switch ($type) {
+                        case 'CASH':
+                            $meetingTarget += $filteredTargets[$m]['cash'] ?? 0;
+                            break;
+                        case 'INHOUSE':
+                            $meetingTarget += $filteredTargets[$m]['inhouse'] ?? 0;
+                            break;
+                        case 'KPR':
+                            $meetingTarget += $filteredTargets[$m]['kpr'] ?? 0;
+                            break;
+                    }
                 }
             }
 
@@ -353,6 +352,7 @@ class ManagementReportController extends Controller
             $ytdTotalsCalc['actual']         += $ytdActual;
         }
 
+        // TOTAL row for YTD
         $ytdTotalsCalc['percentage'] = $ytdTotalsCalc['sales_target'] > 0
             ? round(($ytdTotalsCalc['actual'] / $ytdTotalsCalc['sales_target']) * 100, 1)
             : 0.0;
