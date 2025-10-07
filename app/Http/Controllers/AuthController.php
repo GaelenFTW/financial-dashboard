@@ -30,7 +30,7 @@ class AuthController extends Controller
 
         Auth::login($user);
 
-        return redirect('/')->with('success', 'Registration successful!');
+        return redirect('/dashboard')->with('success', 'Registration successful!');
     }
 
     public function showLoginForm()
@@ -47,7 +47,7 @@ class AuthController extends Controller
 
         if (Auth::attempt($credentials)) {
             $request->session()->regenerate();
-            return redirect('/')->with('success', 'Login successful!');
+            return redirect('/dashboard')->with('success', 'Login successful!');
         }
 
         return back()->withErrors([
