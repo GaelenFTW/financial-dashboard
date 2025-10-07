@@ -440,99 +440,96 @@ class ManagementReportController extends Controller
         ]);
     }
 
-    public function export(Request $request)
-    {
-    $month = (int)$request->input('month', now()->month);
-    $year = (int)$request->input('year', now()->year);
-    $projectId = $request->input('project_id');
+    public function export(Request $request){
+        $month = (int)$request->input('month', now()->month);
+        $year = (int)$request->input('year', now()->year);
+        $projectId = $request->input('project_id');
 
-    // Call the same index logic but in-memory (reuse existing data prep)
-    $request->merge([
-        'month' => $month,
-        'year' => $year,
-        'project_id' => $projectId
-    ]);
+        // Reuse your index logic to get data
+        $view = $this->index($request);
+        $data = $view->getData();
 
-    // Reuse the same logic from index()
-    $viewData = $this->index($request)->getData();
+        $spreadsheet = new Spreadsheet();
 
-    // Extract from view data
-    $monthlyPerformance = $viewData['monthlyPerformance'] ?? [];
-    $ytdPerformance = $viewData['ytdPerformance'] ?? [];
-    $aging = $viewData['aging'] ?? [];
-    $outstanding = $viewData['outstanding'] ?? [];
+        // === 1. MONTHLY PERFORMANCE ===
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Monthly Performance');
+        $sheet->fromArray([
+            ['PAYMENT SYSTEM', 'MEETING TARGET', 'SALES TARGET', 'ACTUAL', '% (Meeting)', '% (Sales)', 'STATUS']
+        ], null, 'A1');
 
-    $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $row = 2;
+        foreach ($data['monthlyPerformance'] ?? [] as $item) {
+            $sheet->setCellValue("A{$row}", $item['payment']);
+            $sheet->setCellValue("B{$row}", $item['meeting_target']);
+            $sheet->setCellValue("C{$row}", $item['sales_target']);
+            $sheet->setCellValue("D{$row}", $item['actual']);
+            $sheet->setCellValue("E{$row}", $item['meeting_target'] > 0 ? round($item['actual'] / $item['meeting_target'] * 100, 1).'%' : '0%');
+            $sheet->setCellValue("F{$row}", $item['percentage'].'%');
+            $sheet->setCellValue("G{$row}", $item['status']);
+            $row++;
+        }
 
-    // --- Monthly Performance Sheet ---
-    $sheet1 = $spreadsheet->getActiveSheet();
-    $sheet1->setTitle('Monthly Performance');
-    $sheet1->fromArray(['PAYMENT SYSTEM','MEETING TARGET','SALES TARGET','ACTUAL','% (Meeting)','% (Sales)','STATUS'], NULL, 'A1');
+        // === 2. YTD PERFORMANCE ===
+        $sheet2 = $spreadsheet->createSheet();
+        $sheet2->setTitle('YTD Performance');
+        $sheet2->fromArray([
+            ['PAYMENT SYSTEM', 'MEETING TARGET', 'SALES TARGET', 'ACTUAL', '% (Meeting)', '% (Sales)', 'STATUS']
+        ], null, 'A1');
 
-    $rowNum = 2;
-    foreach ($monthlyPerformance as $row) {
-        $sheet1->setCellValue("A$rowNum", $row['payment']);
-        $sheet1->setCellValue("B$rowNum", $row['meeting_target']);
-        $sheet1->setCellValue("C$rowNum", $row['sales_target']);
-        $sheet1->setCellValue("D$rowNum", $row['actual']);
-        $sheet1->setCellValue("E$rowNum", $row['meeting_target'] > 0 ? round($row['actual'] / $row['meeting_target'] * 100, 1) : 0);
-        $sheet1->setCellValue("F$rowNum", $row['percentage']);
-        $sheet1->setCellValue("G$rowNum", $row['status']);
-        $rowNum++;
+        $row = 2;
+        foreach ($data['ytdPerformance'] ?? [] as $item) {
+            $sheet2->setCellValue("A{$row}", $item['payment']);
+            $sheet2->setCellValue("B{$row}", $item['meeting_target']);
+            $sheet2->setCellValue("C{$row}", $item['sales_target']);
+            $sheet2->setCellValue("D{$row}", $item['actual']);
+            $sheet2->setCellValue("E{$row}", $item['meeting_target'] > 0 ? round($item['actual'] / $item['meeting_target'] * 100, 1).'%' : '0%');
+            $sheet2->setCellValue("F{$row}", $item['percentage'].'%');
+            $sheet2->setCellValue("G{$row}", $item['status']);
+            $row++;
+        }
+
+        // === 3. AGING ===
+        $sheet3 = $spreadsheet->createSheet();
+        $sheet3->setTitle('Aging');
+        $sheet3->fromArray([
+            ['PAYMENT SYSTEM', '<30 DAYS', '31–60 DAYS', '61–90 DAYS', '>90 DAYS', 'LEBIH BAYAR']
+        ], null, 'A1');
+
+        $row = 2;
+        foreach ($data['aging'] ?? [] as $item) {
+            $sheet3->setCellValue("A{$row}", $item['payment']);
+            $sheet3->setCellValue("B{$row}", $item['lt30']);
+            $sheet3->setCellValue("C{$row}", $item['d30_60']);
+            $sheet3->setCellValue("D{$row}", $item['d60_90']);
+            $sheet3->setCellValue("E{$row}", $item['gt90']);
+            $sheet3->setCellValue("F{$row}", $item['lebih_bayar']);
+            $row++;
+        }
+
+        // === 4. OUTSTANDING ===
+        $sheet4 = $spreadsheet->createSheet();
+        $sheet4->setTitle('Outstanding');
+        $sheet4->fromArray([
+            ['TYPE', 'JATUH TEMPO', 'BELUM JATUH TEMPO', 'TOTAL', '%']
+        ], null, 'A1');
+
+        $row = 2;
+        foreach ($data['outstanding'] ?? [] as $item) {
+            $sheet4->setCellValue("A{$row}", $item['type']);
+            $sheet4->setCellValue("B{$row}", $item['jatuh_tempo']);
+            $sheet4->setCellValue("C{$row}", $item['belum_jatuh_tempo']);
+            $sheet4->setCellValue("D{$row}", $item['total']);
+            $sheet4->setCellValue("E{$row}", $item['percentage'].'%');
+            $row++;
+        }
+
+        // === Output file ===
+        $filename = "Management_Report_{$year}_{$month}.xlsx";
+        $writer = new Xlsx($spreadsheet);
+        $tempFile = storage_path("app/public/{$filename}");
+        $writer->save($tempFile);
+
+        return response()->download($tempFile)->deleteFileAfterSend(true);
     }
-
-    // --- YTD Performance Sheet ---
-    $ytdSheet = $spreadsheet->createSheet();
-    $ytdSheet->setTitle('YTD Performance');
-    $ytdSheet->fromArray(['PAYMENT SYSTEM','MEETING TARGET','SALES TARGET','ACTUAL','% (Sales)','STATUS'], NULL, 'A1');
-    $rowNum = 2;
-    foreach ($ytdPerformance as $row) {
-        $ytdSheet->setCellValue("A$rowNum", $row['payment']);
-        $ytdSheet->setCellValue("B$rowNum", $row['meeting_target']);
-        $ytdSheet->setCellValue("C$rowNum", $row['sales_target']);
-        $ytdSheet->setCellValue("D$rowNum", $row['actual']);
-        $ytdSheet->setCellValue("E$rowNum", $row['percentage']);
-        $ytdSheet->setCellValue("F$rowNum", $row['status']);
-        $rowNum++;
-    }
-
-    // --- Aging Sheet ---
-    $agingSheet = $spreadsheet->createSheet();
-    $agingSheet->setTitle('Aging');
-    $agingSheet->fromArray(['PAYMENT SYSTEM','<30 DAYS','31–60 DAYS','61–90 DAYS','>90 DAYS','LEBIH BAYAR'], NULL, 'A1');
-    $rowNum = 2;
-    foreach ($aging as $row) {
-        $agingSheet->setCellValue("A$rowNum", $row['payment']);
-        $agingSheet->setCellValue("B$rowNum", $row['lt30']);
-        $agingSheet->setCellValue("C$rowNum", $row['d30_60']);
-        $agingSheet->setCellValue("D$rowNum", $row['d60_90']);
-        $agingSheet->setCellValue("E$rowNum", $row['gt90']);
-        $agingSheet->setCellValue("F$rowNum", $row['lebih_bayar']);
-        $rowNum++;
-    }
-
-    // --- Outstanding Sheet ---
-    $outSheet = $spreadsheet->createSheet();
-    $outSheet->setTitle('Outstanding');
-    $outSheet->fromArray(['TYPE','JATUH TEMPO','BELUM JATUH TEMPO','TOTAL','%'], NULL, 'A1');
-    $rowNum = 2;
-    foreach ($outstanding as $row) {
-        $outSheet->setCellValue("A$rowNum", $row['type']);
-        $outSheet->setCellValue("B$rowNum", $row['jatuh_tempo']);
-        $outSheet->setCellValue("C$rowNum", $row['belum_jatuh_tempo']);
-        $outSheet->setCellValue("D$rowNum", $row['total']);
-        $outSheet->setCellValue("E$rowNum", $row['percentage']);
-        $rowNum++;
-    }
-
-    $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
-    $fileName = "Management_Report_{$year}_{$month}.xlsx";
-
-    return response()->streamDownload(function() use ($writer) {
-        $writer->save('php://output');
-    }, $fileName, [
-        'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    ]);
-}
-
 }
