@@ -20,15 +20,18 @@ class ManagementReportController extends Controller
 
     public function index(Request $request)
     {
-
         $currentMonth = (int)$request->input('month', now()->month);
         $currentYear = (int)$request->input('year', now()->year);
         $projectId = $request->input('project_id');
 
-        $query = PurchasePayment::where('data_year', $currentYear);
+        // Filter by year, month, and project
+        $query = PurchasePayment::where('data_year', $currentYear)
+                                ->where('data_month', $currentMonth);
+        
         if ($projectId) {
             $query->where('project_id', $projectId);
         }
+        
         $payments = $query->get();
         $rows = $payments->map(fn($p) => $p->toArray())->toArray();
 
@@ -36,7 +39,7 @@ class ManagementReportController extends Controller
         $rows4 = $this->jwtController->fetchData('api4', ['target.php', 'login.php']);
 
         if (empty($rows)) {
-            return view('management-report', ['error' => 'No data found. Please upload Excel file first.']);
+            return view('management-report', ['error' => 'No data found for the selected month. Please upload Excel file first.']);
         }
 
         $parseNumber = function ($val) {
@@ -100,7 +103,7 @@ class ManagementReportController extends Controller
                 $totals["{$lc}_actual"] += $aVal;
             }
 
-            // YTD accumulation per type (fixed)
+            // YTD accumulation per type
             if (!isset($summary[$type]['ytd_target'])) {
                 $summary[$type]['ytd_target'] = 0;
                 $summary[$type]['ytd_actual'] = 0;
@@ -125,7 +128,7 @@ class ManagementReportController extends Controller
             $summary[$type]['more90days'] += $parseNumber($row['diatas_90_DP'] ?? 0);
             $summary[$type]['lebihbayar'] += abs($parseNumber($row['lebih_bayar'] ?? 0));
             $summary[$type]['harganetto'] += $parseNumber($row['harga_netto'] ?? 0);
-            $summary[$type]['paybeforejan'] += $parseNumber($row['Payment_Before_01_Year'] ?? 0);
+            $summary[$type]['paybeforejan'] += $parseNumber($row['Payment_Before_Jan_Year'] ?? 0);
             $summary[$type]['ytdbayar'] += $ytdActual;
 
             // totals accumulation
@@ -137,7 +140,7 @@ class ManagementReportController extends Controller
             $totals['more90days'] += $parseNumber($row['diatas_90_DP'] ?? 0);
             $totals['lebihbayar'] += abs($parseNumber($row['lebih_bayar'] ?? 0));
             $totals['harganetto'] += $parseNumber($row['harga_netto'] ?? 0);
-            $totals['paybeforejan'] += $parseNumber($row['Payment_Before_01_Year'] ?? 0);
+            $totals['paybeforejan'] += $parseNumber($row['Payment_Before_Jan_Year'] ?? 0);
             $totals['ytdbayar'] += $ytdActual;
         }
 
@@ -162,7 +165,7 @@ class ManagementReportController extends Controller
             }
         }
 
-        // AGING -> from summary['TOTAL']
+        // AGING -> from summary
         $agingTotal = (
             ($summary['TOTAL']['less30days'] ?? 0) +
             ($summary['TOTAL']['more31days'] ?? 0) +
@@ -205,8 +208,7 @@ class ManagementReportController extends Controller
             }
         }
 
-        // inject meeting targets into summary per-type
-      // filter targets by current project
+        // Filter targets by current project
         $filteredTargets = [];
         if (!empty($projectId) && is_array($rows4)) {
             foreach ($rows4 as $r) {
@@ -268,8 +270,6 @@ class ManagementReportController extends Controller
 
         foreach ($types as $type) {
             $type = strtoupper(trim($type));
-
-            // Skip TOTAL if it exists in types
             if ($type === 'TOTAL') continue;
 
             $meetingTarget = $summary[$type]['monthly_meeting_target'] ?? 0;
@@ -292,7 +292,6 @@ class ManagementReportController extends Controller
             $monthlyTotalsCalc['actual']         += $actual;
         }
 
-        // Compute TOTAL row percentage & status
         $monthlyTotalsCalc['percentage'] = $monthlyTotalsCalc['sales_target'] > 0
             ? round(($monthlyTotalsCalc['actual'] / $monthlyTotalsCalc['sales_target']) * 100, 1)
             : 0.0;
@@ -300,7 +299,6 @@ class ManagementReportController extends Controller
         $monthlyTotalsCalc['status'] = $monthlyTotalsCalc['percentage'] >= 100 ? 'ACHIEVED' 
             : ($monthlyTotalsCalc['percentage'] >= 80 ? 'ON TRACK' : 'BELOW TARGET');
 
-        // Append TOTAL row to the performance array
         $monthlyPerformance[] = [
             'payment'        => 'TOTAL',
             'meeting_target' => $monthlyTotalsCalc['meeting_target'],
@@ -310,7 +308,6 @@ class ManagementReportController extends Controller
             'status'         => $monthlyTotalsCalc['status'],
         ];
 
-
         // YTD Performance
         $ytdPerformance = [];
         $ytdTotalsCalc = ['meeting_target' => 0, 'sales_target' => 0, 'actual' => 0];
@@ -319,7 +316,6 @@ class ManagementReportController extends Controller
             $type = strtoupper(trim($type));
             if ($type === 'TOTAL') continue;
 
-            // YTD meeting target sums only months for this project_id
             $meetingTarget = 0;
             for ($m = 1; $m <= $currentMonth; $m++) {
                 if (isset($filteredTargets[$m])) {
@@ -438,18 +434,27 @@ class ManagementReportController extends Controller
             'outstandingTotals' => $outstandingTotals,
             'currentMonth' => $currentMonth,
             'currentYear' => $currentYear,
-
         ]);
     }
 
-    public function export(Request $request){
+
+    
+    public function export(Request $request)
+    {
         $month = (int)$request->input('month', now()->month);
         $year = (int)$request->input('year', now()->year);
         $projectId = $request->input('project_id');
 
         // Reuse your index logic to get data
-        $view = $this->index($request);
-        $data = $view->getData();
+        // replicate index() data-building logic only up to the view() return
+        $response = $this->index($request);
+        if ($response instanceof \Illuminate\View\View) {
+            $data = $response->getData();
+        } elseif ($response instanceof \Illuminate\Http\Response) {
+            $data = $response->getOriginalContent()->getData();
+        } else {
+            $data = [];
+        }
 
         $spreadsheet = new Spreadsheet();
 

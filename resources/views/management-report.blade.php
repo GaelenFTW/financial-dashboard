@@ -1,3 +1,9 @@
+@php
+    $currentYear = $currentYear ?? date('Y');
+    $currentMonth = $currentMonth ?? date('n');
+@endphp
+
+
 @extends('layouts.app')
 
 @section('content')
