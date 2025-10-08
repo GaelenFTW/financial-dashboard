@@ -20,6 +20,7 @@ class ManagementReportController extends Controller
 
     public function index(Request $request)
     {
+
         $currentMonth = (int)$request->input('month', now()->month);
         $currentYear = (int)$request->input('year', now()->year);
         $projectId = $request->input('project_id');
@@ -437,6 +438,7 @@ class ManagementReportController extends Controller
             'outstandingTotals' => $outstandingTotals,
             'currentMonth' => $currentMonth,
             'currentYear' => $currentYear,
+
         ]);
     }
 

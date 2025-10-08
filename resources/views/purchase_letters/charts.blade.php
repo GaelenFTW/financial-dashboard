@@ -95,7 +95,7 @@
 </script>
 
 <div class="mb-4 d-flex">
-    <a href="{{ url('/') }}" class="btn btn-outline-primary">
+    <a href="{{ url('/dashboard') }}" class="btn btn-outline-primary">
         Dashboard
     </a>
     <a href="{{ url('/purchase-letters') }}" class="btn btn-outline-primary ms-auto">

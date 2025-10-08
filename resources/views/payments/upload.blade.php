@@ -70,16 +70,18 @@
                             @enderror
                         </div>
 
-                        <div class="mb-3">
-                            <label for="project_id" class="form-label">Project ID <span class="text-danger">*</span></label>
-                            <input type="number" name="project_id" id="project_id"
-                                   class="form-control @error('project_id') is-invalid @enderror"
-                                   value="{{ old('project_id', 1) }}" required placeholder="Enter Project ID">
-                            <div class="form-text">Enter the project ID for this data set.</div>
-                            @error('project_id')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
+                        <div class="form-group mb-3">
+                            <label for="project_id">Select Project:</label>
+                            <select name="project_id" id="project_id" class="form-control" onchange="this.form.submit()">
+                                <option value="">-- Select Project --</option>
+                                @foreach($projectOptions as $code => $id)
+                                    <option value="{{ $id }}" {{ request('project_id') == $id ? 'selected' : '' }}>
+                                        {{ $code }} ({{ $id }})
+                                    </option>
+                                @endforeach
+                            </select>
                         </div>
+
 
                         <div class="mb-3">
                             <label for="file" class="form-label">Excel File <span class="text-danger">*</span></label>

@@ -265,7 +265,20 @@ class PurchasePaymentController extends Controller
     
     public function uploadForm()
     {
-        return view('payments.upload');
+        $projectOptions = [
+            'CALB' => 4030,'CBGJ' => 11237,'CHHJ' => 11235,'CLSD' => 2017,'CLSJ' => 4033,'CLCJ' => 2015,'CSRB' => 5104,'CTKJ' => 2014,'CGAP' => 4029,'CGCB' => 11231,'CGBT' => 11159,'CGBC' => 108,
+            'CGCJ' => 2,'CGPJ' => 5102,'CGST' => 11156,'CGCP' => 11124,'CGCPP' => 67,'CLVJ' => 11154,'CLMB' => 2054,'CPNB' => 4060,'CRCJ' => 84,'CCST' => 5105,'CGCM' => 4036,'CMJC' => 4034,
+            'CCBP' => 2056,'CGCS' => 4031,'CGSS' => 2057,'CLCS' => 81,'CRT'  => 3,'MCTR' => 2086,'UYE'  => 4063,'IB'   => 35,'I2'   => 2019,'XXX'  => 112,'CWA'  => 51,'CGL'  => 2013,'DP'   => 32,
+            'CGS'  => 42,'CGC'  => 9,'CGCC' => 2075,'UU'   => 61,'U001' => 38,'CHS'  => 41,'CICJ' => 5,'CIS'  => 43,'CLA'  => 50,'CLBL' => 2069,'CLC'  => 2076,'ALM'  => 3028,
+            'CLCK' => 11232,'CLSMP' => 11132,'CILD' => 2094,'CLD'  => 46,'CGCM1' => 7105,'X2'   => 30,'CGK'  => 5103,'HLV'  => 2026,'CLKM' => 2092,'TK'   => 2077,'PLG'  => 47,'TP'   => 2079,
+            'EK'   => 48,'CPT'  => 31,'CLS'  => 11109,'MM'   => 39,'CLBS' => 3031,'CTG'  => 2093,'CLU'  => 105,'CLV'  => 54,'CLWM' => 5101,'UCS'  => 3032,'UGY'  => 36,'TTD'  => 37,'CBR'  => 44,
+            'CIN'  => 4048,'CBB'  => 4056,'K'    => 11225,'CGMM' => 2022,'CGP'  => 2023,'CB'   => 2021,'CBC'  => 2020,'BSB'  => 2005,'C'    => 2004,'CX'   => 2006,'CNGK' => 4068,'CLT'  => 11226,
+            'CMCB' => 2074,'VVAM' => 4046,'TN1'  => 3020,'TN'   => 76,'CGCP1' => 87,'CGCP2' => 79,'CGCP3' => 2052,'CGCP4' => 2061,'CGCP5' => 4059,'CGCP6' => 75,'CGCP7' => 69,
+            'CGCP8' => 80,'CGCP9' => 2053,'CGCP10' => 82,'CGCP11' => 2058,'CGCP12' => 2060,'CGCP13' => 83,'CGCP14' => 2055,'CGCP15' => 62,
+        ];
+
+
+        return view('payments.upload', compact('projectOptions'));
     }
 
     public function view(Request $request)
