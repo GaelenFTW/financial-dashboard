@@ -198,6 +198,8 @@ class PurchasePaymentController extends Controller
                     'data_year' => $yearToUse,
                     'data_month' => $dataMonth,
                     'project_id' => $projectId,
+                    'created_at' => now(),
+                    'created_by' => auth()->user()->id ?? null,
                 ];
 
                 // Apply mappings
@@ -243,8 +245,7 @@ class PurchasePaymentController extends Controller
 
                 DB::connection('sqlsrv')
                     ->table('purchase_payments')
-                    ->updateOrInsert(
-                        ['purchaseletter_id' => $columns['purchaseletter_id']],
+                    ->Insert(
                         $columns
                     );
 
@@ -266,17 +267,36 @@ class PurchasePaymentController extends Controller
     public function uploadForm()
     {
         $projectOptions = [
-            'CALB' => 4030,'CBGJ' => 11237,'CHHJ' => 11235,'CLSD' => 2017,'CLSJ' => 4033,'CLCJ' => 2015,'CSRB' => 5104,'CTKJ' => 2014,'CGAP' => 4029,'CGCB' => 11231,'CGBT' => 11159,'CGBC' => 108,
-            'CGCJ' => 2,'CGPJ' => 5102,'CGST' => 11156,'CGCP' => 11124,'CGCPP' => 67,'CLVJ' => 11154,'CLMB' => 2054,'CPNB' => 4060,'CRCJ' => 84,'CCST' => 5105,'CGCM' => 4036,'CMJC' => 4034,
-            'CCBP' => 2056,'CGCS' => 4031,'CGSS' => 2057,'CLCS' => 81,'CRT'  => 3,'MCTR' => 2086,'UYE'  => 4063,'IB'   => 35,'I2'   => 2019,'XXX'  => 112,'CWA'  => 51,'CGL'  => 2013,'DP'   => 32,
-            'CGS'  => 42,'CGC'  => 9,'CGCC' => 2075,'UU'   => 61,'U001' => 38,'CHS'  => 41,'CICJ' => 5,'CIS'  => 43,'CLA'  => 50,'CLBL' => 2069,'CLC'  => 2076,'ALM'  => 3028,
-            'CLCK' => 11232,'CLSMP' => 11132,'CILD' => 2094,'CLD'  => 46,'CGCM1' => 7105,'X2'   => 30,'CGK'  => 5103,'HLV'  => 2026,'CLKM' => 2092,'TK'   => 2077,'PLG'  => 47,'TP'   => 2079,
-            'EK'   => 48,'CPT'  => 31,'CLS'  => 11109,'MM'   => 39,'CLBS' => 3031,'CTG'  => 2093,'CLU'  => 105,'CLV'  => 54,'CLWM' => 5101,'UCS'  => 3032,'UGY'  => 36,'TTD'  => 37,'CBR'  => 44,
-            'CIN'  => 4048,'CBB'  => 4056,'K'    => 11225,'CGMM' => 2022,'CGP'  => 2023,'CB'   => 2021,'CBC'  => 2020,'BSB'  => 2005,'C'    => 2004,'CX'   => 2006,'CNGK' => 4068,'CLT'  => 11226,
-            'CMCB' => 2074,'VVAM' => 4046,'TN1'  => 3020,'TN'   => 76,'CGCP1' => 87,'CGCP2' => 79,'CGCP3' => 2052,'CGCP4' => 2061,'CGCP5' => 4059,'CGCP6' => 75,'CGCP7' => 69,
-            'CGCP8' => 80,'CGCP9' => 2053,'CGCP10' => 82,'CGCP11' => 2058,'CGCP12' => 2060,'CGCP13' => 83,'CGCP14' => 2055,'CGCP15' => 62,
+            'Citra Aerolink Batam' => 4030, 'Citra Bukit Golf Sentul JO' => 11237, 'Citra Homes Halim Jakarta' => 11235,
+            'Citra Lake Sawangan Depok' => 2017, 'Citra Lake Suites Jakarta' => 4033, 'Citra Living City Jakarta' => 2015,
+            'Citra Sentul Raya' => 5104, 'Citra Towers Kemayoran Jakarta' => 2014, 'CitraGarden Aneka Pontianak' => 4029,
+            'CitraGarden Bekasi' => 11231, 'CitraGarden Bintaro Tangerang' => 11159, 'CitraGarden BMW Cilegon' => 108,
+            'CitraGarden City Jakarta' => 2, 'CitraGarden Puri Jakarta' => 5102, 'CitraGarden Serpong Tangerang' => 11156,
+            'CitraGrand City Palembang' => 11124, 'CitraGrand City Palembang (Partner)' => 67, 'CitraLake Villa Jakarta' => 11154,
+            'CitraLand Megah Batam' => 2054, 'CitraPlaza Nagoya Batam' => 4060, 'CitraRaya Jambi' => 84, 'Citra City Sentul' => 5105,
+            'CitraGarden City Malang' => 4036, 'Citra Maja City' => 4034, 'CitraCity Balikpapan' => 2056, 'CitraGarden City Samarinda' => 4031,
+            'CitraGrand Senyiur City Samarinda' => 2057, 'CitraLand City Samarinda' => 81, 'CitraRaya Tangerang' => 3, 'Mal Ciputra Tangerang' => 2086,
+            'Barsa City Yogyakarta' => 4063, 'BizPark Bandung' => 35, 'BizPark CE Bekasi' => 2019, 'BizPark Pulogadung 2' => 112,
+            'Ciputra World Surabaya' => 51, 'CitraGarden Lampung' => 2013, 'CitraGarden Pekanbaru' => 32, 'CitraGarden Sidoarjo' => 42,
+            'CitraGran Cibubur' => 9, 'CitraGrand Cibubur CBD' => 2075, 'CitraGrand Mutiara Yogyakarta' => 61, 'CitraGrand Semarang' => 38,
+            'CitraHarmoni Sidoarjo' => 41, 'CitraIndah City Jonggol' => 5, 'CitraIndah Sidoarjo' => 43, 'CitraLand Ambon' => 50,
+            'CitraLand Bandar Lampung' => 2069, 'CitraLand Cibubur' => 2076, 'CitraLand City CPI Makassar' => 3028, 'CitraLand City CPI Selatan' => 11232,
+            'CitraLand City Kedamean' => 11132, 'CitraLand City Sampali' => 2094, 'CitraLand Denpasar' => 46, 'CitraLand Driyorejo CBD' => 7105,
+            'CitraLand Gama City Medan 1' => 30, 'CitraLand Gama City Medan 2' => 5103, 'CitraLand Gresik Kota' => 2026, 'CitraLand Helvetia' => 2092,
+            'CitraLand Kairagi Manado' => 2077, 'CitraLand Kendari' => 47, 'CitraLand Palembang' => 2079, 'CitraLand Palu' => 48,
+            'CitraLand Pekanbaru' => 31, 'CitraLand Puncak Tidar Malang' => 11109, 'CitraLand Surabaya' => 39, 'CitraLand Tallasa City Makassar' => 3031,
+            'CitraLand Tanjung Morawa' => 2093, 'CitraLand The GreenLake' => 105, 'CitraLand Utara Surabaya' => 54, 'CitraLand Vittorio Wiyung Surabaya' => 5101,
+            'CitraLand Winangun Manado' => 3032, 'CitraSun Garden Semarang' => 36, 'CitraSun Garden Yogyakarta' => 37, 'The Taman Dayu' => 44,
+            'Ciputra Beach Resort' => 4048, 'Ciputra International (Project)' => 4056, 'Ciputra World Jakarta 1 - Land' => 11225,
+            'Ciputra World Jakarta 1 - Office T1' => 2022, 'Ciputra World Jakarta 1 - Office T2' => 2023, 'Ciputra World Jakarta 1 - Raffles' => 2021,
+            'Ciputra World Jakarta 1 - Residence' => 2020, 'Ciputra World Jakarta 2 - Office' => 2005, 'Ciputra World Jakarta 2 - Orchard Satrio' => 2004,
+            'Ciputra World Jakarta 2 - Residence' => 2006, 'Citra Landmark' => 4068, 'Satrio - Land' => 11226, 'The Newton (Project)' => 2074,
+            'The Newton 2 (Project)' => 4046, 'BizPark Banjarmasin' => 3020, 'Citra BukitIndah Balikpapan' => 76, 'CitraGarden Gowa' => 87,
+            'CitraGarden Pekalongan' => 79, 'CitraGrand Galesong City Gowa I' => 2052, 'CitraGrand Galesong City Gowa II' => 2061,
+            'CitraLand Banjarmasin' => 4059, 'CitraLand Botanical City Pangkal Pinang' => 75, 'CitraLand BSB City' => 69, 'CitraLand Celebes Makassar' => 80,
+            'CitraLand Cirebon' => 2053, 'CitraLand NGK Jambi' => 82, 'CitraLand Puri Serang I' => 2058, 'CitraLand Puri Serang II' => 2060,
+            'CitraLand Tegal' => 83, 'CitraMitra City Banjarbaru' => 2055, 'Vida View Apartemen Makassar' => 62,
         ];
-
 
         return view('payments.upload', compact('projectOptions'));
     }
