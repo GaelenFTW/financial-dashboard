@@ -445,8 +445,6 @@ class ManagementReportController extends Controller
         $year = (int)$request->input('year', now()->year);
         $projectId = $request->input('project_id');
 
-        // Reuse your index logic to get data
-        // replicate index() data-building logic only up to the view() return
         $response = $this->index($request);
         if ($response instanceof \Illuminate\View\View) {
             $data = $response->getData();
