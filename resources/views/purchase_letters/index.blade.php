@@ -10,9 +10,6 @@
                 <a href="{{ route('purchase_letters.chart') }}" class="btn btn-primary">
                     <i class="fas fa-chart-line"></i> View Charts
                 </a>
-                <a href="{{ route('purchase_letters.export', ['search' => $search]) }}" class="btn btn-success">
-                    <i class="fas fa-file-excel"></i> Export
-                </a>
             </div>
         </div>
     </div>

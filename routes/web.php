@@ -38,3 +38,4 @@ Route::get('management-report/export', [ManagementReportController::class, 'expo
 Route::get('/payments/upload', [PurchasePaymentController::class, 'uploadForm'])->name('payments.upload.form');
 Route::post('/payments/upload', [PurchasePaymentController::class, 'upload'])->name('payments.upload')->middleware('auth');
 Route::get('/payments/view', [PurchasePaymentController::class, 'view'])->name('payments.view')->middleware('auth');    
+Route::get('/payments/export', [PurchasePaymentController::class, 'export'])->name('payments.export');

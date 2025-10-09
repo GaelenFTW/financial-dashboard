@@ -11,6 +11,12 @@ use Illuminate\Support\Facades\Log;
 
 class PurchasePaymentController extends Controller
 {
+    protected $months = [
+    1 => 'January',2 => 'February',3 => 'March',4 => 'April',5 => 'May',6 => 'June',
+    7 => 'July',8 => 'August',9 => 'September',10 => 'October',11 => 'November',12 => 'December'
+    ];
+
+    
     protected function parseDate($raw)
     {
         if (!$raw) return null;
@@ -74,7 +80,7 @@ class PurchasePaymentController extends Controller
 
         // Get user identifier (name or email)
         $user = auth()->user();
-        $userIdentifier = $user ? ($user->name ?? $user->email ?? 'system') : 'system';
+        $userIdentifier = $user ? ($user->email ?? 'system') : 'system';
 
         $ok=$fail=0;
         foreach($rows as $i=>$row){
@@ -236,10 +242,110 @@ class PurchasePaymentController extends Controller
     public function view(Request $r)
     {
         $q = PurchasePayment::query();
-        if ($r->filled('CustomerName')) $q->where('CustomerName','like','%'.$r->CustomerName.'%');
-        if ($r->filled('cluster')) $q->where('Cluster','like','%'.$r->cluster.'%');
-        if ($r->filled('TypePembelian')) $q->where('TypePembelian','like','%'.$r->TypePembelian.'%');
-        $payments=$q->orderBy('PurchaseDate','desc')->paginate(20);
-        return view('payments.view',['payments'=>$payments,'filters'=>$r->all()]);
+        
+        // Year filter — default to current year if not provided
+        if ($r->filled('year')) {
+            $q->where('data_year', $r->year);
+        } else {
+            $q->where('data_year', date('Y'));
+        }
+
+        // Month filter — show all months if not selected
+        if ($r->filled('month')) {
+            $q->where('data_month', $r->month);
+        }
+
+        // Project filter
+        if ($r->filled('project_id')) {
+            $q->where('project_id', $r->project_id);
+        }
+
+        // Additional filters
+        if ($r->filled('customer')) {
+            $q->where('CustomerName', 'like', '%' . $r->customer . '%');
+        }
+        if ($r->filled('cluster')) {
+            $q->where('Cluster', 'like', '%' . $r->cluster . '%');
+        }
+        if ($r->filled('TypePembelian')) {
+            $q->where('TypePembelian', $r->TypePembelian);
+        }
+
+        $payments = $q->orderBy('PurchaseDate', 'desc')->paginate(50);
+
+        return view('payments.view', [
+            'payments' => $payments,
+            'filters' => $r->all(),
+            'months' => $this->months
+        ]);
     }
+
+
+    public function export(Request $r)
+    {
+    $q = PurchasePayment::query();
+
+    // Apply same filters as view
+    $q->when($r->filled('year'), fn($q) => $q->where('data_year', $r->year), fn($q) => $q->where('data_year', date('Y')));
+    $q->when($r->filled('month'), fn($q) => $q->where('data_month', $r->month));
+    $q->when($r->filled('project_id'), fn($q) => $q->where('project_id', $r->project_id));
+    $q->when($r->filled('customer'), fn($q) => $q->where('CustomerName', 'like', '%' . $r->customer . '%'));
+    $q->when($r->filled('cluster'), fn($q) => $q->where('Cluster', 'like', '%' . $r->cluster . '%'));
+    $q->when($r->filled('TypePembelian'), fn($q) => $q->where('TypePembelian', $r->TypePembelian));
+
+    $payments = $q->orderBy('PurchaseDate', 'desc')->get();
+
+    // Dynamically get all columns in the table
+    $columns = DB::connection('sqlsrv')->getSchemaBuilder()->getColumnListing('purchase_payments');
+
+    // Ensure consistent order: move key columns first
+    $preferredOrder = [
+        'No', 'purchaseletter_id', 'Cluster', 'Block', 'Unit', 'CustomerName', 'PurchaseDate', 'LunasDate'
+    ];
+    $columns = array_values(array_unique(array_merge($preferredOrder, $columns)));
+
+    $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+    $sheet = $spreadsheet->getActiveSheet();
+    $sheet->setTitle('Purchase Payments');
+
+    // Write header
+    $sheet->fromArray([$columns], null, 'A1');
+
+    $row = 2;
+    foreach ($payments as $index => $payment) {
+        $dataRow = [];
+        foreach ($columns as $col) {
+            if ($col === 'No') {
+                $dataRow[] = $index + 1;
+            } else {
+                $val = $payment->{$col} ?? null;
+                if ($val instanceof \Carbon\Carbon) {
+                    $val = $val->format('Y-m-d H:i:s');
+                } elseif (preg_match('/_date$/i', $col) && !empty($val)) {
+                    try {
+                        $val = \Carbon\Carbon::parse($val)->format('Y-m-d H:i:s');
+                    } catch (\Exception $e) {}
+                }
+                $dataRow[] = $val;
+            }
+        }
+        $sheet->fromArray([$dataRow], null, "A{$row}");
+        $row++;
+    }
+
+    foreach (range('A', $sheet->getHighestColumn()) as $col) {
+        $sheet->getColumnDimension($col)->setAutoSize(true);
+    }
+
+    $year = $r->year ?? date('Y');
+    $month = $r->month ?? date('n');
+    $filename = "Purchase_Payments_Full_{$year}_{$month}_" . date('YmdHis') . ".xlsx";
+
+    $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+    $tempFile = storage_path("app/public/{$filename}");
+    $writer->save($tempFile);
+
+    return response()->download($tempFile)->deleteFileAfterSend(true);
+    }
+
 }
