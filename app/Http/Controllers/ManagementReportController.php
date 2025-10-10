@@ -108,18 +108,16 @@ class ManagementReportController extends Controller
                 $summary[$type]['ytd_target'] = 0;
                 $summary[$type]['ytd_actual'] = 0;
             }
-            $ytdTarget = 0;
-            $ytdActual = 0;
-            for ($m = 1; $m <= $currentMonth; $m++) {
-                $lc = $monthShortLc[$m];
-                $pField = "{$monthShortUc[$m]}_Year_Piutang";
-                $aField = "{$monthShortUc[$m]}_Year_Payment";
 
-                $ytdTarget += $parseNumber($row[$pField] ?? 0);
-                $ytdActual += $parseNumber($row[$aField] ?? 0);
-            }
+            $ytdTargetField = "YTD_sd_{$monthShortUc[$currentMonth]}_{$currentYear}";
+            $ytdActualField = "YTD_bayar_{$monthShortUc[$currentMonth]}_{$currentYear}";
+            
+            $ytdTarget = $parseNumber($row[$ytdTargetField] ?? 0);
+            $ytdActual = $parseNumber($row[$ytdActualField] ?? 0);
+            
             $summary[$type]['ytd_target'] += $ytdTarget;
             $summary[$type]['ytd_actual'] += $ytdActual;
+
 
             // other accumulations
             $summary[$type]['less30days'] += $parseNumber($row['dari_1_sampai_30_DP'] ?? 0);
@@ -316,25 +314,38 @@ class ManagementReportController extends Controller
             $type = strtoupper(trim($type));
             if ($type === 'TOTAL') continue;
 
+            // Get direct YTD fields from table
+            $ytdSalesTarget = 0;
+            $ytdActual = 0;
+
+            // Find all rows for this TypePembelian
+            $filteredRows = array_filter($rows, fn($r) => strtoupper(trim($r['TypePembelian'] ?? '')) === $type);
+
+            foreach ($filteredRows as $r) {
+                $ytdSalesTarget += $parseNumber($r["YTD_sd_Year"] ?? 0);
+                $ytdActual += $parseNumber($r["YTD_bayar_Year"] ?? 0);
+            }
+
+            // Meeting target from collection target data
             $meetingTarget = 0;
-            for ($m = 1; $m <= $currentMonth; $m++) {
-                if (isset($filteredTargets[$m])) {
-                    switch ($type) {
-                        case 'CASH':
-                            $meetingTarget += $filteredTargets[$m]['cash'] ?? 0;
-                            break;
-                        case 'INHOUSE':
-                            $meetingTarget += $filteredTargets[$m]['inhouse'] ?? 0;
-                            break;
-                        case 'KPR':
-                            $meetingTarget += $filteredTargets[$m]['kpr'] ?? 0;
-                            break;
+            if (!empty($filteredTargets)) {
+                foreach ($filteredTargets as $m => $t) {
+                    if ($m <= $currentMonth) {
+                        switch ($type) {
+                            case 'CASH':
+                                $meetingTarget += $t['cash'] ?? 0;
+                                break;
+                            case 'INHOUSE':
+                                $meetingTarget += $t['inhouse'] ?? 0;
+                                break;
+                            case 'KPR':
+                                $meetingTarget += $t['kpr'] ?? 0;
+                                break;
+                        }
                     }
                 }
             }
 
-            $ytdSalesTarget = $summary[$type]['ytd_target'] ?? 0;
-            $ytdActual      = $summary[$type]['ytd_actual'] ?? 0;
             $pct = $ytdSalesTarget > 0 ? round(($ytdActual / $ytdSalesTarget) * 100, 1) : 0.0;
             $status = $pct >= 100 ? 'ACHIEVED' : ($pct >= 80 ? 'ON TRACK' : 'BELOW TARGET');
 
@@ -356,6 +367,7 @@ class ManagementReportController extends Controller
         $ytdTotalsCalc['percentage'] = $ytdTotalsCalc['sales_target'] > 0
             ? round(($ytdTotalsCalc['actual'] / $ytdTotalsCalc['sales_target']) * 100, 1)
             : 0.0;
+
         $ytdTotalsCalc['status'] = $ytdTotalsCalc['percentage'] >= 100 ? 'ACHIEVED'
             : ($ytdTotalsCalc['percentage'] >= 80 ? 'ON TRACK' : 'BELOW TARGET');
 
@@ -367,6 +379,7 @@ class ManagementReportController extends Controller
             'percentage'     => $ytdTotalsCalc['percentage'],
             'status'         => $ytdTotalsCalc['status'],
         ];
+
 
         // AGING rows
         $aging = [];

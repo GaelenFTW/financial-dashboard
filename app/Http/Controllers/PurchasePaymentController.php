@@ -57,7 +57,10 @@ class PurchasePaymentController extends Controller
         ]);
 
         $file=$r->file('file'); $year=$r->data_year; $month=$r->data_month; $project=$r->project_id;
-        $sheet=IOFactory::load($file->getRealPath())->getActiveSheet(); $rows=$sheet->toArray(null,true,true,true); $header=array_shift($rows);
+        $spreadsheet=IOFactory::load($file->getRealPath());
+        $sheet=$spreadsheet->getSheet(0);
+        $rows=$sheet->toArray(null,true,true,true); 
+        $header=array_shift($rows);
         $detectedYear=null;
         foreach($header as $col) if(preg_match('/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)_(\d{4})_/',$col,$m)){ $detectedYear=(int)$m[2]; break; }
         $yearToUse=$detectedYear??$year;
@@ -147,7 +150,11 @@ class PurchasePaymentController extends Controller
                 foreach(array_keys($cols) as $col){
                     if(!in_array($col,$existing)){
                         try{
-                            $type=str_contains($col,'Date')?'datetime2':(str_contains($col,'Type')||in_array($col,['Cluster','Block','Unit','CustomerName','TypePembelian','bank_induk','KPP','JenisKPR','Member','Salesman','type_unit','created_by','updated_by'])?'nvarchar(255)':(in_array($col,['data_year','data_month','project_id'])?'int':'decimal(20,2)'));
+                            $type = str_contains($col,'Date') ? 'datetime2' : (
+                                str_contains($col,'Type') || in_array($col,['Cluster','Block','Unit','CustomerName','TypePembelian','bank_induk','KPP','JenisKPR','Member','Salesman','type_unit','created_by','updated_by']) ? 'nvarchar(255)' : (
+                                    in_array($col,['data_year','data_month','project_id']) ? 'int' : 'decimal(20,2)'
+                                )
+                            );
                             DB::connection('sqlsrv')->statement("ALTER TABLE purchase_payments ADD [{$col}] {$type} NULL");
                             Log::info("Column {$col} added successfully");
                         }catch(\Exception $e){
