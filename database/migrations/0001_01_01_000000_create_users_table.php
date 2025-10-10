@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('password');
             $table->rememberToken();
             $table->timestamps();
-            $table->integer('employeeid');
+            $table->integer('employee_id');
             $table->string('position');
         });
 
