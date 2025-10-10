@@ -24,7 +24,6 @@ class ManagementReportController extends Controller
         $currentYear = (int)$request->input('year', now()->year);
         $projectId = $request->input('project_id');
 
-        // Filter by year, month, and project
         $query = PurchasePayment::where('data_year', $currentYear)
                                 ->where('data_month', $currentMonth);
         
@@ -163,7 +162,6 @@ class ManagementReportController extends Controller
             }
         }
 
-        // AGING -> from summary
         $agingTotal = (
             ($summary['TOTAL']['less30days'] ?? 0) +
             ($summary['TOTAL']['more31days'] ?? 0) +
@@ -190,7 +188,6 @@ class ManagementReportController extends Controller
 
         $outstanding['TOTAL'] = $outstandingTotalsCalc;
 
-        // collectionTargets from rows4 (from API)
         $collectionTargets = [];
         if (is_array($rows4)) {
             foreach ($rows4 as $r) {
@@ -314,11 +311,8 @@ class ManagementReportController extends Controller
             $type = strtoupper(trim($type));
             if ($type === 'TOTAL') continue;
 
-            // Get direct YTD fields from table
             $ytdSalesTarget = 0;
             $ytdActual = 0;
-
-            // Find all rows for this TypePembelian
             $filteredRows = array_filter($rows, fn($r) => strtoupper(trim($r['TypePembelian'] ?? '')) === $type);
 
             foreach ($filteredRows as $r) {
@@ -450,8 +444,6 @@ class ManagementReportController extends Controller
         ]);
     }
 
-
-    
     public function export(Request $request)
     {
         $month = (int)$request->input('month', now()->month);
@@ -542,7 +534,6 @@ class ManagementReportController extends Controller
             $row++;
         }
 
-        // === Output file ===
         $filename = "Management_Report_{$year}_{$month}.xlsx";
         $writer = new Xlsx($spreadsheet);
         $tempFile = storage_path("app/public/{$filename}");

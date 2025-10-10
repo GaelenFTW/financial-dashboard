@@ -2,36 +2,32 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable;
-
-    protected $table = 'users'; // lowercase by convention
-    public $timestamps = false;
-
     protected $fillable = [
-        'name',
-        'email',
-        'password',
-        'adminid'
+        'name', 'email', 'password', 'permissions','adminid'
     ];
 
-    protected $hidden = [
-        'password',
-        'remember_token',
+    protected $casts = [
+        'permissions' => 'array',
+        'email_verified_at' => 'datetime',
+        'password' => 'hashed',
     ];
 
-    protected function casts(): array
+    public function canUpload()
     {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-            'adminid' => 'integer',
-        ];
+        return $this->id == 1 || $this->id == 2; // ID 1 and 2 can upload
+    }
+
+    public function canView()
+    {
+        return $this->id == 1 || $this->id == 2|| $this->id == 3; // ID 1 and 3 can view
+    }
+
+    public function canExport()
+    {
+        return $this->id == 1 || $this->id == 3; // ID 1 and 3 can export
     }
 }

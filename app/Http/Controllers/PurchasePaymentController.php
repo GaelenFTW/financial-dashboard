@@ -9,12 +9,7 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
-class PurchasePaymentController extends Controller
-{
-    protected $months = [
-    1 => 'January',2 => 'February',3 => 'March',4 => 'April',5 => 'May',6 => 'June',
-    7 => 'July',8 => 'August',9 => 'September',10 => 'October',11 => 'November',12 => 'December'
-    ];
+class PurchasePaymentController extends Controller{
 
     
     protected function parseDate($raw)
@@ -81,7 +76,7 @@ class PurchasePaymentController extends Controller
             if(preg_match('/YTD_bayar_([A-Za-z]+)_' . $yearToUse . '/',$c)) $map[$c]="YTD_bayar_Year";
         }
 
-        // Get user identifier (name or email)
+        // Get user identifier 
         $user = auth()->user();
         $userIdentifier = $user ? ($user->email ?? 'system') : 'system';
 
@@ -90,8 +85,6 @@ class PurchasePaymentController extends Controller
             try{
                 $data=[]; 
                 foreach($header as $k=>$v) $data[$v]=$row[$k]??null;
-                
-                // Build the data columns (without the matching criteria fields)
                 $cols=[
                     'purchaseletter_id'=>$data['purchaseletter_id']??null,
                     'No'=>$this->toFloat($data['No']??null),
@@ -163,7 +156,6 @@ class PurchasePaymentController extends Controller
                     }
                 }
 
-                // Define matching criteria: purchaseletter_id + data_year + data_month + project_id
                 $matchingCriteria = [
                     'purchaseletter_id' => $cols['purchaseletter_id'],
                     'data_year' => $yearToUse,
@@ -250,31 +242,19 @@ class PurchasePaymentController extends Controller
     {
         $q = PurchasePayment::query();
         
-        // Year filter — default to current year if not provided
         if ($r->filled('year')) {
             $q->where('data_year', $r->year);
         } else {
             $q->where('data_year', date('Y'));
-        }
-
-        // Month filter — show all months if not selected
-        if ($r->filled('month')) {
+        }if ($r->filled('month')) {
             $q->where('data_month', $r->month);
-        }
-
-        // Project filter
-        if ($r->filled('project_id')) {
+        }if ($r->filled('project_id')) {
             $q->where('project_id', $r->project_id);
-        }
-
-        // Additional filters
-        if ($r->filled('customer')) {
+        }if ($r->filled('customer')) {
             $q->where('CustomerName', 'like', '%' . $r->customer . '%');
-        }
-        if ($r->filled('cluster')) {
+        }if ($r->filled('cluster')) {
             $q->where('Cluster', 'like', '%' . $r->cluster . '%');
-        }
-        if ($r->filled('TypePembelian')) {
+        }if ($r->filled('TypePembelian')) {
             $q->where('TypePembelian', $r->TypePembelian);
         }
 
@@ -292,7 +272,6 @@ class PurchasePaymentController extends Controller
     {
     $q = PurchasePayment::query();
 
-    // Apply same filters as view
     $q->when($r->filled('year'), fn($q) => $q->where('data_year', $r->year), fn($q) => $q->where('data_year', date('Y')));
     $q->when($r->filled('month'), fn($q) => $q->where('data_month', $r->month));
     $q->when($r->filled('project_id'), fn($q) => $q->where('project_id', $r->project_id));
@@ -301,11 +280,8 @@ class PurchasePaymentController extends Controller
     $q->when($r->filled('TypePembelian'), fn($q) => $q->where('TypePembelian', $r->TypePembelian));
 
     $payments = $q->orderBy('PurchaseDate', 'desc')->get();
-
-    // Dynamically get all columns in the table
     $columns = DB::connection('sqlsrv')->getSchemaBuilder()->getColumnListing('purchase_payments');
 
-    // Ensure consistent order: move key columns first
     $preferredOrder = [
         'No', 'purchaseletter_id', 'Cluster', 'Block', 'Unit', 'CustomerName', 'PurchaseDate', 'LunasDate'
     ];
@@ -314,8 +290,6 @@ class PurchasePaymentController extends Controller
     $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
     $sheet = $spreadsheet->getActiveSheet();
     $sheet->setTitle('Purchase Payments');
-
-    // Write header
     $sheet->fromArray([$columns], null, 'A1');
 
     $row = 2;
