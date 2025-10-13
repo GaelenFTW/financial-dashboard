@@ -7,6 +7,7 @@ use Firebase\JWT\ExpiredException;
 use Firebase\JWT\Key;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 
 class JWTController extends Controller
 {
@@ -110,6 +111,55 @@ class JWTController extends Controller
             Log::error("fetchData error [$apiKey]: " . $e->getMessage());
             return [];
         }
+    }
+
+    public function projectsMap(bool $withIdSuffix = true, int $cacheSeconds = 300): array
+    {
+        // Cache raw API response
+        $raw = Cache::remember('projects.api6.raw', $cacheSeconds, function () {
+            return $this->fetchData6() ?? [];
+        });
+
+        $map = [];
+
+        if (is_array($raw)) {
+            $isAssoc = array_keys($raw) !== range(0, count($raw) - 1);
+
+            if ($isAssoc) {
+                // Style: { "2": "CitraGarden City Jakarta (2)", ... }
+                foreach ($raw as $id => $name) {
+                    if (!is_numeric($id)) continue;
+                    $id = (int)$id;
+                    $label = is_string($name) ? trim($name) : '';
+                    if ($withIdSuffix && $label !== '' && stripos($label, "($id)") === false) {
+                        $label .= " ($id)";
+                    }
+                    $map[$id] = $label ?: "Project ($id)";
+                }
+            } else {
+                // Style: [ {id:2,name:"..."}, {project_id:3,project_name:"..."} ]
+                foreach ($raw as $item) {
+                    $id = $item['id'] ?? $item['project_id'] ?? null;
+                    $name = $item['name'] ?? $item['project_name'] ?? null;
+                    if (!$id || !$name) continue;
+                    $id = (int)$id;
+                    $label = trim((string)$name);
+                    if ($withIdSuffix && stripos($label, "($id)") === false) {
+                        $label .= " ($id)";
+                    }
+                    $map[$id] = $label;
+                }
+            }
+        }
+
+        ksort($map, SORT_NUMERIC);
+        return $map;
+    }
+
+    public function projectLabel(int $id, string $default = null): string
+    {
+        $map = $this->projectsMap();
+        return $map[$id] ?? ($default ?? "Project ($id)");
     }
 
     /** Convenience methods for each API */

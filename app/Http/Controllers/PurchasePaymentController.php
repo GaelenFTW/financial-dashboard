@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class PurchasePaymentController extends Controller{
-    
+
     protected $months = [
         1 => 'January', 2 => 'February', 3 => 'March', 4 => 'April', 5 => 'May', 6 => 'June',
         7 => 'July', 8 => 'August', 9 => 'September', 10 => 'October', 11 => 'November', 12 => 'December'
@@ -203,42 +203,8 @@ class PurchasePaymentController extends Controller{
 
     public function uploadForm()
     {
-        $projectOptions = [
-            'CitraGarden City Jakarta' => 2,        'CitraRaya Tangerang' => 3,            'CitraIndah City Jonggol' => 5,
-            'CitraGran Cibubur' => 9,               'CitraLand Gama City Medan 1' => 30,   'CitraLand Pekanbaru' => 31,
-            'CitraGarden Pekanbaru' => 32,          'BizPark Bandung' => 35,               'CitraSun Garden Semarang' => 36,
-            'CitraSun Garden Yogyakarta' => 37,     'CitraGrand Semarang' => 38,           'CitraLand Surabaya' => 39,
-            'CitraHarmoni Sidoarjo' => 41,          'CitraGarden Sidoarjo' => 42,          'CitraIndah Sidoarjo' => 43,
-            'The Taman Dayu' => 44,                 'CitraLand Denpasar' => 46,            'CitraLand Kendari' => 47,
-            'CitraLand Palu' => 48,                 'CitraLand Ambon' => 50,               'Ciputra World Surabaya' => 51,
-            'CitraLand Utara Surabaya' => 54,       'CitraGrand Mutiara Yogyakarta' => 61, 'Vida View Apartemen Makassar' => 62,
-            'CitraGrand City Palembang (Partner)' => 67, 'CitraLand BSB City' => 69,       'CitraLand Botanical City Pangkal Pinang' => 75,
-            'Citra BukitIndah Balikpapan' => 76,    'CitraGarden Pekalongan' => 79,        'CitraLand Celebes Makassar' => 80,
-            'CitraLand NGK Jambi' => 82,            'CitraLand Tegal' => 83,               'CitraRaya Jambi' => 84,
-            'CitraGarden Gowa' => 87,               'CitraLand The GreenLake' => 105,      'CitraGarden BMW Cilegon' => 108,
-            'BizPark Pulogadung 2' => 112,          'CitraGarden Lampung' => 2013,         'Citra Towers Kemayoran Jakarta' => 2014,
-            'Citra Living City Jakarta' => 2015,    'Citra Lake Sawangan Depok' => 2017,   'BizPark CE Bekasi' => 2019,
-            'Ciputra World Jakarta 1 - Residence' => 2020, 'Ciputra World Jakarta 1 - Raffles' => 2021, 'Ciputra World Jakarta 1 - Office T1' => 2022,
-            'Ciputra World Jakarta 1 - Office T2' => 2023, 'CitraLand Gresik Kota' => 2026, 'Ciputra World Jakarta 2 - Orchard Satrio' => 2004,
-            'Ciputra World Jakarta 2 - Office' => 2005,    'Ciputra World Jakarta 2 - Residence' => 2006, 'CitraLand Cirebon' => 2053,
-            'CitraLand Megah Batam' => 2054,        'CitraMitra City Banjarbaru' => 2055,  'CitraGrand Galesong City Gowa I' => 2052,
-            'CitraLand Puri Serang I' => 2058,      'CitraLand Puri Serang II' => 2060,    'CitraGrand Galesong City Gowa II' => 2061,
-            'CitraLand Bandar Lampung' => 2069,     'The Newton (Project)' => 2074,        'CitraGrand Cibubur CBD' => 2075,
-            'CitraLand Cibubur' => 2076,            'CitraLand Kairagi Manado' => 2077,    'CitraLand Palembang' => 2079,
-            'Mal Ciputra Tangerang' => 2086,        'CitraLand Helvetia' => 2092,          'CitraLand Tanjung Morawa' => 2093,
-            'CitraLand City Sampali' => 2094,       'CitraLand City CPI Makassar' => 3028, 'BizPark Banjarmasin' => 3020,
-            'CitraLand Tallasa City Makassar' => 3031, 'CitraLand Winangun Manado' => 3032, 'Citra Aerolink Batam' => 4030,
-            'CitraGarden City Samarinda' => 4031,   'CitraLake Suites Jakarta' => 4033,    'Citra Maja City' => 4034,
-            'CitraGarden City Malang' => 4036,      'CitraGarden Aneka Pontianak' => 4029, 'Ciputra Beach Resort' => 4048,
-            'The Newton 2 (Project)' => 4046,       'Ciputra International (Project)' => 4056, 'CitraLand Banjarmasin' => 4059,
-            'CitraPlaza Nagoya Batam' => 4060,      'Barsa City Yogyakarta' => 4063,       'Citra Landmark' => 4068,
-            'CitraGarden Puri Jakarta' => 5102,     'CitraLand Vittorio Wiyung Surabaya' => 5101, 'CitraLand Gama City Medan 2' => 5103,
-            'Citra Sentul Raya' => 5104,            'Citra City Sentul' => 5105,           'CitraLand Driyorejo CBD' => 7105,
-            'CitraLand Puncak Tidar Malang' => 11109, 'CitraGrand City Palembang' => 11124,'CitraLand City Kedamean' => 11132,
-            'CitraLake Villa Jakarta' => 11154,     'CitraGarden Serpong Tangerang' => 11156, 'CitraGarden Bekasi' => 11231,
-            'CitraLand City CPI Selatan' => 11232,  'Citra Homes Halim Jakarta' => 11235,  'Citra Bukit Golf Sentul JO' => 11237,
-            'Ciputra World Jakarta 1 - Land' => 11225, 'Satrio - Land' => 11226,
-        ];
+        $projectOptions = app(\App\Http\Controllers\JWTController::class)->projectsMap();
+
         return view('payments.upload', compact('projectOptions'));
     }
 
@@ -267,7 +233,8 @@ class PurchasePaymentController extends Controller{
         return view('payments.view', [
             'payments' => $payments,
             'filters' => $r->all(),
-            'months' => $this->months
+            'months' => $this->months,
+            'projects' => app(\App\Http\Controllers\JWTController::class)->projectsMap(), // <— add
         ]);
     }
 
