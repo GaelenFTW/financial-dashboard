@@ -18,16 +18,16 @@ class User extends Authenticatable
 
     public function canUpload()
     {
-        return $this->id == 1 || $this->id == 2; // ID 1 and 2 can upload
+        return $this->permissions == 1 || $this->permissions == 2; // ID 1 and 2 can upload
     }
 
     public function canView()
     {
-        return $this->id == 1 || $this->id == 2|| $this->id == 3; // ID 1 and 3 can view
+        return $this->permissions == 1 || $this->permissions == 2 || $this->permissions == 3; // ID 1 and 3 can view
     }
 
     public function canExport()
     {
-        return $this->id == 1 || $this->id == 3; // ID 1 and 3 can export
+        return $this->permissions == 1 || $this->permissions == 3; // ID 1 and 3 can export
     }
 }
