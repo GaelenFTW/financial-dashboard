@@ -8,14 +8,18 @@
             <div class="card shadow-sm">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h4 class="mb-0">Purchase Payments</h4>
-                    <div>
-                        <a href="{{ route('payments.upload') }}" class="btn btn-sm btn-primary">
-                            <i class="fas fa-upload"></i> Upload
-                        </a>
-                        <a href="{{ route('payments.export', request()->all()) }}" class="btn btn-sm btn-success">
-                            <i class="fas fa-file-excel"></i> Export
-                        </a>
-                    </div>
+                        <div>
+                            @if(auth()->user()->canUpload())
+                                <a href="{{ route('payments.upload') }}" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-upload"></i> Upload
+                                </a>
+                            @endif
+                            @if(auth()->user()->canExport())
+                                <a href="{{ route('payments.export', request()->all()) }}" class="btn btn-sm btn-success">
+                                    <i class="fas fa-file-excel"></i> Export
+                                </a>
+                            @endif
+                        </div>
                 </div>
 
                 <div class="card-body">

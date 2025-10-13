@@ -114,9 +114,11 @@
                             <button type="submit" class="btn btn-primary">
                                 <i class="fas fa-upload"></i> Upload File
                             </button>
-                            <a href="{{ route('payments.view') }}" class="btn btn-secondary">
-                                <i class="fas fa-list"></i> View Payments
-                            </a>
+                            @if(auth()->user()->canView())
+                                <a href="{{ route('payments.view') }}" class="btn btn-secondary">
+                                    <i class="fas fa-list"></i> View Payments
+                                </a>
+                            @endif
                         </div>
                     </form>
                 </div>

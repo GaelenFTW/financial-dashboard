@@ -9,33 +9,39 @@ use App\Http\Controllers\ManagementReportController;
 use App\Http\Controllers\ExcelUploadController;
 use App\Http\Controllers\PurchasePaymentController;
 
+// Authentication routes (public - no middleware)
+Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login.form');
+Route::post('/login', [AuthController::class, 'login'])->name('login');
+Route::get('/register', [AuthController::class, 'showRegisterForm'])->name('register.form');
+Route::post('/register', [AuthController::class, 'register'])->name('register');
+Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+// Redirect root to dashboard
 
-// Purchase Letters Routes
-Route::get('/purchase-letters', [PurchaseLetterController::class, 'index'])->name('purchase_letters.index')->middleware('auth');
-Route::get('/purchase-letters/chart', [PurchaseLetterController::class, 'chart'])->name('purchase_letters.chart')->middleware('auth');
-Route::get('/purchase-letters/export', [PurchaseLetterController::class, 'export'])->name('purchase_letters.export')->middleware('auth');
-Route::get('/purchase-letters/{id}', [PurchaseLetterController::class, 'show'])->name('purchase_letters.show')->middleware('auth');
-Route::get('/dashboard', [DashboardController::class, 'index'])->middleware('auth')->name('dashboard');
+Route::get('/', function () {
+    return redirect('/dashboard');
+});
 
-Route::get('/register', [AuthController::class, 'showRegisterForm'])->name('register.form')->middleware('guest');
-Route::post('/register', [AuthController::class, 'register'])->name('register')->middleware('guest');
-Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login.form')->middleware('guest');
-Route::post('/login', [AuthController::class, 'login'])->name('login')->middleware('guest');
-Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
+// Upload routes (ID 1, 2 only)
+Route::middleware(['auth', 'user.permission:upload'])->group(function () {
+    Route::get('/payments/upload', [PurchasePaymentController::class, 'uploadForm'])->name('payments.upload.form');
+    Route::post('/payments/upload', [PurchasePaymentController::class, 'upload'])->name('payments.upload');
+});
 
+// View routes (ID 1, 3 only)  
+Route::middleware(['auth', 'user.permission:view'])->group(function () {
+    Route::get('/purchase-letters', [PurchaseLetterController::class, 'index'])->name('purchase_letters.index');
+    Route::get('/purchase-letters/chart', [PurchaseLetterController::class, 'chart'])->name('purchase_letters.chart');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/management-report', [ManagementReportController::class, 'index'])->name('management.report');
+    Route::get('/payments/view', [PurchasePaymentController::class, 'view'])->name('payments.view');
+});
 
-Route::get('/export', [DashboardController::class, 'exportFilteredData'])
-    ->name('export.filtered')
-    ->middleware('auth');
-
-Route::get('/export/customers', [DashboardController::class, 'exportTopCustomers'])->name('export.top.customers');
-Route::get('/export/products', [DashboardController::class, 'exportTopProducts'])->name('export.top.products');
-
-Route::get('/management-report', [ManagementReportController::class, 'index'])->name('management.report')->middleware('auth');
-Route::get('management-report/export', [ManagementReportController::class, 'export'])->name('management.report.export');
-
-
-Route::get('/payments/upload', [PurchasePaymentController::class, 'uploadForm'])->name('payments.upload.form');
-Route::post('/payments/upload', [PurchasePaymentController::class, 'upload'])->name('payments.upload')->middleware('auth');
-Route::get('/payments/view', [PurchasePaymentController::class, 'view'])->name('payments.view')->middleware('auth');    
-Route::get('/payments/export', [PurchasePaymentController::class, 'export'])->name('payments.export');
+// Export routes (ID 1, 3 only)
+Route::middleware(['auth', 'user.permission:export'])->group(function () {
+    Route::get('/payments/export', [PurchasePaymentController::class, 'export'])->name('payments.export');
+    Route::get('/purchase-letters/export', [PurchaseLetterController::class, 'export'])->name('purchase_letters.export');
+    Route::get('management-report/export', [ManagementReportController::class, 'export'])->name('management.report.export');
+    Route::get('/export', [DashboardController::class, 'exportFilteredData'])->name('export.filtered');
+    Route::get('/export/customers', [DashboardController::class, 'exportTopCustomers'])->name('export.top.customers');
+    Route::get('/export/products', [DashboardController::class, 'exportTopProducts'])->name('export.top.products');
+});

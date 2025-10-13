@@ -7,9 +7,11 @@
         <div class="col-12 d-flex justify-content-between align-items-center">
             <h2>Purchase Letters</h2>
             <div>
-                <a href="{{ route('purchase_letters.chart') }}" class="btn btn-primary">
-                    <i class="fas fa-chart-line"></i> View Charts
-                </a>
+                @if(auth()->user()->canView())
+                    <a href="{{ route('purchase_letters.chart') }}" class="btn btn-primary">
+                        <i class="fas fa-chart-line"></i> View Charts
+                    </a>
+                @endif
             </div>
         </div>
     </div>

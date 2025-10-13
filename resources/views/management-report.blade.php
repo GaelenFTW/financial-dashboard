@@ -17,9 +17,11 @@
     @if(isset($error))
         <div class="alert alert-warning alert-dismissible fade show">
             <i class="fas fa-exclamation-triangle"></i> {{ $error }}
-            <a href="{{ route('payments.upload.form') }}" class="btn btn-sm btn-primary ms-3">
-                <i class="fas fa-upload"></i> Upload Data
-            </a>
+                @if(auth()->user()->canUpload())
+                    <a href="{{ route('payments.upload.form') }}" class="btn btn-sm btn-primary ms-3">
+                        <i class="fas fa-upload"></i> Upload Data
+                    </a>
+                @endif
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     @endif
@@ -117,9 +119,11 @@
                         <button type="submit" class="btn btn-primary w-100">
                             <i class="fas fa-search"></i> View Report
                         </button>
-                        <a href="{{ route('management.report.export', request()->query()) }}" class="btn btn-success w-100">
-                            <i class="fas fa-file-export"></i> Export
-                        </a>
+                        @if(auth()->user()->canExport())
+                            <a href="{{ route('management.report.export', request()->query()) }}" class="btn btn-success w-100">
+                                <i class="fas fa-file-export"></i> Export
+                            </a>
+                        @endif
                     </div>
 
             </form>
