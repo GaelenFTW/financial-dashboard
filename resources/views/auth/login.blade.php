@@ -8,6 +8,19 @@
         height: 100%;
         margin: 0;
     }
+
+    .auth-page {
+        position: relative;
+        height: 100vh;
+        width: 100%;
+        background: url('{{ asset('images/background.jpg') }}') no-repeat center center fixed;
+        background-size: cover;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+
     /* The centered card */
     .auth-card {
         position: relative;
