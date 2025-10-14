@@ -69,20 +69,20 @@
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
                         </div>
-
-                        <div class="form-group mb-3">
-                            <label for="project_id">Select Project:</label>
-                            <select name="project_id" id="project_id" class="form-control" onchange="this.form.submit()">
-                                <option value="">-- Select Project --</option>
-                                @foreach($projectOptions as $code => $id)
-                                    <option value="{{ $id }}" {{ request('project_id') == $id ? 'selected' : '' }}>
-                                        {{ $code }} ({{ $id }})
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-
-
+                            <div class="form-group mb-3">
+                                <label for="project_id">Select Project:</label>
+                                <select name="project_id" id="project_id" class="form-control">
+                                    <option value="">-- Select Project --</option>
+                                    @foreach($projectOptions as $id => $label)
+                                        <option value="{{ $id }}" {{ (string)old('project_id', request('project_id')) === (string)$id ? 'selected' : '' }}>
+                                            {{ $label }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                @error('project_id')
+                                    <div class="text-danger small mt-1">{{ $message }}</div>
+                                @enderror
+                            </div>
                         <div class="mb-3">
                             <label for="file" class="form-label">Excel File <span class="text-danger">*</span></label>
                             <input type="file" 
