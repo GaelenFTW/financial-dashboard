@@ -37,28 +37,23 @@
 
                 <div class="mb-3">
                     <label for="name" class="form-label fw-semibold">Full Name</label>
-                    <input id="name" type="text" name="name" class="form-control form-control-lg" required autofocus placeholder="John Doe">
+                    <input id="name" type="text" name="name" class="form-control form-control-lg" required autofocus>
                 </div>
-
                 <div class="mb-3">
                     <label for="email" class="form-label fw-semibold">Email Address</label>
-                    <input id="email" type="email" name="email" class="form-control form-control-lg" required placeholder="name@company.com">
+                    <input id="email" type="email" name="email" class="form-control form-control-lg" required>
                 </div>
-
                 <div class="mb-3">
                     <label for="password" class="form-label fw-semibold">Password</label>
-                    <input id="password" type="password" name="password" class="form-control form-control-lg" required placeholder="••••••••">
+                    <input id="password" type="password" name="password" class="form-control form-control-lg" required>
                 </div>
-
                 <div class="mb-3">
                     <label for="password_confirmation" class="form-label fw-semibold">Confirm Password</label>
-                    <input id="password_confirmation" type="password" name="password_confirmation" class="form-control form-control-lg" required placeholder="••••••••">
+                    <input id="password_confirmation" type="password" name="password_confirmation" class="form-control form-control-lg" required>
                 </div>
-
                 <button type="submit" class="btn btn-success w-100 btn-lg fw-semibold">
                     Register
                 </button>
-
                 <div class="text-center mt-4">
                     <p class="mb-0 text-muted">Already have an account?
                         <a href="{{ route('login.form') }}" class="text-success fw-semibold text-decoration-none">Sign In</a>

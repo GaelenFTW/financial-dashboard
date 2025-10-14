@@ -63,24 +63,19 @@
             @csrf
             <div class="mb-3">
                 <label for="email" class="form-label fw-semibold">Email Address</label>
-                <input id="email" type="email" name="email" class="form-control form-control-lg" required autofocus placeholder="name@company.com">
+                <input id="email" type="email" name="email" class="form-control form-control-lg" required autofocus>
             </div>
-
             <div class="mb-3">
                 <label for="password" class="form-label fw-semibold">Password</label>
-                <input id="password" type="password" name="password" class="form-control form-control-lg" required placeholder="••••••••">
+                <input id="password" type="password" name="password" class="form-control form-control-lg" required>
             </div>
-
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <div class="form-check">
                     <input class="form-check-input" type="checkbox" id="remember">
                     <label class="form-check-label small" for="remember">Remember me</label>
                 </div>
-                <a href="#" class="small text-decoration-none text-primary">Forgot Password?</a>
             </div>
-
             <button type="submit" class="btn btn-primary w-100 btn-lg fw-semibold">Sign In</button>
-
             <div class="text-center mt-4">
                 <p class="mb-0 text-muted">
                     Don’t have an account?

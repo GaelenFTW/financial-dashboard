@@ -16,10 +16,7 @@ class DashboardController extends Controller
     {
         // Get data from PurchasePayment model
         $query = PurchasePayment::query();
-        
-        // Apply filters
         $query = $this->applyFilters($query, $request);
-        
         $payments = $query->get();
 
         // Calculate metrics
@@ -155,25 +152,15 @@ class DashboardController extends Controller
     {
         if ($request->filled('cluster')) {
             $query->where('Cluster', 'like', '%' . $request->cluster . '%');
-        }
-
-        if ($request->filled('typepembelian')) {
+        }if ($request->filled('typepembelian')) {
             $query->where('TypePembelian', 'like', '%' . $request->typepembelian . '%');
-        }
-
-        if ($request->filled('customername')) {
+        }if ($request->filled('customername')) {
             $query->where('CustomerName', 'like', '%' . $request->customername . '%');
-        }
-
-        if ($request->filled('type_unit')) {
+        }if ($request->filled('type_unit')) {
             $query->where('type_unit', 'like', '%' . $request->type_unit . '%');
-        }
-
-        if ($request->filled('startdate')) {
+        }if ($request->filled('startdate')) {
             $query->whereDate('PurchaseDate', '>=', $request->startdate);
-        }
-
-        if ($request->filled('enddate')) {
+        }if ($request->filled('enddate')) {
             $query->whereDate('PurchaseDate', '<=', $request->enddate);
         }
 
