@@ -3,44 +3,59 @@
 @section('title', 'Register')
 
 @section('content')
-<div class="container mt-5">
-    <h2 class="mb-4">Register</h2>
+<div class="d-flex justify-content-center align-items-center vh-100 bg-light">
+    <div class="card shadow-lg border-0 rounded-4" style="width: 480px;">
+        <div class="card-body p-4">
+            <div class="text-center mb-4">
+                <h3 class="fw-bold text-success">Create Your Account</h3>
+                <p class="text-muted mb-0">Join us and get started today</p>
+            </div>
 
-    @if ($errors->any())
-        <div class="alert alert-danger">
-            <ul class="mb-0">
-                @foreach ($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-            </ul>
+            @if ($errors->any())
+                <div class="alert alert-danger rounded-3 py-2">
+                    <ul class="mb-0 ps-3 small">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
+            <form method="POST" action="{{ route('register') }}">
+                @csrf
+
+                <div class="mb-3">
+                    <label for="name" class="form-label fw-semibold">Full Name</label>
+                    <input id="name" type="text" name="name" class="form-control form-control-lg" required autofocus placeholder="John Doe">
+                </div>
+
+                <div class="mb-3">
+                    <label for="email" class="form-label fw-semibold">Email Address</label>
+                    <input id="email" type="email" name="email" class="form-control form-control-lg" required placeholder="name@company.com">
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="password" class="form-label fw-semibold">Password</label>
+                        <input id="password" type="password" name="password" class="form-control form-control-lg" required placeholder="••••••••">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="password_confirmation" class="form-label fw-semibold">Confirm Password</label>
+                        <input id="password_confirmation" type="password" name="password_confirmation" class="form-control form-control-lg" required placeholder="••••••••">
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-success w-100 btn-lg fw-semibold">
+                    Create Account
+                </button>
+
+                <div class="text-center mt-4">
+                    <p class="mb-0 text-muted">Already have an account?
+                        <a href="{{ route('login.form') }}" class="text-success fw-semibold text-decoration-none">Sign In</a>
+                    </p>
+                </div>
+            </form>
         </div>
-    @endif
-
-    <form method="POST" action="{{ route('register') }}">
-        @csrf
-
-        <div class="mb-3">
-            <label for="name" class="form-label">Name</label>
-            <input id="name" type="text" name="name" class="form-control" required autofocus>
-        </div>
-
-        <div class="mb-3">
-            <label for="email" class="form-label">Email</label>
-            <input id="email" type="email" name="email" class="form-control" required>
-        </div>
-
-        <div class="mb-3">
-            <label for="password" class="form-label">Password</label>
-            <input id="password" type="password" name="password" class="form-control" required>
-        </div>
-
-        <div class="mb-3">
-            <label for="password_confirmation" class="form-label">Confirm Password</label>
-            <input id="password_confirmation" type="password" name="password_confirmation" class="form-control" required>
-        </div>
-
-        <button type="submit" class="btn btn-success">Register</button>
-        <a href="{{ route('login.form') }}" class="btn btn-link">Login</a>
-    </form>
+    </div>
 </div>
 @endsection
