@@ -6,8 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
 
-class PurchasePayment extends Model
-{
+class PurchasePayment extends Model{
     use HasFactory;
 
     protected $table = 'purchase_payments';
@@ -18,9 +17,7 @@ class PurchasePayment extends Model
     protected $fillable = [];
     protected $casts = [];
 
-    /**
-     * Constructor: dynamically generate fillable & casts just like in controller
-     */
+    //Constructor: dynamically generate fillable & casts just like in controller
     public function __construct(array $attributes = [])
     {
         parent::__construct($attributes);
@@ -29,9 +26,7 @@ class PurchasePayment extends Model
         $this->casts = $this->generateCasts();
     }
 
-    /**
-     * Base (non-monthly) columns — permanent
-     */
+    //Base (non-monthly) columns — permanent
     protected function baseColumns(): array
     {
         return [
@@ -47,9 +42,7 @@ class PurchasePayment extends Model
         ];
     }
 
-    /**
-     * Dynamically generate fillable columns for the given year
-     */
+    //Dynamically generate fillable columns for the given year
     protected function generateFillable(int $year = null): array
     {
         $year = $year ?: date('Y');
@@ -86,9 +79,7 @@ class PurchasePayment extends Model
         return $fillable;
     }
 
-    /**
-     * Automatically cast all *_DueDate and *_CairDate fields as dates
-     */
+    //Automatically cast all *_DueDate and *_CairDate fields as dates       
     protected function generateCasts(int $year = null): array
     {
         $year = $year ?: date('Y');

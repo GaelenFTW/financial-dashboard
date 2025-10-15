@@ -18,8 +18,8 @@ class JWTController extends Controller
     {
         $this->key = 'TestingJWT123';
         $this->apiUrls = [
-            'api1' => config('jwt.api_url'),
-            'api2' => config('jwt.api_url2'),
+            // 'api1' => config('jwt.api_url'),
+            // 'api2' => config('jwt.api_url2'),
             'api3' => config('jwt.api_url3'),
             'api4' => config('jwt.api_url4'),
             'api5' => config('jwt.api_url5'),
