@@ -15,22 +15,25 @@ class CheckUserPermission
         }
 
         $user = Auth::user();
-        
+
+        // 1️⃣ Check project access
+        if ($request->route('project')) {
+            $projectId = $request->route('project');
+            if (!$user->hasAccessToProject($projectId)) {
+                abort(403, 'Access denied: you do not have access to this project.');
+            }
+        }
+
+        // 2️⃣ Check specific permissions
         switch ($action) {
-            case 'upload':
-                if (!$user->canUpload()) {
-                    abort(403, 'Access denied. You cannot upload files.');
-                }
-                break;
             case 'view':
-                if (!$user->canView()) {
-                    abort(403, 'Access denied. You cannot view data.');
-                }
+                if (!$user->canView()) abort(403, 'Access denied: cannot view.');
+                break;
+            case 'upload':
+                if (!$user->canUpload()) abort(403, 'Access denied: cannot upload.');
                 break;
             case 'export':
-                if (!$user->canExport()) {
-                    abort(403, 'Access denied. You cannot export data.');
-                }
+                if (!$user->canExport()) abort(403, 'Access denied: cannot export.');
                 break;
         }
 

@@ -8,6 +8,8 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ManagementReportController;
 use App\Http\Controllers\ExcelUploadController;
 use App\Http\Controllers\PurchasePaymentController;
+use App\Http\Controllers\Admin\UserManagementController;
+
 
 // Authentication routes (public - no middleware)
 Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login.form');
@@ -44,4 +46,24 @@ Route::middleware(['auth', 'user.permission:export'])->group(function () {
     Route::get('/export', [DashboardController::class, 'exportFilteredData'])->name('export.filtered');
     Route::get('/export/customers', [DashboardController::class, 'exportTopCustomers'])->name('export.top.customers');
     Route::get('/export/products', [DashboardController::class, 'exportTopProducts'])->name('export.top.products');
+});
+
+//admin
+Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/dashboard', 'AdminController@dashboard')->name('dashboard');
+    
+    // Users Management
+    Route::get('/users', 'AdminController@usersIndex')->name('users.index');
+    Route::get('/users/{user}/edit', 'AdminController@usersEdit')->name('users.edit');
+    Route::put('/users/{user}', 'AdminController@usersUpdate')->name('users.update');
+    Route::get('/users/{user}/projects', 'AdminController@userProjects')->name('users.projects');
+    Route::post('/users/{user}/projects', 'AdminController@updateUserProjects')->name('users.projects.update');
+    
+    // Projects Management
+    Route::get('/projects', 'AdminController@projectsIndex')->name('projects.index');
+    Route::get('/projects/create', 'AdminController@projectsCreate')->name('projects.create');
+    Route::post('/projects', 'AdminController@projectsStore')->name('projects.store');
+    Route::get('/projects/{project}/edit', 'AdminController@projectsEdit')->name('projects.edit');
+    Route::put('/projects/{project}', 'AdminController@projectsUpdate')->name('projects.update');
+    Route::delete('/projects/{project}', 'AdminController@projectsDestroy')->name('projects.destroy');
 });
