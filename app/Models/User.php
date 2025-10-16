@@ -7,8 +7,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class User extends Authenticatable
 {
-    protected $fillable = ['name', 'email', 'position', 'permissions'];
-    protected $casts = ['permissions' => 'integer'];
+    protected $fillable = ['name', 'email', 'password', 'position', 'permissions', 'employee_id'];
+    protected $casts = ['permissions' => 'integer', 'employee_id' => 'integer'];
+    protected $hidden = ['password', 'remember_token'];
 
     public function projects(): BelongsToMany
     {
@@ -16,6 +17,8 @@ class User extends Authenticatable
             Project::class,
             'project_user',
             'user_id',
+            'project_id',
+            'id',
             'project_id'
         )->withTimestamps();
     }
@@ -46,5 +49,29 @@ class User extends Authenticatable
             return Project::query();
         }
         return $this->projects();
+    }
+
+    // Check if user has access to a project
+    public function hasAccessToProject(int $projectId): bool
+    {
+        return $this->canAccessProject($projectId);
+    }
+
+    // Check if user can view (permission 1 or 4)
+    public function canView(): bool
+    {
+        return $this->hasPermission(1) || $this->hasPermission(4);
+    }
+
+    // Check if user can upload (permission 1 or 2)
+    public function canUpload(): bool
+    {
+        return $this->hasPermission(1) || $this->hasPermission(2);
+    }
+
+    // Check if user can export (permission 1 or 4)
+    public function canExport(): bool
+    {
+        return $this->hasPermission(1) || $this->hasPermission(4);
     }
 }

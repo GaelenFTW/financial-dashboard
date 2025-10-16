@@ -7,10 +7,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Project extends Model
 {
-    protected $table = 'master_project';
+    protected $table = 'projects';
     protected $primaryKey = 'project_id';
     protected $fillable = ['sh', 'code', 'name'];
-    public $timestamps = false;
+    public $timestamps = true;
 
     public function users(): BelongsToMany
     {
