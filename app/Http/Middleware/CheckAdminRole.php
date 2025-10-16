@@ -17,7 +17,7 @@ class CheckAdminRole
         $user = Auth::user();
 
         // Only super admins and admins can access admin panel
-        if (!$user->isSuperAdmin() && !$user->isAdmin()) {
+        if (!$user->role || !$user->role->isAdmin()) {
             abort(403, 'Access denied. Admin privileges required.');
         }
 
