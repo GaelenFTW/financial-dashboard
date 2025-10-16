@@ -58,8 +58,9 @@ class AdminController extends Controller
 
         foreach ($validated['permissions'] as $permissionName => $checked) {
             if ($checked) {
-                // Access enum dynamically via static property
-                $permissionValue |= Permission::$permissionName->value;
+                // Get permission enum by name
+                $permission = constant(Permission::class . '::' . $permissionName);
+                $permissionValue |= $permission->value;
             }
         }
 
