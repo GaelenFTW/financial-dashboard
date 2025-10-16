@@ -78,6 +78,11 @@
                         <li><h6 class="dropdown-header">Purchase Letters</h6></li>
                         <li><a class="dropdown-item" href="{{ route('purchase_letters.index') }}">Table</a></li>
                         <li><a class="dropdown-item" href="{{ route('purchase_letters.chart') }}">Chart</a></li>
+                        @if(auth()->user()->isAdmin() || auth()->user()->isSuperAdmin())
+                        <li><hr class="dropdown-divider"></li>
+                        <li><h6 class="dropdown-header">Administration</h6></li>
+                        <li><a class="dropdown-item" href="{{ route('admin.index') }}">Admin Panel</a></li>
+                        @endif
                     </ul>
                 </li>
             </ul>

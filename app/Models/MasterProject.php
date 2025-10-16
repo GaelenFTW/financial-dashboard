@@ -13,6 +13,7 @@ class MasterProject extends Model
         'description',
         'code',
         'sh',
+        'is_active',
     ];
 
 
