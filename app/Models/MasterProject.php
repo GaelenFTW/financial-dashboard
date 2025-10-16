@@ -8,15 +8,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 class MasterProject extends Model
 {
     protected $fillable = [
+        'project_id',
         'name',
         'description',
         'code',
-        'is_active',
+        'sh',
     ];
 
-    protected $casts = [
-        'is_active' => 'boolean',
-    ];
 
     /**
      * Get the users that belong to the project.

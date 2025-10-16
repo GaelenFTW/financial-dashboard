@@ -10,15 +10,10 @@ class PurchasePayment extends Model
     use HasFactory;
 
     protected $table = 'purchase_payments';
-
     protected $primaryKey = 'No';
-
     public $incrementing = false;
-
     public $timestamps = false;
-
     protected $fillable = [];
-
     protected $casts = [];
 
     /**
