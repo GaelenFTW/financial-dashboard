@@ -16,6 +16,11 @@ class CheckUserPermission
 
         $user = Auth::user();
         
+        // Super admins bypass all permission checks
+        if ($user->isSuperAdmin()) {
+            return $next($request);
+        }
+        
         switch ($action) {
             case 'upload':
                 if (!$user->canUpload()) {
