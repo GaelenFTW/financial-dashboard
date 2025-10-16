@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\PurchasePayment;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 
 class PurchaseLetterController extends Controller
 {
@@ -36,10 +36,10 @@ class PurchaseLetterController extends Controller
             }
 
             if ($month) {
-                if (!isset($months[$month])) {
+                if (! isset($months[$month])) {
                     $months[$month] = [
-                        'paid'    => 0,
-                        'open'    => 0,
+                        'paid' => 0,
+                        'open' => 0,
                         'overdue' => 0,
                     ];
                 }
@@ -50,7 +50,7 @@ class PurchaseLetterController extends Controller
                     $months[$month]['paid'] += $amount;
                 } else {
                     $months[$month]['open'] += $amount;
-                    
+
                     try {
                         $purchaseDate = Carbon::parse($payment->PurchaseDate);
                         if ($purchaseDate->lt(Carbon::now())) {
@@ -64,16 +64,16 @@ class PurchaseLetterController extends Controller
         }
 
         ksort($months);
-        $labels   = array_keys($months);
-        $paid     = array_column($months, 'paid');
-        $open     = array_column($months, 'open');
-        $overdue  = array_column($months, 'overdue');
+        $labels = array_keys($months);
+        $paid = array_column($months, 'paid');
+        $open = array_column($months, 'open');
+        $overdue = array_column($months, 'overdue');
 
         return view('purchase_letters.charts', [
-            'months'   => $labels,
-            'paid'     => $paid,
-            'open'     => $open,
-            'overdue'  => $overdue,
+            'months' => $labels,
+            'paid' => $paid,
+            'open' => $open,
+            'overdue' => $overdue,
         ]);
     }
 
@@ -94,11 +94,11 @@ class PurchaseLetterController extends Controller
         $search = $request->get('search');
         if ($search) {
             $query->where(function ($q) use ($search) {
-                $q->where('CustomerName', 'like', '%' . $search . '%')
-                  ->orWhere('Cluster', 'like', '%' . $search . '%')
-                  ->orWhere('Unit', 'like', '%' . $search . '%')
-                  ->orWhere('TypePembelian', 'like', '%' . $search . '%')
-                  ->orWhere('PurchaseDate', 'like', '%' . $search . '%');
+                $q->where('CustomerName', 'like', '%'.$search.'%')
+                    ->orWhere('Cluster', 'like', '%'.$search.'%')
+                    ->orWhere('Unit', 'like', '%'.$search.'%')
+                    ->orWhere('TypePembelian', 'like', '%'.$search.'%')
+                    ->orWhere('PurchaseDate', 'like', '%'.$search.'%');
             });
         }
 
@@ -114,7 +114,7 @@ class PurchaseLetterController extends Controller
     public function show($id)
     {
         $letter = PurchasePayment::where('purchaseletter_id', $id)->firstOrFail();
-        
+
         return view('purchase_letters.show', compact('letter'));
     }
 
@@ -135,11 +135,11 @@ class PurchaseLetterController extends Controller
         $search = $request->get('search');
         if ($search) {
             $query->where(function ($q) use ($search) {
-                $q->where('CustomerName', 'like', '%' . $search . '%')
-                  ->orWhere('Cluster', 'like', '%' . $search . '%')
-                  ->orWhere('Unit', 'like', '%' . $search . '%')
-                  ->orWhere('TypePembelian', 'like', '%' . $search . '%')
-                  ->orWhere('PurchaseDate', 'like', '%' . $search . '%');
+                $q->where('CustomerName', 'like', '%'.$search.'%')
+                    ->orWhere('Cluster', 'like', '%'.$search.'%')
+                    ->orWhere('Unit', 'like', '%'.$search.'%')
+                    ->orWhere('TypePembelian', 'like', '%'.$search.'%')
+                    ->orWhere('PurchaseDate', 'like', '%'.$search.'%');
             });
         }
 
@@ -149,7 +149,7 @@ class PurchaseLetterController extends Controller
             return redirect()->back()->with('error', 'No data to export');
         }
 
-        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
 
         // Get column names dynamically
@@ -159,7 +159,7 @@ class PurchaseLetterController extends Controller
         // Set headers
         foreach ($columns as $i => $heading) {
             $col = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i + 1);
-            $sheet->setCellValue($col . '1', $heading);
+            $sheet->setCellValue($col.'1', $heading);
         }
 
         // Fill data
@@ -168,12 +168,12 @@ class PurchaseLetterController extends Controller
             foreach ($columns as $i => $colName) {
                 $col = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i + 1);
                 $value = $payment->$colName ?? '';
-                $sheet->setCellValue($col . $rowIndex, $value);
+                $sheet->setCellValue($col.$rowIndex, $value);
             }
             $rowIndex++;
         }
 
-        $fileName = 'purchase_letters_' . date('Y-m-d_His') . '.xlsx';
+        $fileName = 'purchase_letters_'.date('Y-m-d_His').'.xlsx';
         $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
         $tmp = tempnam(sys_get_temp_dir(), 'letters_export_');
         $writer->save($tmp);

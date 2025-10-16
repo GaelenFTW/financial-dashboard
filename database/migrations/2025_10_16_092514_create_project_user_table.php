@@ -17,7 +17,7 @@ return new class extends Migration
             $table->foreignId('project_id')->constrained('master_projects')->onDelete('cascade');
             $table->string('role')->default('viewer'); // viewer, editor, admin
             $table->timestamps();
-            
+
             // Ensure a user can only have one role per project
             $table->unique(['user_id', 'project_id']);
         });

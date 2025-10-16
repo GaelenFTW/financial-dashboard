@@ -2,12 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Enums\ProjectRole;
+use App\Enums\UserRole;
+use App\Models\MasterProject;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
-use App\Models\User;
-use App\Models\MasterProject;
-use App\Enums\UserRole;
-use App\Enums\ProjectRole;
 
 class RBACTest extends TestCase
 {

@@ -1,13 +1,11 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\PurchaseLetterController;
-use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\JWTController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ManagementReportController;
-use App\Http\Controllers\ExcelUploadController;
+use App\Http\Controllers\PurchaseLetterController;
 use App\Http\Controllers\PurchasePaymentController;
+use Illuminate\Support\Facades\Route;
 
 // Authentication routes (public - no middleware)
 Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login.form');
@@ -27,7 +25,7 @@ Route::middleware(['auth', 'user.permission:upload'])->group(function () {
     Route::post('/payments/upload', [PurchasePaymentController::class, 'upload'])->name('payments.upload');
 });
 
-// View routes (ID 1, 3 only)  
+// View routes (ID 1, 3 only)
 Route::middleware(['auth', 'user.permission:view'])->group(function () {
     Route::get('/purchase-letters', [PurchaseLetterController::class, 'index'])->name('purchase_letters.index');
     Route::get('/purchase-letters/chart', [PurchaseLetterController::class, 'chart'])->name('purchase_letters.chart');

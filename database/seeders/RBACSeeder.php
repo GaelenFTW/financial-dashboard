@@ -2,11 +2,11 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
-use App\Models\User;
-use App\Models\MasterProject;
-use App\Enums\UserRole;
 use App\Enums\ProjectRole;
+use App\Enums\UserRole;
+use App\Models\MasterProject;
+use App\Models\User;
+use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
 class RBACSeeder extends Seeder

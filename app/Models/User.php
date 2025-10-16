@@ -2,18 +2,18 @@
 
 namespace App\Models;
 
-use Illuminate\Foundation\Auth\User as Authenticatable;
+use App\Enums\ProjectRole;
+use App\Enums\UserRole;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use App\Enums\UserRole;
-use App\Enums\ProjectRole;
+use Illuminate\Foundation\Auth\User as Authenticatable;
 
 class User extends Authenticatable
 {
     use HasFactory;
 
     protected $fillable = [
-        'name', 'email', 'password', 'permissions', 'adminid', 'role'
+        'name', 'email', 'password', 'permissions', 'adminid', 'role',
     ];
 
     protected $casts = [
@@ -52,8 +52,8 @@ class User extends Authenticatable
     public function getProjectRole(int $projectId): ?ProjectRole
     {
         $project = $this->projects()->where('master_projects.id', $projectId)->first();
-        
-        if (!$project) {
+
+        if (! $project) {
             return null;
         }
 
@@ -71,6 +71,7 @@ class User extends Authenticatable
         }
 
         $role = $this->getProjectRole($projectId);
+
         return $role && $role->canEdit();
     }
 
@@ -85,6 +86,7 @@ class User extends Authenticatable
         }
 
         $role = $this->getProjectRole($projectId);
+
         return $role && $role->isAdmin();
     }
 
@@ -103,7 +105,6 @@ class User extends Authenticatable
     {
         return $this->role && $this->role->isAdmin();
     }
-
 
     // Legacy methods for backward compatibility
     public function canUpload()
