@@ -58,8 +58,9 @@ class AdminController extends Controller
 
         foreach ($validated['permissions'] as $permissionName => $checked) {
             if ($checked) {
-                // Access enum dynamically via static property
-                $permissionValue |= Permission::$permissionName->value;
+                // Get permission enum by name
+                $permission = constant(Permission::class . '::' . $permissionName);
+                $permissionValue |= $permission->value;
             }
         }
 
@@ -76,7 +77,7 @@ class AdminController extends Controller
     public function userProjects(User $user)
     {
         $allProjects = Project::orderBy('name')->get();
-        $userProjects = $user->projects()->pluck('project_id')->toArray();
+        $userProjects = $user->projects()->pluck('projects.project_id')->toArray();
 
         return view('admin.users.projects', compact('user', 'allProjects', 'userProjects'));
     }
@@ -85,7 +86,7 @@ class AdminController extends Controller
     {
         $validated = $request->validate([
             'project_ids' => 'required|array',
-            'project_ids.*' => 'integer|exists:master_project,project_id',
+            'project_ids.*' => 'integer|exists:projects,project_id',
         ]);
 
         $this->service->setProjectPermissions($user, $validated['project_ids']);
@@ -110,7 +111,7 @@ class AdminController extends Controller
     {
         $validated = $request->validate([
             'sh' => 'required|integer|min:0|max:255',
-            'code' => 'required|string|max:255|unique:master_project,code',
+            'code' => 'required|string|max:255|unique:projects,code',
             'name' => 'required|string|max:255',
         ]);
 
@@ -128,7 +129,7 @@ class AdminController extends Controller
     {
         $validated = $request->validate([
             'sh' => 'required|integer|min:0|max:255',
-            'code' => 'required|string|max:255|unique:master_project,code,' . $project->project_id . ',project_id',
+            'code' => 'required|string|max:255|unique:projects,code,' . $project->project_id . ',project_id',
             'name' => 'required|string|max:255',
         ]);
 

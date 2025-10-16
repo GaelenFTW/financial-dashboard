@@ -8,7 +8,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ManagementReportController;
 use App\Http\Controllers\ExcelUploadController;
 use App\Http\Controllers\PurchasePaymentController;
-use App\Http\Controllers\Admin\UserManagementController;
+use App\Http\Controllers\AdminController;
 
 
 // Authentication routes (public - no middleware)
@@ -50,20 +50,20 @@ Route::middleware(['auth', 'user.permission:export'])->group(function () {
 
 //admin
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
-    Route::get('/dashboard', 'AdminController@dashboard')->name('dashboard');
+    Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
     
     // Users Management
-    Route::get('/users', 'AdminController@usersIndex')->name('users.index');
-    Route::get('/users/{user}/edit', 'AdminController@usersEdit')->name('users.edit');
-    Route::put('/users/{user}', 'AdminController@usersUpdate')->name('users.update');
-    Route::get('/users/{user}/projects', 'AdminController@userProjects')->name('users.projects');
-    Route::post('/users/{user}/projects', 'AdminController@updateUserProjects')->name('users.projects.update');
+    Route::get('/users', [AdminController::class, 'usersIndex'])->name('users.index');
+    Route::get('/users/{user}/edit', [AdminController::class, 'usersEdit'])->name('users.edit');
+    Route::put('/users/{user}', [AdminController::class, 'usersUpdate'])->name('users.update');
+    Route::get('/users/{user}/projects', [AdminController::class, 'userProjects'])->name('users.projects');
+    Route::post('/users/{user}/projects', [AdminController::class, 'updateUserProjects'])->name('users.projects.update');
     
     // Projects Management
-    Route::get('/projects', 'AdminController@projectsIndex')->name('projects.index');
-    Route::get('/projects/create', 'AdminController@projectsCreate')->name('projects.create');
-    Route::post('/projects', 'AdminController@projectsStore')->name('projects.store');
-    Route::get('/projects/{project}/edit', 'AdminController@projectsEdit')->name('projects.edit');
-    Route::put('/projects/{project}', 'AdminController@projectsUpdate')->name('projects.update');
-    Route::delete('/projects/{project}', 'AdminController@projectsDestroy')->name('projects.destroy');
+    Route::get('/projects', [AdminController::class, 'projectsIndex'])->name('projects.index');
+    Route::get('/projects/create', [AdminController::class, 'projectsCreate'])->name('projects.create');
+    Route::post('/projects', [AdminController::class, 'projectsStore'])->name('projects.store');
+    Route::get('/projects/{project}/edit', [AdminController::class, 'projectsEdit'])->name('projects.edit');
+    Route::put('/projects/{project}', [AdminController::class, 'projectsUpdate'])->name('projects.update');
+    Route::delete('/projects/{project}', [AdminController::class, 'projectsDestroy'])->name('projects.destroy');
 });
