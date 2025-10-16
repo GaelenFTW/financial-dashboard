@@ -13,6 +13,8 @@ return new class extends Migration
     {
         Schema::create('master_projects', function (Blueprint $table) {
             $table->id();
+            // project_id should be provided when syncing from external API
+            // It's nullable for backward compatibility with manually created projects
             $table->integer('project_id')->nullable()->unique();
             $table->string('name');
             $table->text('description')->nullable();

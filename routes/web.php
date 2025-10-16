@@ -46,7 +46,7 @@ Route::middleware(['auth', 'user.permission:export'])->group(function () {
 });
 
 // Admin routes (super_admin and admin only)
-Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'admin.role'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', [AdminController::class, 'index'])->name('index');
     
     // Users management

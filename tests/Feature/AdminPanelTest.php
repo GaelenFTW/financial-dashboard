@@ -38,16 +38,14 @@ class AdminPanelTest extends TestCase
         $response->assertStatus(200);
     }
 
-    public function test_regular_user_can_access_admin_panel()
+    public function test_regular_user_cannot_access_admin_panel()
     {
-        // Note: The admin panel doesn't restrict regular users from accessing
-        // it's just hidden from the menu. This is by design as per the implementation.
         $user = User::factory()->create([
             'role' => UserRole::USER,
         ]);
 
         $response = $this->actingAs($user)->get('/admin');
-        $response->assertStatus(200);
+        $response->assertStatus(403);
     }
 
     public function test_admin_can_view_users_list()
