@@ -2,12 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\PurchasePayment;
+use Illuminate\Http\Request;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
-use Illuminate\Support\Facades\Response;
-use Illuminate\Http\Request;
-use App\Models\PurchasePayment;
-use Carbon\Carbon;
 
 class ManagementReportController extends Controller
 {
@@ -20,22 +18,22 @@ class ManagementReportController extends Controller
 
     public function index(Request $request)
     {
-     
+
         $projectOptions = $this->jwtController->projectsMap();
 
-        $currentMonth = (int)$request->input('month', now()->month);
-        $currentYear = (int)$request->input('year', now()->year);
+        $currentMonth = (int) $request->input('month', now()->month);
+        $currentYear = (int) $request->input('year', now()->year);
         $projectId = $request->input('project_id');
 
         $query = PurchasePayment::where('data_year', $currentYear)
-                                ->where('data_month', $currentMonth);
-        
+            ->where('data_month', $currentMonth);
+
         if ($projectId) {
             $query->where('project_id', $projectId);
         }
-        
+
         $payments = $query->get();
-        $rows = $payments->map(fn($p) => $p->toArray())->toArray();
+        $rows = $payments->map(fn ($p) => $p->toArray())->toArray();
 
         $rows3 = $this->jwtController->fetchData('api3', ['escrow.php', 'login.php']);
         $rows4 = $this->jwtController->fetchData('api4', ['target.php', 'login.php']);
@@ -45,9 +43,13 @@ class ManagementReportController extends Controller
         }
 
         $parseNumber = function ($val) {
-            if ($val === null || $val === '') return 0.0;
-            $s = trim((string)$val);
-            if (preg_match('/^\(.*\)$/', $s)) { $s = '-' . trim($s, '()'); }
+            if ($val === null || $val === '') {
+                return 0.0;
+            }
+            $s = trim((string) $val);
+            if (preg_match('/^\(.*\)$/', $s)) {
+                $s = '-'.trim($s, '()');
+            }
             if (strpos($s, '.') !== false && strpos($s, ',') !== false) {
                 $s = str_replace('.', '', $s);
                 $s = str_replace(',', '.', $s);
@@ -57,13 +59,14 @@ class ManagementReportController extends Controller
                 $s = str_replace(',', '', $s);
             }
             $s = preg_replace('/[^0-9\.\-]/', '', $s);
-            return is_numeric($s) ? (float)$s : 0.0;
+
+            return is_numeric($s) ? (float) $s : 0.0;
         };
 
         $monthShortUc = [
             1 => 'Jan', 2 => 'Feb', 3 => 'Mar', 4 => 'Apr',
             5 => 'May', 6 => 'Jun', 7 => 'Jul', 8 => 'Aug',
-            9 => 'Sep', 10 => 'Oct', 11 => 'Nov', 12 => 'Dec'
+            9 => 'Sep', 10 => 'Oct', 11 => 'Nov', 12 => 'Dec',
         ];
         $monthShortLc = array_map('strtolower', $monthShortUc);
 
@@ -83,9 +86,11 @@ class ManagementReportController extends Controller
         foreach ($rows as $row) {
             $rawType = $row['TypePembelian'] ?? '';
             $type = strtoupper(trim($rawType));
-            if ($type === '' || $type === 'UNKNOWN') continue;
+            if ($type === '' || $type === 'UNKNOWN') {
+                continue;
+            }
 
-            if (!isset($summary[$type])) {
+            if (! isset($summary[$type])) {
                 $summary[$type] = $totals;
             }
 
@@ -106,20 +111,19 @@ class ManagementReportController extends Controller
             }
 
             // YTD accumulation per type
-            if (!isset($summary[$type]['ytd_target'])) {
+            if (! isset($summary[$type]['ytd_target'])) {
                 $summary[$type]['ytd_target'] = 0;
                 $summary[$type]['ytd_actual'] = 0;
             }
 
             $ytdTargetField = "YTD_sd_{$monthShortUc[$currentMonth]}_{$currentYear}";
             $ytdActualField = "YTD_bayar_{$monthShortUc[$currentMonth]}_{$currentYear}";
-            
+
             $ytdTarget = $parseNumber($row[$ytdTargetField] ?? 0);
             $ytdActual = $parseNumber($row[$ytdActualField] ?? 0);
-            
+
             $summary[$type]['ytd_target'] += $ytdTarget;
             $summary[$type]['ytd_actual'] += $ytdActual;
-
 
             // other accumulations
             $summary[$type]['less30days'] += $parseNumber($row['dari_1_sampai_30_DP'] ?? 0);
@@ -194,9 +198,9 @@ class ManagementReportController extends Controller
         $collectionTargets = [];
         if (is_array($rows4)) {
             foreach ($rows4 as $r) {
-                $month = (int)($r['bulan'] ?? 0);
+                $month = (int) ($r['bulan'] ?? 0);
                 if ($month > 0) {
-                    if (!isset($collectionTargets[$month])) {
+                    if (! isset($collectionTargets[$month])) {
                         $collectionTargets[$month] = ['cash' => 0, 'inhouse' => 0, 'kpr' => 0];
                     }
                     $collectionTargets[$month]['cash'] += $parseNumber($r['collection_target_cash_v'] ?? 0);
@@ -208,10 +212,10 @@ class ManagementReportController extends Controller
 
         // Filter targets by current project
         $filteredTargets = [];
-        if (!empty($projectId) && is_array($rows4)) {
+        if (! empty($projectId) && is_array($rows4)) {
             foreach ($rows4 as $r) {
-                if ((int)($r['project_id'] ?? 0) === (int)$projectId) {
-                    $month = (int)($r['bulan'] ?? 0);
+                if ((int) ($r['project_id'] ?? 0) === (int) $projectId) {
+                    $month = (int) ($r['bulan'] ?? 0);
                     if ($month >= 1 && $month <= 12) {
                         $filteredTargets[$month] = [
                             'cash' => $parseNumber($r['collection_target_cash_v'] ?? 0),
@@ -252,13 +256,19 @@ class ManagementReportController extends Controller
         $preferred = ['CASH', 'INHOUSE', 'KPR'];
         $types = [];
         foreach ($preferred as $p) {
-            if (isset($summary[$p])) $types[] = $p;
+            if (isset($summary[$p])) {
+                $types[] = $p;
+            }
         }
         foreach (array_keys($summary) as $k) {
-            if ($k === 'TOTAL' || in_array($k, $types)) continue;
+            if ($k === 'TOTAL' || in_array($k, $types)) {
+                continue;
+            }
             $types[] = $k;
         }
-        if (isset($summary['TOTAL'])) $types[] = 'TOTAL';
+        if (isset($summary['TOTAL'])) {
+            $types[] = 'TOTAL';
+        }
 
         $monthKeyLc = $monthShortLc[$currentMonth] ?? 'jan';
 
@@ -268,42 +278,44 @@ class ManagementReportController extends Controller
 
         foreach ($types as $type) {
             $type = strtoupper(trim($type));
-            if ($type === 'TOTAL') continue;
+            if ($type === 'TOTAL') {
+                continue;
+            }
 
             $meetingTarget = $summary[$type]['monthly_meeting_target'] ?? 0;
-            $salesTarget   = $summary[$type]["{$monthKeyLc}_target"] ?? 0;
-            $actual        = $summary[$type]["{$monthKeyLc}_actual"] ?? 0;
-            $pct           = $salesTarget > 0 ? round(($actual / $salesTarget) * 100, 1) : 0.0;
-            $status        = $pct >= 100 ? 'ACHIEVED' : ($pct >= 80 ? 'ON TRACK' : 'BELOW TARGET');
+            $salesTarget = $summary[$type]["{$monthKeyLc}_target"] ?? 0;
+            $actual = $summary[$type]["{$monthKeyLc}_actual"] ?? 0;
+            $pct = $salesTarget > 0 ? round(($actual / $salesTarget) * 100, 1) : 0.0;
+            $status = $pct >= 100 ? 'ACHIEVED' : ($pct >= 80 ? 'ON TRACK' : 'BELOW TARGET');
 
             $monthlyPerformance[] = [
-                'payment'        => $type,
+                'payment' => $type,
                 'meeting_target' => $meetingTarget,
-                'sales_target'   => $salesTarget,
-                'actual'         => $actual,
-                'percentage'     => $pct,
-                'status'         => $status,
+                'sales_target' => $salesTarget,
+                'actual' => $actual,
+                'percentage' => $pct,
+                'status' => $status,
             ];
 
             $monthlyTotalsCalc['meeting_target'] += $meetingTarget;
-            $monthlyTotalsCalc['sales_target']   += $salesTarget;
-            $monthlyTotalsCalc['actual']         += $actual;
+            $monthlyTotalsCalc['sales_target'] += $salesTarget;
+            $monthlyTotalsCalc['actual'] += $actual;
         }
 
         $monthlyTotalsCalc['percentage'] = $monthlyTotalsCalc['sales_target'] > 0
             ? round(($monthlyTotalsCalc['actual'] / $monthlyTotalsCalc['sales_target']) * 100, 1)
             : 0.0;
 
-        $monthlyTotalsCalc['status'] = $monthlyTotalsCalc['percentage'] >= 100 ? 'ACHIEVED' 
+        $monthlyTotalsCalc['status'] = $monthlyTotalsCalc['percentage'] >= 100 ? 'ACHIEVED'
             : ($monthlyTotalsCalc['percentage'] >= 80 ? 'ON TRACK' : 'BELOW TARGET');
 
         $monthlyPerformance[] = [
-            'payment'        => 'TOTAL',
+            'payment' => 'TOTAL',
             'meeting_target' => $monthlyTotalsCalc['meeting_target'],
-            'sales_target'   => $monthlyTotalsCalc['sales_target'],
-            'actual'         => $monthlyTotalsCalc['actual'],
-            'percentage'     => $monthlyTotalsCalc['percentage'],
-            'status'         => $monthlyTotalsCalc['status'],
+            'sales_target' => $monthlyTotalsCalc['sales_target'],
+            'actual' => $monthlyTotalsCalc['actual'],
+            'percentage' => $monthlyTotalsCalc['percentage'],
+            'status' => $monthlyTotalsCalc['status'],
         ];
 
         // YTD Performance
@@ -312,20 +324,22 @@ class ManagementReportController extends Controller
 
         foreach ($types as $type) {
             $type = strtoupper(trim($type));
-            if ($type === 'TOTAL') continue;
+            if ($type === 'TOTAL') {
+                continue;
+            }
 
             $ytdSalesTarget = 0;
             $ytdActual = 0;
-            $filteredRows = array_filter($rows, fn($r) => strtoupper(trim($r['TypePembelian'] ?? '')) === $type);
+            $filteredRows = array_filter($rows, fn ($r) => strtoupper(trim($r['TypePembelian'] ?? '')) === $type);
 
             foreach ($filteredRows as $r) {
-                $ytdSalesTarget += $parseNumber($r["YTD_sd_Year"] ?? 0);
-                $ytdActual += $parseNumber($r["YTD_bayar_Year"] ?? 0);
+                $ytdSalesTarget += $parseNumber($r['YTD_sd_Year'] ?? 0);
+                $ytdActual += $parseNumber($r['YTD_bayar_Year'] ?? 0);
             }
 
             // Meeting target from collection target data
             $meetingTarget = 0;
-            if (!empty($filteredTargets)) {
+            if (! empty($filteredTargets)) {
                 foreach ($filteredTargets as $m => $t) {
                     if ($m <= $currentMonth) {
                         switch ($type) {
@@ -347,17 +361,17 @@ class ManagementReportController extends Controller
             $status = $pct >= 100 ? 'ACHIEVED' : ($pct >= 80 ? 'ON TRACK' : 'BELOW TARGET');
 
             $ytdPerformance[] = [
-                'payment'        => $type,
+                'payment' => $type,
                 'meeting_target' => $meetingTarget,
-                'sales_target'   => $ytdSalesTarget,
-                'actual'         => $ytdActual,
-                'percentage'     => $pct,
-                'status'         => $status,
+                'sales_target' => $ytdSalesTarget,
+                'actual' => $ytdActual,
+                'percentage' => $pct,
+                'status' => $status,
             ];
 
             $ytdTotalsCalc['meeting_target'] += $meetingTarget;
-            $ytdTotalsCalc['sales_target']   += $ytdSalesTarget;
-            $ytdTotalsCalc['actual']         += $ytdActual;
+            $ytdTotalsCalc['sales_target'] += $ytdSalesTarget;
+            $ytdTotalsCalc['actual'] += $ytdActual;
         }
 
         // TOTAL row for YTD
@@ -369,22 +383,23 @@ class ManagementReportController extends Controller
             : ($ytdTotalsCalc['percentage'] >= 80 ? 'ON TRACK' : 'BELOW TARGET');
 
         $ytdPerformance[] = [
-            'payment'        => 'TOTAL',
+            'payment' => 'TOTAL',
             'meeting_target' => $ytdTotalsCalc['meeting_target'],
-            'sales_target'   => $ytdTotalsCalc['sales_target'],
-            'actual'         => $ytdTotalsCalc['actual'],
-            'percentage'     => $ytdTotalsCalc['percentage'],
-            'status'         => $ytdTotalsCalc['status'],
+            'sales_target' => $ytdTotalsCalc['sales_target'],
+            'actual' => $ytdTotalsCalc['actual'],
+            'percentage' => $ytdTotalsCalc['percentage'],
+            'status' => $ytdTotalsCalc['status'],
         ];
-
 
         // AGING rows
         $aging = [];
         $agingTotals = ['lt30' => 0, 'd30_60' => 0, 'd60_90' => 0, 'gt90' => 0, 'lebih_bayar' => 0];
         foreach ($types as $type) {
             $type = strtoupper(trim($type));
-            if ($type === 'TOTAL') continue;
-            
+            if ($type === 'TOTAL') {
+                continue;
+            }
+
             $lt30 = $summary[$type]['less30days'] ?? 0;
             $d30_60 = $summary[$type]['more31days'] ?? 0;
             $d60_90 = $summary[$type]['more61days'] ?? 0;
@@ -411,7 +426,9 @@ class ManagementReportController extends Controller
         $outstandingRows = [];
         $grandTotalOutstanding = $outstanding['TOTAL']['total'] ?? 0;
         foreach ($outstanding as $k => $vals) {
-            if ($k === 'TOTAL') continue;
+            if ($k === 'TOTAL') {
+                continue;
+            }
             $sum = $vals['total'] ?? 0;
             $pct = $grandTotalOutstanding > 0 ? round(($sum / $grandTotalOutstanding) * 100, 1) : 0.0;
             $outstandingRows[] = [
@@ -450,8 +467,8 @@ class ManagementReportController extends Controller
 
     public function export(Request $request)
     {
-        $month = (int)$request->input('month', now()->month);
-        $year = (int)$request->input('year', now()->year);
+        $month = (int) $request->input('month', now()->month);
+        $year = (int) $request->input('year', now()->year);
         $projectId = $request->input('project_id');
 
         $response = $this->index($request);
@@ -463,13 +480,13 @@ class ManagementReportController extends Controller
             $data = [];
         }
 
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
 
         // === 1. MONTHLY PERFORMANCE ===
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Monthly Performance');
         $sheet->fromArray([
-            ['PAYMENT SYSTEM', 'MEETING TARGET', 'SALES TARGET', 'ACTUAL', '% (Meeting)', '% (Sales)', 'STATUS']
+            ['PAYMENT SYSTEM', 'MEETING TARGET', 'SALES TARGET', 'ACTUAL', '% (Meeting)', '% (Sales)', 'STATUS'],
         ], null, 'A1');
 
         $row = 2;
@@ -488,7 +505,7 @@ class ManagementReportController extends Controller
         $sheet2 = $spreadsheet->createSheet();
         $sheet2->setTitle('YTD Performance');
         $sheet2->fromArray([
-            ['PAYMENT SYSTEM', 'MEETING TARGET', 'SALES TARGET', 'ACTUAL', '% (Meeting)', '% (Sales)', 'STATUS']
+            ['PAYMENT SYSTEM', 'MEETING TARGET', 'SALES TARGET', 'ACTUAL', '% (Meeting)', '% (Sales)', 'STATUS'],
         ], null, 'A1');
 
         $row = 2;
@@ -507,7 +524,7 @@ class ManagementReportController extends Controller
         $sheet3 = $spreadsheet->createSheet();
         $sheet3->setTitle('Aging');
         $sheet3->fromArray([
-            ['PAYMENT SYSTEM', '<30 DAYS', '31–60 DAYS', '61–90 DAYS', '>90 DAYS', 'LEBIH BAYAR']
+            ['PAYMENT SYSTEM', '<30 DAYS', '31–60 DAYS', '61–90 DAYS', '>90 DAYS', 'LEBIH BAYAR'],
         ], null, 'A1');
 
         $row = 2;
@@ -525,7 +542,7 @@ class ManagementReportController extends Controller
         $sheet4 = $spreadsheet->createSheet();
         $sheet4->setTitle('Outstanding');
         $sheet4->fromArray([
-            ['TYPE', 'JATUH TEMPO', 'BELUM JATUH TEMPO', 'TOTAL', '%']
+            ['TYPE', 'JATUH TEMPO', 'BELUM JATUH TEMPO', 'TOTAL', '%'],
         ], null, 'A1');
 
         $row = 2;

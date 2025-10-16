@@ -10,25 +10,30 @@ class CheckUserPermission
 {
     public function handle(Request $request, Closure $next, $action)
     {
-        if (!Auth::check()) {
+        if (! Auth::check()) {
             return redirect('/login');
         }
 
         $user = Auth::user();
-        
+
+        // Super admins bypass all permission checks
+        if ($user->isSuperAdmin()) {
+            return $next($request);
+        }
+
         switch ($action) {
             case 'upload':
-                if (!$user->canUpload()) {
+                if (! $user->canUpload()) {
                     abort(403, 'Access denied. You cannot upload files.');
                 }
                 break;
             case 'view':
-                if (!$user->canView()) {
+                if (! $user->canView()) {
                     abort(403, 'Access denied. You cannot view data.');
                 }
                 break;
             case 'export':
-                if (!$user->canExport()) {
+                if (! $user->canExport()) {
                     abort(403, 'Access denied. You cannot export data.');
                 }
                 break;

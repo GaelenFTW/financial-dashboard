@@ -2,13 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
 use App\Models\PurchasePayment;
+use Illuminate\Http\Request;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
-use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
-use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
@@ -36,13 +34,13 @@ class DashboardController extends Controller
         })->sortDesc()->take(10);
 
         return view('dashboard', [
-            'customers'    => $customerRevenue,
-            'products'     => $productRevenue,
+            'customers' => $customerRevenue,
+            'products' => $productRevenue,
             'totalRevenue' => $totalRevenue,
             'numCustomers' => $numCustomers,
             'productsSold' => $productsSold,
-            'avgRevenue'   => $avgRevenue,
-            'filters'      => $request->all(),
+            'avgRevenue' => $avgRevenue,
+            'filters' => $request->all(),
         ]);
     }
 
@@ -56,7 +54,7 @@ class DashboardController extends Controller
             return $group->sum('HrgJualTotal');
         })->sortDesc()->take(10);
 
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setCellValue('A1', 'Customer');
         $sheet->setCellValue('B1', 'Revenue');
@@ -86,7 +84,7 @@ class DashboardController extends Controller
             return $group->sum('HrgJualTotal');
         })->sortDesc()->take(10);
 
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setCellValue('A1', 'Product');
         $sheet->setCellValue('B1', 'Revenue');
@@ -112,7 +110,7 @@ class DashboardController extends Controller
         $query = $this->applyFilters($query, $request);
         $payments = $query->get();
 
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
 
         // Get all column names dynamically from the first record
@@ -126,7 +124,7 @@ class DashboardController extends Controller
         // Set headers
         foreach ($columns as $i => $heading) {
             $col = Coordinate::stringFromColumnIndex($i + 1);
-            $sheet->setCellValue($col . '1', $heading);
+            $sheet->setCellValue($col.'1', $heading);
         }
 
         // Fill data
@@ -135,12 +133,12 @@ class DashboardController extends Controller
             foreach ($columns as $i => $colName) {
                 $col = Coordinate::stringFromColumnIndex($i + 1);
                 $value = $payment->$colName ?? '';
-                $sheet->setCellValue($col . $rowIndex, $value);
+                $sheet->setCellValue($col.$rowIndex, $value);
             }
             $rowIndex++;
         }
 
-        $fileName = 'dashboard_filtered_' . date('Y-m-d_His') . '.xlsx';
+        $fileName = 'dashboard_filtered_'.date('Y-m-d_His').'.xlsx';
         $writer = new Xlsx($spreadsheet);
         $tmp = tempnam(sys_get_temp_dir(), 'dash_export_');
         $writer->save($tmp);
@@ -151,13 +149,13 @@ class DashboardController extends Controller
     protected function applyFilters($query, Request $request)
     {
         if ($request->filled('cluster')) {
-            $query->where('Cluster', 'like', '%' . $request->cluster . '%');
+            $query->where('Cluster', 'like', '%'.$request->cluster.'%');
         }if ($request->filled('typepembelian')) {
-            $query->where('TypePembelian', 'like', '%' . $request->typepembelian . '%');
+            $query->where('TypePembelian', 'like', '%'.$request->typepembelian.'%');
         }if ($request->filled('customername')) {
-            $query->where('CustomerName', 'like', '%' . $request->customername . '%');
+            $query->where('CustomerName', 'like', '%'.$request->customername.'%');
         }if ($request->filled('type_unit')) {
-            $query->where('type_unit', 'like', '%' . $request->type_unit . '%');
+            $query->where('type_unit', 'like', '%'.$request->type_unit.'%');
         }if ($request->filled('startdate')) {
             $query->whereDate('PurchaseDate', '>=', $request->startdate);
         }if ($request->filled('enddate')) {
