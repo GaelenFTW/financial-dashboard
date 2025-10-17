@@ -97,16 +97,27 @@ class AdminController extends Controller
 
         $user->update($validated);
 
-        // Update project assignments
+        // ✅ Filter & sync valid project assignments
         if ($request->has('projects')) {
+            $validProjectIds = \DB::table('master_project')->pluck('project_id')->toArray();
+
             $projectData = [];
             foreach ($request->projects as $projectId => $data) {
-                if (isset($data['assigned']) && $data['assigned']) {
-                    $projectData[$projectId] = ['role' => $data['role'] ?? ProjectRole::VIEWER->value];
+                // Only add if project_id exists in master_project
+                if (
+                    isset($data['assigned']) && 
+                    $data['assigned'] && 
+                    in_array((int) $projectId, $validProjectIds)
+                ) {
+                    $projectData[$projectId] = [
+                        'role' => $data['role'] ?? ProjectRole::VIEWER->value,
+                    ];
                 }
             }
+
             $user->projects()->sync($projectData);
         }
+        // dd(request()->input('projects'));
 
         return redirect()->route('admin.users')->with('success', 'User updated successfully!');
     }

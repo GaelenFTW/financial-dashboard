@@ -11,13 +11,14 @@ class MasterProject extends Model
     protected $primaryKey = 'project_id'; // ✅ correct key
     public $incrementing = true;
     protected $keyType = 'int';
+    public $timestamps = false; // 🚫 disable created_at & updated_at
+
 
     protected $fillable = [
         'project_id',
         'sh',
         'code',
         'name',
-        'description',
     ];
 
         public function getRouteKeyName()
