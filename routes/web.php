@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ManagementReportController;
@@ -42,4 +43,24 @@ Route::middleware(['auth', 'user.permission:export'])->group(function () {
     Route::get('/export', [DashboardController::class, 'exportFilteredData'])->name('export.filtered');
     Route::get('/export/customers', [DashboardController::class, 'exportTopCustomers'])->name('export.top.customers');
     Route::get('/export/products', [DashboardController::class, 'exportTopProducts'])->name('export.top.products');
+});
+
+// Admin routes (super_admin and admin only)
+Route::middleware(['auth', 'admin.role'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/', [AdminController::class, 'index'])->name('index');
+    
+    // Users management
+    Route::get('/users', [AdminController::class, 'users'])->name('users');
+    Route::get('/users/create', [AdminController::class, 'createUser'])->name('users.create');
+    Route::post('/users', [AdminController::class, 'storeUser'])->name('users.store');
+    Route::get('/users/{user}/edit', [AdminController::class, 'editUser'])->name('users.edit');
+    Route::put('/users/{user}', [AdminController::class, 'updateUser'])->name('users.update');
+    Route::delete('/users/{user}', [AdminController::class, 'destroyUser'])->name('users.destroy');
+    
+    // Projects management
+    Route::get('/projects', [AdminController::class, 'projects'])->name('projects');
+    Route::post('/projects/sync', [AdminController::class, 'syncProject'])->name('projects.sync');
+    Route::get('/projects/{project}/edit', [AdminController::class, 'editProject'])->name('projects.edit');
+    Route::put('/projects/{project}', [AdminController::class, 'updateProject'])->name('projects.update');
+    Route::delete('/projects/{project}', [AdminController::class, 'destroyProject'])->name('projects.destroy');
 });
