@@ -26,19 +26,16 @@ class User extends Authenticatable
     /**
      * Get the projects that the user belongs to.
      */
-    public function projects(): BelongsToMany
+    public function projects()
     {
         return $this->belongsToMany(
-            MasterProject::class,
-            'project_user',
-            'user_id',        // FK on pivot for users
-            'project_id',     // FK on pivot for master_projects
-            'id',             // local key on users
-            'project_id'      // local key on master_projects 👈 IMPORTANT
-        )
-        ->withPivot('role')
-        ->withTimestamps();
+            MasterProject::class,  // model name
+            'project_user',        // pivot table name
+            'user_id',             // FK on pivot referencing users
+            'project_id'           // FK on pivot referencing master_project
+        )->withPivot('role')->withTimestamps();
     }
+
 
     /**
      * Check if user has access to a specific project
@@ -49,7 +46,7 @@ class User extends Authenticatable
             return true;
         }
 
-        return $this->projects()->where('master_projects.project_id', $projectId)->exists();
+        return $this->projects()->where('master_project.project_id', $projectId)->exists();
     }
 
     /**
@@ -57,7 +54,7 @@ class User extends Authenticatable
      */
     public function getProjectRole(int $projectId): ?ProjectRole
     {
-        $project = $this->projects()->where('master_projects.project_id', $projectId)->first();
+        $project = $this->projects()->where('master_project.project_id', $projectId)->first();
 
         if (! $project) {
             return null;
