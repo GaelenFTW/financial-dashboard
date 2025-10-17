@@ -12,13 +12,6 @@ use Illuminate\Validation\Rules\Enum;
 
 class AdminController extends Controller
 {
-    protected $jwtController;
-
-    public function __construct(JWTController $jwtController)
-    {
-        $this->jwtController = $jwtController;
-    }
-
     /**
      * Display the admin panel dashboard
      */
@@ -95,7 +88,6 @@ class AdminController extends Controller
             'position' => 'nullable|string|max:255',
         ]);
 
-        // Only update password if provided
         if ($request->filled('password')) {
             $request->validate([
                 'password' => 'required|string|min:8|confirmed',
@@ -105,7 +97,7 @@ class AdminController extends Controller
 
         $user->update($validated);
 
-        // Update project assignments if provided
+        // Update project assignments
         if ($request->has('projects')) {
             $projectData = [];
             foreach ($request->projects as $projectId => $data) {
@@ -124,7 +116,6 @@ class AdminController extends Controller
      */
     public function destroyUser(User $user)
     {
-        // Prevent deleting yourself
         if ($user->id === auth()->id()) {
             return redirect()->route('admin.users')->with('error', 'You cannot delete yourself!');
         }
@@ -135,59 +126,37 @@ class AdminController extends Controller
     }
 
     /**
-     * Display list of projects (from external API and database)
+     * Display list of projects
      */
     public function projects()
     {
-        // Fetch projects from external API
-        $apiProjects = $this->jwtController->fetchData4();
-        
-        // Fetch projects from database
-        $dbProjects = MasterProject::all()->keyBy('project_id');
-        
-        // Merge the data
-        $projects = [];
-        foreach ($apiProjects as $apiProject) {
-            $projectId = $apiProject['id'] ?? null;
-            if ($projectId) {
-                $projects[] = [
-                    'id' => $projectId,
-                    'name' => $apiProject['name'] ?? 'Unknown',
-                    'description' => $apiProject['description'] ?? '',
-                    'in_db' => $dbProjects->has($projectId),
-                    'db_project' => $dbProjects->get($projectId),
-                ];
-            }
-        }
-        
+        $projects = MasterProject::paginate(20);
         return view('admin.projects.index', compact('projects'));
     }
 
     /**
-     * Sync a project from API to database
+     * Show form to create a new project
      */
-    public function syncProject(Request $request)
+    public function createProject()
+    {
+        return view('admin.projects.create');
+    }
+
+    /**
+     * Store a new project
+     */
+    public function storeProject(Request $request)
     {
         $validated = $request->validate([
-            'project_id' => 'required|integer',
+            'project_id' => 'required|integer|unique:master_project,project_id',
+            'sh' => 'nullable|string|max:255',
+            'code' => 'required|string|unique:master_project,code',
             'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
         ]);
 
-        // Generate a unique code
-        $code = 'PROJ-' . $validated['project_id'];
+        MasterProject::create($validated);
 
-        MasterProject::updateOrCreate(
-            ['project_id' => $validated['project_id']],
-            [
-                'name' => $validated['name'],
-                'description' => $validated['description'],
-                'code' => $code,
-                'is_active' => true,
-            ]
-        );
-
-        return redirect()->route('admin.projects')->with('success', 'Project synced successfully!');
+        return redirect()->route('admin.projects')->with('success', 'Project created successfully!');
     }
 
     /**
@@ -204,10 +173,10 @@ class AdminController extends Controller
     public function updateProject(Request $request, MasterProject $project)
     {
         $validated = $request->validate([
+            'project_id' => 'required|integer|unique:master_project,project_id,' . $project->project_id . ',project_id',
+            'code' => 'required|string|unique:master_project,code,' . $project->project_id . ',project_id',
+            'sh' => 'nullable|string|max:255',
             'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'code' => 'required|string|unique:master_projects,code,' . $project->id,
-            'is_active' => 'boolean',
         ]);
 
         $project->update($validated);
@@ -216,12 +185,12 @@ class AdminController extends Controller
     }
 
     /**
-     * Delete a project from database
+     * Delete a project
      */
     public function destroyProject(MasterProject $project)
     {
         $project->delete();
 
-        return redirect()->route('admin.projects')->with('success', 'Project removed from database successfully!');
+        return redirect()->route('admin.projects')->with('success', 'Project removed successfully!');
     }
 }

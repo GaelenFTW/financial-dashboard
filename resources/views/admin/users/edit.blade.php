@@ -19,7 +19,7 @@
         </div>
     </div>
 
-    <div class="row">
+    <div class="row justify-content-center">
         <div class="col-md-8">
             <div class="card shadow-sm">
                 <div class="card-body">
@@ -93,52 +93,59 @@
                             @enderror
                         </div>
 
+                        <!-- Project Assignments -->
                         <hr class="my-4">
                         <h5>Project Assignments</h5>
                         <p class="text-muted">Assign this user to projects with specific roles.</p>
 
                         @if($projects->count() > 0)
-                            <div class="table-responsive">
-                                <table class="table table-sm">
-                                    <thead>
-                                        <tr>
-                                            <th style="width: 60px;">Assign</th>
-                                            <th>Project</th>
-                                            <th style="width: 200px;">Role</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
+                            <div class="mb-3">
+                                <label for="project_assignments" class="form-label">Select Projects</label>
+                                <div class="dropdown w-100">
+                                    <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start" 
+                                            type="button" 
+                                            id="projectDropdown" 
+                                            data-bs-toggle="dropdown" 
+                                            aria-expanded="false">
+                                        Choose projects...
+                                    </button>
+                                    <ul class="dropdown-menu p-3 w-100" aria-labelledby="projectDropdown" style="max-height: 300px; overflow-y: auto;">
                                         @foreach($projects as $project)
                                             @php
                                                 $userProject = $user->projects->firstWhere('id', $project->id);
                                                 $isAssigned = $userProject !== null;
+                                                $role = $isAssigned ? $userProject->pivot->role : 'viewer';
                                             @endphp
-                                            <tr>
-                                                <td>
-                                                    <input type="checkbox" class="form-check-input" 
+                                            <li class="mb-2 border-bottom pb-2">
+                                                <div class="form-check">
+                                                    <input class="form-check-input project-checkbox" 
+                                                           type="checkbox" 
+                                                           id="project_{{ $project->id }}" 
                                                            name="projects[{{ $project->id }}][assigned]" 
                                                            value="1" 
                                                            {{ $isAssigned ? 'checked' : '' }}>
-                                                </td>
-                                                <td>
-                                                    <strong>{{ $project->name }}</strong>
-                                                    <br><small class="text-muted">{{ $project->code }}</small>
-                                                </td>
-                                                <td>
-                                                    <select class="form-select form-select-sm" 
-                                                            name="projects[{{ $project->id }}][role]">
-                                                        <option value="viewer" {{ $isAssigned && $userProject->pivot->role === 'viewer' ? 'selected' : '' }}>Viewer</option>
-                                                        <option value="editor" {{ $isAssigned && $userProject->pivot->role === 'editor' ? 'selected' : '' }}>Editor</option>
-                                                        <option value="admin" {{ $isAssigned && $userProject->pivot->role === 'admin' ? 'selected' : '' }}>Admin</option>
+                                                    <label class="form-check-label fw-semibold" for="project_{{ $project->id }}">
+                                                        {{ $project->name }} <small class="text-muted">({{ $project->code }})</small>
+                                                    </label>
+                                                </div>
+                                                <div class="mt-2 ms-4">
+                                                    <select class="form-select form-select-sm project-role-select" 
+                                                            name="projects[{{ $project->id }}][role]" 
+                                                            {{ $isAssigned ? '' : 'disabled' }}>
+                                                        <option value="viewer" {{ $role === 'viewer' ? 'selected' : '' }}>Viewer</option>
+                                                        <option value="editor" {{ $role === 'editor' ? 'selected' : '' }}>Editor</option>
+                                                        <option value="admin" {{ $role === 'admin' ? 'selected' : '' }}>Admin</option>
                                                     </select>
-                                                </td>
-                                            </tr>
+                                                </div>
+                                            </li>
                                         @endforeach
-                                    </tbody>
-                                </table>
+                                    </ul>
+                                </div>
                             </div>
                         @else
-                            <p class="text-muted">No projects available. <a href="{{ route('admin.projects') }}">Create projects first</a>.</p>
+                            <p class="text-muted">No projects available. 
+                                <a href="{{ route('admin.projects') }}">Create projects first</a>.
+                            </p>
                         @endif
 
                         <div class="d-flex gap-2 mt-4">
@@ -158,5 +165,13 @@
 
 @push('scripts')
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+<script>
+document.querySelectorAll('.project-checkbox').forEach(cb => {
+    cb.addEventListener('change', function() {
+        const select = this.closest('li').querySelector('.project-role-select');
+        select.disabled = !this.checked;
+    });
+});
+</script>
 @endpush
 @endsection

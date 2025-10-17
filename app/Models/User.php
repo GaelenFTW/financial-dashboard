@@ -28,9 +28,16 @@ class User extends Authenticatable
      */
     public function projects(): BelongsToMany
     {
-        return $this->belongsToMany(MasterProject::class, 'project_user', 'user_id', 'project_id')
-            ->withPivot('role')
-            ->withTimestamps();
+        return $this->belongsToMany(
+            MasterProject::class,
+            'project_user',
+            'user_id',        // FK on pivot for users
+            'project_id',     // FK on pivot for master_projects
+            'id',             // local key on users
+            'project_id'      // local key on master_projects 👈 IMPORTANT
+        )
+        ->withPivot('role')
+        ->withTimestamps();
     }
 
     /**
@@ -38,12 +45,11 @@ class User extends Authenticatable
      */
     public function hasProjectAccess(int $projectId): bool
     {
-        // Super admins have access to all projects
         if ($this->isSuperAdmin()) {
             return true;
         }
 
-        return $this->projects()->where('master_projects.id', $projectId)->exists();
+        return $this->projects()->where('master_projects.project_id', $projectId)->exists();
     }
 
     /**
@@ -51,7 +57,7 @@ class User extends Authenticatable
      */
     public function getProjectRole(int $projectId): ?ProjectRole
     {
-        $project = $this->projects()->where('master_projects.id', $projectId)->first();
+        $project = $this->projects()->where('master_projects.project_id', $projectId)->first();
 
         if (! $project) {
             return null;
@@ -65,7 +71,6 @@ class User extends Authenticatable
      */
     public function canEditProject(int $projectId): bool
     {
-        // Super admins can edit all projects
         if ($this->isSuperAdmin()) {
             return true;
         }
@@ -80,7 +85,6 @@ class User extends Authenticatable
      */
     public function isProjectAdmin(int $projectId): bool
     {
-        // Super admins are admins of all projects
         if ($this->isSuperAdmin()) {
             return true;
         }
@@ -106,19 +110,19 @@ class User extends Authenticatable
         return $this->role && $this->role->isAdmin();
     }
 
-    // Legacy methods for backward compatibility
+    // Legacy methods
     public function canUpload()
     {
-        return $this->permissions == 1 || $this->permissions == 2; // ID 1 and 2 can upload
+        return $this->permissions == 1 || $this->permissions == 2;
     }
 
     public function canView()
     {
-        return $this->permissions == 1 || $this->permissions == 2 || $this->permissions == 3; // ID 1 and 3 can view
+        return $this->permissions == 1 || $this->permissions == 2 || $this->permissions == 3;
     }
 
     public function canExport()
     {
-        return $this->permissions == 1 || $this->permissions == 3; // ID 1 and 3 can export
+        return $this->permissions == 1 || $this->permissions == 3;
     }
 }

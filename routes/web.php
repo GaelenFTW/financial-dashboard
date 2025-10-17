@@ -56,10 +56,11 @@ Route::middleware(['auth', 'admin.role'])->prefix('admin')->name('admin.')->grou
     Route::get('/users/{user}/edit', [AdminController::class, 'editUser'])->name('users.edit');
     Route::put('/users/{user}', [AdminController::class, 'updateUser'])->name('users.update');
     Route::delete('/users/{user}', [AdminController::class, 'destroyUser'])->name('users.destroy');
-    
-    // Projects management
+
+    // ✅ Projects CRUD
     Route::get('/projects', [AdminController::class, 'projects'])->name('projects');
-    Route::post('/projects/sync', [AdminController::class, 'syncProject'])->name('projects.sync');
+    Route::get('/projects/create', [AdminController::class, 'createProject'])->name('projects.create');
+    Route::post('/projects', [AdminController::class, 'storeProject'])->name('projects.store');
     Route::get('/projects/{project}/edit', [AdminController::class, 'editProject'])->name('projects.edit');
     Route::put('/projects/{project}', [AdminController::class, 'updateProject'])->name('projects.update');
     Route::delete('/projects/{project}', [AdminController::class, 'destroyProject'])->name('projects.destroy');

@@ -83,7 +83,7 @@
                         </li>
                         <li class="mb-2">
                             <i class="bi bi-check-circle text-success"></i> 
-                            Sync projects from external API (target.php)
+                            Sync projects from master_project
                         </li>
                         <li class="mb-2">
                             <i class="bi bi-check-circle text-success"></i> 
