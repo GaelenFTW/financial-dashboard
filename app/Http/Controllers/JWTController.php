@@ -180,23 +180,16 @@ class JWTController extends Controller
     /** Convenience methods for each API */
     // public function fetchData1() { return $this->fetchData('api1', ['index.php', 'login.php']); }
     // public function fetchData2() { return $this->fetchData('api2', ['index2.php', 'login.php']); }
-    public function fetchData3()
-    {
+    public function fetchData3(){
         return $this->fetchData('api3', ['escrow.php', 'login.php']);
     }
-
-    public function fetchData4()
-    {
+    public function fetchData4(){
         return $this->fetchData('api4', ['target.php', 'login.php']);
     }
-
-    public function fetchData5()
-    {
+    public function fetchData5(){
         return $this->fetchData('api5', ['upload.php', 'login.php']);
     }
-
-    public function fetchData6()
-    {
+    public function fetchData6(){
         return $this->fetchData('api6', ['projects.php', 'login.php']);
     }
 }
