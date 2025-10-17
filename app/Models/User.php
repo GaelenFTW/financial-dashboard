@@ -2,76 +2,124 @@
 
 namespace App\Models;
 
-use Illuminate\Foundation\Auth\User as Authenticatable;
+use App\Enums\ProjectRole;
+use App\Enums\UserRole;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Foundation\Auth\User as Authenticatable;
 
 class User extends Authenticatable
 {
-    protected $fillable = ['name', 'email', 'password', 'position', 'permissions', 'employee_id'];
-    protected $casts = ['permissions' => 'integer', 'employee_id' => 'integer'];
-    protected $hidden = ['password', 'remember_token'];
+    use HasFactory;
 
-    public function projects(): BelongsToMany
+    protected $fillable = [
+        'name', 'email', 'password', 'permissions', 'adminid', 'role', 'employee_id', 'position',
+    ];
+
+    protected $casts = [
+        'permissions' => 'array',
+        'email_verified_at' => 'datetime',
+        'password' => 'hashed',
+        'role' => UserRole::class,
+    ];
+
+    /**
+     * Get the projects that the user belongs to.
+     */
+    public function projects()
     {
         return $this->belongsToMany(
-            Project::class,
-            'project_user',
-            'user_id',
-            'project_id',
-            'id',
-            'project_id'
-        )->withTimestamps();
+            MasterProject::class,  // model name
+            'project_user',        // pivot table name
+            'user_id',             // FK on pivot referencing users
+            'project_id'           // FK on pivot referencing master_project
+        )->withPivot('role')->withTimestamps();
     }
 
-    // Check if user has permission
-    public function hasPermission(int $permission): bool
-    {
-        return ($this->permissions & $permission) === $permission;
-    }
 
-    // Check if user can access project
-    public function canAccessProject(int|Project $project): bool
+    /**
+     * Check if user has access to a specific project
+     */
+    public function hasProjectAccess(int $projectId): bool
     {
-        $projectId = $project instanceof Project ? $project->project_id : $project;
-        
-        // Super admin (permission = 1) has all access
-        if ($this->hasPermission(1)) {
+        if ($this->isSuperAdmin()) {
             return true;
         }
-        
-        return $this->projects()->where('project_id', $projectId)->exists();
+
+        return $this->projects()->where('master_project.project_id', $projectId)->exists();
     }
 
-    // Get all accessible projects
-    public function accessibleProjects()
+    /**
+     * Get user's role in a specific project
+     */
+    public function getProjectRole(int $projectId): ?ProjectRole
     {
-        if ($this->hasPermission(1)) {
-            return Project::query();
+        $project = $this->projects()->where('master_project.project_id', $projectId)->first();
+
+        if (! $project) {
+            return null;
         }
-        return $this->projects();
+
+        return ProjectRole::from($project->pivot->role);
     }
 
-    // Check if user has access to a project
-    public function hasAccessToProject(int $projectId): bool
+    /**
+     * Check if user can edit in a specific project
+     */
+    public function canEditProject(int $projectId): bool
     {
-        return $this->canAccessProject($projectId);
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        $role = $this->getProjectRole($projectId);
+
+        return $role && $role->canEdit();
     }
 
-    // Check if user can view (permission 1 or 4)
-    public function canView(): bool
+    /**
+     * Check if user is project admin
+     */
+    public function isProjectAdmin(int $projectId): bool
     {
-        return $this->hasPermission(1) || $this->hasPermission(4);
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        $role = $this->getProjectRole($projectId);
+
+        return $role && $role->isAdmin();
     }
 
-    // Check if user can upload (permission 1 or 2)
-    public function canUpload(): bool
+    /**
+     * Check if user is super admin
+     */
+    public function isSuperAdmin(): bool
     {
-        return $this->hasPermission(1) || $this->hasPermission(2);
+        return $this->role === UserRole::SUPER_ADMIN;
     }
 
-    // Check if user can export (permission 1 or 4)
-    public function canExport(): bool
+    /**
+     * Check if user is admin (system-level)
+     */
+    public function isAdmin(): bool
     {
-        return $this->hasPermission(1) || $this->hasPermission(4);
+        return $this->role && $this->role->isAdmin();
+    }
+
+    // Legacy methods
+    public function canUpload()
+    {
+        return $this->permissions == 1 || $this->permissions == 2;
+    }
+
+    public function canView()
+    {
+        return $this->permissions == 1 || $this->permissions == 2 || $this->permissions == 3;
+    }
+
+    public function canExport()
+    {
+        return $this->permissions == 1 || $this->permissions == 3;
     }
 }

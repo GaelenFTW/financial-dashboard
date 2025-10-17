@@ -2,145 +2,206 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\Permission;
-use App\Models\Project;
 use App\Models\User;
-use App\Services\ProjectAccessService;
+use App\Models\MasterProject;
+use App\Enums\UserRole;
+use App\Enums\ProjectRole;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules\Enum;
 
 class AdminController extends Controller
 {
-    public function __construct(private ProjectAccessService $service) {}
-
-    // Dashboard
-    public function dashboard()
+    /**
+     * Display the admin panel dashboard
+     */
+    public function index()
     {
-        $stats = [
-            'total_users' => User::count(),
-            'total_projects' => Project::count(),
-            'recent_users' => User::latest()->limit(5)->get(),
-            'permissions' => Permission::cases(),
-        ];
-        return view('admin.dashboard', $stats);
-    }
-
-    // ===== USERS MANAGEMENT =====
-
-    public function usersIndex()
-    {
-        $users = User::paginate(15);
-        $permissions = Permission::cases();
-        return view('admin.users.index', compact('users', 'permissions'));
-    }
-
-    public function usersEdit(User $user)
-    {
-        $permissions = Permission::cases();
-        $userPermissions = [];
+        $usersCount = User::count();
+        $projectsCount = MasterProject::count();
         
-        foreach ($permissions as $permission) {
-            $userPermissions[$permission->name] = $user->hasPermission($permission->value);
-        }
-
-        return view('admin.users.edit', compact('user', 'permissions', 'userPermissions'));
+        return view('admin.index', compact('usersCount', 'projectsCount'));
     }
 
-    public function usersUpdate(Request $request, User $user)
+    /**
+     * Display list of users
+     */
+    public function users()
+    {
+        $users = User::with('projects')->paginate(20);
+        
+        return view('admin.users.index', compact('users'));
+    }
+
+    /**
+     * Show form to create a new user
+     */
+    public function createUser()
+    {
+        $roles = UserRole::cases();
+        
+        return view('admin.users.create', compact('roles'));
+    }
+
+    /**
+     * Store a new user
+     */
+    public function storeUser(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email',
+            'password' => 'required|string|min:8|confirmed',
+            'role' => ['required', new Enum(UserRole::class)],
+            'employee_id' => 'nullable|string|max:255',
+            'position' => 'nullable|string|max:255',
+        ]);
+
+        $validated['password'] = Hash::make($validated['password']);
+
+        User::create($validated);
+
+        return redirect()->route('admin.users')->with('success', 'User created successfully!');
+    }
+
+    /**
+     * Show form to edit a user
+     */
+    public function editUser(User $user)
+    {
+        $roles = UserRole::cases();
+        $projects = MasterProject::all();
+        
+        return view('admin.users.edit', compact('user', 'roles', 'projects'));
+    }
+
+    /**
+     * Update a user
+     */
+    public function updateUser(Request $request, User $user)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email,' . $user->id,
+            'role' => ['required', new Enum(UserRole::class)],
+            'employee_id' => 'nullable|string|max:255',
             'position' => 'nullable|string|max:255',
-            'permissions' => 'required|array',
         ]);
 
-        $permissionValue = 0;
-
-        foreach ($validated['permissions'] as $permissionName => $checked) {
-            if ($checked) {
-                // Get permission enum by name
-                $permission = constant(Permission::class . '::' . $permissionName);
-                $permissionValue |= $permission->value;
-            }
+        if ($request->filled('password')) {
+            $request->validate([
+                'password' => 'required|string|min:8|confirmed',
+            ]);
+            $validated['password'] = Hash::make($request->password);
         }
 
-        $user->update([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'position' => $validated['position'],
-            'permissions' => $permissionValue,
-        ]);
+        $user->update($validated);
 
-        return redirect()->route('admin.users.index')->with('success', 'User updated successfully');
+        // ✅ Filter & sync valid project assignments
+        if ($request->has('projects')) {
+            $validProjectIds = \DB::table('master_project')->pluck('project_id')->toArray();
+
+            $projectData = [];
+            foreach ($request->projects as $projectId => $data) {
+                // Only add if project_id exists in master_project
+                if (
+                    isset($data['assigned']) && 
+                    $data['assigned'] && 
+                    in_array((int) $projectId, $validProjectIds)
+                ) {
+                    $projectData[$projectId] = [
+                        'role' => $data['role'] ?? ProjectRole::VIEWER->value,
+                    ];
+                }
+            }
+
+            $user->projects()->sync($projectData);
+        }
+        // dd(request()->input('projects'));
+
+        return redirect()->route('admin.users')->with('success', 'User updated successfully!');
     }
 
-    public function userProjects(User $user)
+    /**
+     * Delete a user
+     */
+    public function destroyUser(User $user)
     {
-        $allProjects = Project::orderBy('name')->get();
-        $userProjects = $user->projects()->pluck('projects.project_id')->toArray();
+        if ($user->id === auth()->id()) {
+            return redirect()->route('admin.users')->with('error', 'You cannot delete yourself!');
+        }
 
-        return view('admin.users.projects', compact('user', 'allProjects', 'userProjects'));
+        $user->delete();
+
+        return redirect()->route('admin.users')->with('success', 'User deleted successfully!');
     }
 
-    public function updateUserProjects(Request $request, User $user)
+    /**
+     * Display list of projects
+     */
+    public function projects()
     {
-        $validated = $request->validate([
-            'project_ids' => 'required|array',
-            'project_ids.*' => 'integer|exists:projects,project_id',
-        ]);
-
-        $this->service->setProjectPermissions($user, $validated['project_ids']);
-
-        return redirect()->route('admin.users.index')->with('success', 'User project access updated');
-    }
-
-    // ===== PROJECTS MANAGEMENT =====
-
-    public function projectsIndex()
-    {
-        $projects = Project::paginate(15);
+        $projects = MasterProject::paginate(20);
         return view('admin.projects.index', compact('projects'));
     }
 
-    public function projectsCreate()
+    /**
+     * Show form to create a new project
+     */
+    public function createProject()
     {
         return view('admin.projects.create');
     }
 
-    public function projectsStore(Request $request)
+    /**
+     * Store a new project
+     */
+    public function storeProject(Request $request)
     {
         $validated = $request->validate([
-            'sh' => 'required|integer|min:0|max:255',
-            'code' => 'required|string|max:255|unique:projects,code',
+            'project_id' => 'required|integer|unique:master_project,project_id',
+            'sh' => 'nullable|string|max:255',
+            'code' => 'required|string|unique:master_project,code',
             'name' => 'required|string|max:255',
         ]);
 
-        Project::create($validated);
+        MasterProject::create($validated);
 
-        return redirect()->route('admin.projects.index')->with('success', 'Project created successfully');
+        return redirect()->route('admin.projects')->with('success', 'Project created successfully!');
     }
 
-    public function projectsEdit(Project $project)
+    /**
+     * Show form to edit a project
+     */
+    public function editProject(MasterProject $project)
     {
         return view('admin.projects.edit', compact('project'));
     }
 
-    public function projectsUpdate(Request $request, Project $project)
+    /**
+     * Update a project
+     */
+    public function updateProject(Request $request, MasterProject $project)
     {
         $validated = $request->validate([
-            'sh' => 'required|integer|min:0|max:255',
-            'code' => 'required|string|max:255|unique:projects,code,' . $project->project_id . ',project_id',
+            'project_id' => 'required|integer|unique:master_project,project_id,' . $project->project_id . ',project_id',
+            'code' => 'required|string|unique:master_project,code,' . $project->project_id . ',project_id',
+            'sh' => 'nullable|string|max:255',
             'name' => 'required|string|max:255',
         ]);
 
         $project->update($validated);
 
-        return redirect()->route('admin.projects.index')->with('success', 'Project updated successfully');
+        return redirect()->route('admin.projects')->with('success', 'Project updated successfully!');
     }
 
-    public function projectsDestroy(Project $project)
+    /**
+     * Delete a project
+     */
+    public function destroyProject(MasterProject $project)
     {
         $project->delete();
-        return redirect()->route('admin.projects.index')->with('success', 'Project deleted successfully');
+
+        return redirect()->route('admin.projects')->with('success', 'Project removed successfully!');
     }
 }

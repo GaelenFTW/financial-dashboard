@@ -1,15 +1,12 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\PurchaseLetterController;
-use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\JWTController;
-use App\Http\Controllers\AuthController;
-use App\Http\Controllers\ManagementReportController;
-use App\Http\Controllers\ExcelUploadController;
-use App\Http\Controllers\PurchasePaymentController;
 use App\Http\Controllers\AdminController;
-
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ManagementReportController;
+use App\Http\Controllers\PurchaseLetterController;
+use App\Http\Controllers\PurchasePaymentController;
+use Illuminate\Support\Facades\Route;
 
 // Authentication routes (public - no middleware)
 Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login.form');
@@ -29,7 +26,7 @@ Route::middleware(['auth', 'user.permission:upload'])->group(function () {
     Route::post('/payments/upload', [PurchasePaymentController::class, 'upload'])->name('payments.upload');
 });
 
-// View routes (ID 1, 3 only)  
+// View routes (ID 1, 3 only)
 Route::middleware(['auth', 'user.permission:view'])->group(function () {
     Route::get('/purchase-letters', [PurchaseLetterController::class, 'index'])->name('purchase_letters.index');
     Route::get('/purchase-letters/chart', [PurchaseLetterController::class, 'chart'])->name('purchase_letters.chart');
@@ -48,22 +45,23 @@ Route::middleware(['auth', 'user.permission:export'])->group(function () {
     Route::get('/export/products', [DashboardController::class, 'exportTopProducts'])->name('export.top.products');
 });
 
-//admin
-Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
-    Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
+// Admin routes (super_admin and admin only)
+Route::middleware(['auth', 'admin.role'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/', [AdminController::class, 'index'])->name('index');
     
-    // Users Management
-    Route::get('/users', [AdminController::class, 'usersIndex'])->name('users.index');
-    Route::get('/users/{user}/edit', [AdminController::class, 'usersEdit'])->name('users.edit');
-    Route::put('/users/{user}', [AdminController::class, 'usersUpdate'])->name('users.update');
-    Route::get('/users/{user}/projects', [AdminController::class, 'userProjects'])->name('users.projects');
-    Route::post('/users/{user}/projects', [AdminController::class, 'updateUserProjects'])->name('users.projects.update');
-    
-    // Projects Management
-    Route::get('/projects', [AdminController::class, 'projectsIndex'])->name('projects.index');
-    Route::get('/projects/create', [AdminController::class, 'projectsCreate'])->name('projects.create');
-    Route::post('/projects', [AdminController::class, 'projectsStore'])->name('projects.store');
-    Route::get('/projects/{project}/edit', [AdminController::class, 'projectsEdit'])->name('projects.edit');
-    Route::put('/projects/{project}', [AdminController::class, 'projectsUpdate'])->name('projects.update');
-    Route::delete('/projects/{project}', [AdminController::class, 'projectsDestroy'])->name('projects.destroy');
+    // Users management
+    Route::get('/users', [AdminController::class, 'users'])->name('users');
+    Route::get('/users/create', [AdminController::class, 'createUser'])->name('users.create');
+    Route::post('/users', [AdminController::class, 'storeUser'])->name('users.store');
+    Route::get('/users/{user}/edit', [AdminController::class, 'editUser'])->name('users.edit');
+    Route::put('/users/{user}', [AdminController::class, 'updateUser'])->name('users.update');
+    Route::delete('/users/{user}', [AdminController::class, 'destroyUser'])->name('users.destroy');
+
+    // ✅ Projects CRUD
+    Route::get('/projects', [AdminController::class, 'projects'])->name('projects');
+    Route::get('/projects/create', [AdminController::class, 'createProject'])->name('projects.create');
+    Route::post('/projects', [AdminController::class, 'storeProject'])->name('projects.store');
+    Route::get('/projects/{project}/edit', [AdminController::class, 'editProject'])->name('projects.edit');
+    Route::put('/projects/{project}', [AdminController::class, 'updateProject'])->name('projects.update');
+    Route::delete('/projects/{project}', [AdminController::class, 'destroyProject'])->name('projects.destroy');
 });

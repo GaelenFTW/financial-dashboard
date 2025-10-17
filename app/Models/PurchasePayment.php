@@ -4,20 +4,21 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Carbon\Carbon;
 
-class PurchasePayment extends Model{
+class PurchasePayment extends Model
+{
     use HasFactory;
 
     protected $table = 'purchase_payments';
     protected $primaryKey = 'No';
     public $incrementing = false;
     public $timestamps = false;
-
     protected $fillable = [];
     protected $casts = [];
 
-    //Constructor: dynamically generate fillable & casts just like in controller
+    /**
+     * Constructor: dynamically generate fillable & casts just like in controller
+     */
     public function __construct(array $attributes = [])
     {
         parent::__construct($attributes);
@@ -26,7 +27,9 @@ class PurchasePayment extends Model{
         $this->casts = $this->generateCasts();
     }
 
-    //Base (non-monthly) columns — permanent
+    /**
+     * Base (non-monthly) columns — permanent
+     */
     protected function baseColumns(): array
     {
         return [
@@ -38,12 +41,14 @@ class PurchasePayment extends Model{
             'bank_induk', 'KPP', 'JenisKPR', 'Salesman', 'Member', 'tanggal_akad',
             'persen_progress_bangun', 'type_unit', 'selisih', 'dari_1_sampai_30_DP',
             'dari_31_sampai_60_DP', 'dari_61_sampai_90_DP', 'diatas_90_DP', 'lebih_bayar',
-            'year', 'month', 'data_year'
+            'year', 'month', 'data_year',
         ];
     }
 
-    //Dynamically generate fillable columns for the given year
-    protected function generateFillable(int $year = null): array
+    /**
+     * Dynamically generate fillable columns for the given year
+     */
+    protected function generateFillable(?int $year = null): array
     {
         $year = $year ?: date('Y');
         $fillable = $this->baseColumns();
@@ -79,8 +84,10 @@ class PurchasePayment extends Model{
         return $fillable;
     }
 
-    //Automatically cast all *_DueDate and *_CairDate fields as dates       
-    protected function generateCasts(int $year = null): array
+    /**
+     * Automatically cast all *_DueDate and *_CairDate fields as dates
+     */
+    protected function generateCasts(?int $year = null): array
     {
         $year = $year ?: date('Y');
         $casts = [

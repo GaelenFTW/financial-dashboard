@@ -34,7 +34,7 @@ return [
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
-    
+
     'data_api' => [
         'url' => env('DATA_API_URL', null),
         'url2' => env('DATA_API_URL2', null),
@@ -44,6 +44,5 @@ return [
         'url6' => env('DATA_API_URL6', null),
         'token' => env('JWT_SECRET', 'TestingJWT123'),
     ],
-
 
 ];

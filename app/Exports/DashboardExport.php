@@ -19,19 +19,19 @@ class DashboardExport implements FromCollection, WithHeadings
     {
         $query = PurchaseLetter::query();
 
-        if (!empty($this->filters['cluster'])) {
-            $query->where('Cluster', 'like', '%' . $this->filters['cluster'] . '%');
+        if (! empty($this->filters['cluster'])) {
+            $query->where('Cluster', 'like', '%'.$this->filters['cluster'].'%');
         }
 
-        if (!empty($this->filters['customername'])) {
-            $query->where('CustomerName', 'like', '%' . $this->filters['customername'] . '%');
+        if (! empty($this->filters['customername'])) {
+            $query->where('CustomerName', 'like', '%'.$this->filters['customername'].'%');
         }
 
-        if (!empty($this->filters['startdate'])) {
+        if (! empty($this->filters['startdate'])) {
             $query->whereDate('PurchaseDate', '>=', $this->filters['startdate']);
         }
 
-        if (!empty($this->filters['enddate'])) {
+        if (! empty($this->filters['enddate'])) {
             $query->whereDate('PurchaseDate', '<=', $this->filters['enddate']);
         }
 
