@@ -12,9 +12,6 @@ use Illuminate\Validation\Rules\Enum;
 
 class AdminController extends Controller
 {
-    /**
-     * Display the admin panel dashboard
-     */
     public function index()
     {
         $usersCount = User::count();
@@ -23,9 +20,6 @@ class AdminController extends Controller
         return view('admin.index', compact('usersCount', 'projectsCount'));
     }
 
-    /**
-     * Display list of users
-     */
     public function users()
     {
         $users = User::with('projects')->paginate(20);
@@ -33,9 +27,6 @@ class AdminController extends Controller
         return view('admin.users.index', compact('users'));
     }
 
-    /**
-     * Show form to create a new user
-     */
     public function createUser()
     {
         $roles = UserRole::cases();
@@ -43,9 +34,6 @@ class AdminController extends Controller
         return view('admin.users.create', compact('roles'));
     }
 
-    /**
-     * Store a new user
-     */
     public function storeUser(Request $request)
     {
         $validated = $request->validate([
@@ -64,9 +52,6 @@ class AdminController extends Controller
         return redirect()->route('admin.users')->with('success', 'User created successfully!');
     }
 
-    /**
-     * Show form to edit a user
-     */
     public function editUser(User $user)
     {
         $roles = UserRole::cases();
@@ -75,9 +60,6 @@ class AdminController extends Controller
         return view('admin.users.edit', compact('user', 'roles', 'projects'));
     }
 
-    /**
-     * Update a user
-     */
     public function updateUser(Request $request, User $user)
     {
         $validated = $request->validate([
@@ -97,7 +79,7 @@ class AdminController extends Controller
 
         $user->update($validated);
 
-        // ✅ Filter & sync valid project assignments
+        // Filter & sync valid project assignments
         if ($request->has('projects')) {
             $validProjectIds = \DB::table('master_project')->pluck('project_id')->toArray();
 
@@ -122,9 +104,6 @@ class AdminController extends Controller
         return redirect()->route('admin.users')->with('success', 'User updated successfully!');
     }
 
-    /**
-     * Delete a user
-     */
     public function destroyUser(User $user)
     {
         if ($user->id === auth()->id()) {
@@ -136,26 +115,17 @@ class AdminController extends Controller
         return redirect()->route('admin.users')->with('success', 'User deleted successfully!');
     }
 
-    /**
-     * Display list of projects
-     */
     public function projects()
     {
         $projects = MasterProject::paginate(20);
         return view('admin.projects.index', compact('projects'));
     }
 
-    /**
-     * Show form to create a new project
-     */
     public function createProject()
     {
         return view('admin.projects.create');
     }
 
-    /**
-     * Store a new project
-     */
     public function storeProject(Request $request)
     {
         $validated = $request->validate([
@@ -170,17 +140,11 @@ class AdminController extends Controller
         return redirect()->route('admin.projects')->with('success', 'Project created successfully!');
     }
 
-    /**
-     * Show form to edit a project
-     */
     public function editProject(MasterProject $project)
     {
         return view('admin.projects.edit', compact('project'));
     }
 
-    /**
-     * Update a project
-     */
     public function updateProject(Request $request, MasterProject $project)
     {
         $validated = $request->validate([
@@ -195,9 +159,6 @@ class AdminController extends Controller
         return redirect()->route('admin.projects')->with('success', 'Project updated successfully!');
     }
 
-    /**
-     * Delete a project
-     */
     public function destroyProject(MasterProject $project)
     {
         $project->delete();

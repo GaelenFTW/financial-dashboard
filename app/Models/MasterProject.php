@@ -7,11 +7,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class MasterProject extends Model
 {
-    protected $table = 'master_project';  // ✅ not plural
-    protected $primaryKey = 'project_id'; // ✅ correct key
+    protected $table = 'master_project';  //  not plural
+    protected $primaryKey = 'project_id'; //  correct key
     public $incrementing = true;
     protected $keyType = 'int';
-    public $timestamps = false; // 🚫 disable created_at & updated_at
+    public $timestamps = false; 
 
 
     protected $fillable = [

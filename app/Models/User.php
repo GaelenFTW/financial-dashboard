@@ -23,9 +23,6 @@ class User extends Authenticatable
         'role' => UserRole::class,
     ];
 
-    /**
-     * Get the projects that the user belongs to.
-     */
     public function projects()
     {
         return $this->belongsToMany(
@@ -36,10 +33,6 @@ class User extends Authenticatable
         )->withPivot('role')->withTimestamps();
     }
 
-
-    /**
-     * Check if user has access to a specific project
-     */
     public function hasProjectAccess(int $projectId): bool
     {
         if ($this->isSuperAdmin()) {
@@ -77,9 +70,6 @@ class User extends Authenticatable
         return $role && $role->canEdit();
     }
 
-    /**
-     * Check if user is project admin
-     */
     public function isProjectAdmin(int $projectId): bool
     {
         if ($this->isSuperAdmin()) {
@@ -91,9 +81,6 @@ class User extends Authenticatable
         return $role && $role->isAdmin();
     }
 
-    /**
-     * Check if user is super admin
-     */
     public function isSuperAdmin(): bool
     {
         return $this->role === UserRole::SUPER_ADMIN;
@@ -108,18 +95,13 @@ class User extends Authenticatable
     }
 
     // Legacy methods
-    public function canUpload()
-    {
+    public function canUpload(){
         return $this->permissions == 1 || $this->permissions == 2;
     }
-
-    public function canView()
-    {
+    public function canView() {
         return $this->permissions == 1 || $this->permissions == 2 || $this->permissions == 3;
     }
-
-    public function canExport()
-    {
+    public function canExport(){
         return $this->permissions == 1 || $this->permissions == 3;
     }
 }
