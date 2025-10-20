@@ -4,9 +4,13 @@ namespace App\Models;
 
 use App\Enums\ProjectRole;
 use App\Enums\UserRole;
+use App\Models\Permission;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+
+
 
 class User extends Authenticatable
 {
@@ -23,9 +27,12 @@ class User extends Authenticatable
         'role' => UserRole::class,
     ];
 
-    /**
-     * Get the projects that the user belongs to.
-     */
+    public function permissions()
+    {
+        return $this->belongsToMany(Permission::class, 'user_permission', 'user_id', 'permission_id');
+    }
+
+
     public function projects()
     {
         return $this->belongsToMany(
@@ -36,10 +43,6 @@ class User extends Authenticatable
         )->withPivot('role')->withTimestamps();
     }
 
-
-    /**
-     * Check if user has access to a specific project
-     */
     public function hasProjectAccess(int $projectId): bool
     {
         if ($this->isSuperAdmin()) {
@@ -63,9 +66,6 @@ class User extends Authenticatable
         return ProjectRole::from($project->pivot->role);
     }
 
-    /**
-     * Check if user can edit in a specific project
-     */
     public function canEditProject(int $projectId): bool
     {
         if ($this->isSuperAdmin()) {
@@ -77,9 +77,6 @@ class User extends Authenticatable
         return $role && $role->canEdit();
     }
 
-    /**
-     * Check if user is project admin
-     */
     public function isProjectAdmin(int $projectId): bool
     {
         if ($this->isSuperAdmin()) {
@@ -91,35 +88,48 @@ class User extends Authenticatable
         return $role && $role->isAdmin();
     }
 
-    /**
-     * Check if user is super admin
-     */
     public function isSuperAdmin(): bool
     {
         return $this->role === UserRole::SUPER_ADMIN;
     }
 
-    /**
-     * Check if user is admin (system-level)
-     */
     public function isAdmin(): bool
     {
         return $this->role && $this->role->isAdmin();
     }
 
-    // Legacy methods
-    public function canUpload()
+    public function hasPermission(string $name): bool
     {
+        if ($this->isSuperAdmin()) return true;
+
+        // Check user-specific permission
+        $userHas = DB::table('user_permission')
+            ->join('permissions', 'permissions.id', '=', 'user_permission.permission_id')
+            ->where('user_permission.user_id', $this->id)
+            ->where('permissions.name', $name)
+            ->exists();
+
+        if ($userHas) return true;
+
+        // Check role-based permission
+        $roleHas = DB::table('role_permission')
+            ->join('permissions', 'permissions.id', '=', 'role_permission.permission_id')
+            ->where('role_permission.role', $this->role->value)
+            ->where('permissions.name', $name)
+            ->exists();
+
+        return $roleHas;
+    }
+
+
+    // Legacy methods
+    public function canUpload(){
         return $this->permissions == 1 || $this->permissions == 2;
     }
-
-    public function canView()
-    {
+    public function canView(){
         return $this->permissions == 1 || $this->permissions == 2 || $this->permissions == 3;
     }
-
-    public function canExport()
-    {
+    public function canExport(){
         return $this->permissions == 1 || $this->permissions == 3;
     }
 }

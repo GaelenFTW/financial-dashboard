@@ -13,18 +13,15 @@ enum ProjectRole: string
         return array_column(self::cases(), 'value');
     }
 
-    public function canEdit(): bool
-    {
+    public function canEdit(): bool{
         return $this === self::ADMIN || $this === self::EDITOR;
     }
 
-    public function isAdmin(): bool
-    {
+    public function isAdmin(): bool{
         return $this === self::ADMIN;
     }
 
-    public function canView(): bool
-    {
+    public function canView(): bool{
         return true; // All roles can view
     }
 }
