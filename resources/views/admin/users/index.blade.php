@@ -71,21 +71,22 @@
                             </td>
                             <td>
                                 <div class="btn-group btn-group-sm" role="group">
-                                    <a href="{{ route('admin.users.edit', $user) }}" class="btn btn-outline-primary" title="Edit">
-                                        <i class="bi bi-pencil"></i>
+                                    <a href="{{ route('admin.users.edit', $user) }}" class="btn btn-outline-primary">
+                                        Edit
                                     </a>
-                                    @if($user->id !== auth()->id())
+
+                                    @if($user->id !== auth()->id() && $user->role?->value !== 'super_admin')
                                     <form action="{{ route('admin.users.destroy', $user) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this user?');">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" class="btn btn-outline-danger" title="Delete">
-                                            <i class="bi bi-trash"></i>
+                                        <button type="submit" class="btn btn-outline-danger">
+                                            Delete
                                         </button>
                                     </form>
                                     @endif
                                 </div>
                             </td>
-                        </tr>
+
                         @empty
                         <tr>
                             <td colspan="6" class="text-center text-muted py-4">

@@ -1,4 +1,4 @@
-@extends('layouts.app')
+<!-- @extends('layouts.app')
 
 @section('title', 'Manage User Projects')
 
@@ -104,4 +104,4 @@ document.getElementById('deselectAll').addEventListener('click', function() {
 });
 </script>
 @endpush
-@endsection
+@endsection -->

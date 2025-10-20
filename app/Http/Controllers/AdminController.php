@@ -104,6 +104,45 @@ class AdminController extends Controller
         return redirect()->route('admin.users')->with('success', 'User updated successfully!');
     }
 
+    public function editUserPermissions(User $user)
+    {
+        $permissions = \App\Models\Permission::all();
+        $userPermissions = $user->permissions()->pluck('permissions.id')->toArray();
+        $projects = MasterProject::all();
+
+        return view('admin.users.permissions', compact('user', 'permissions', 'userPermissions', 'projects'));
+    }
+
+    public function updateUserPermissions(Request $request, User $user)
+    {
+        // 1. Sync permissions
+        $permissionIds = $request->input('permissions', []);
+        $user->permissions()->sync($permissionIds);
+
+        // 2. Sync project assignments (from table)
+        if ($request->has('projects')) {
+            $validProjectIds = \DB::table('master_project')->pluck('project_id')->toArray();
+
+            $projectData = [];
+            foreach ($request->projects as $projectId => $data) {
+                if (
+                    isset($data['assigned']) && 
+                    $data['assigned'] && 
+                    in_array((int) $projectId, $validProjectIds)
+                ) {
+                    $projectData[$projectId] = [
+                        'role' => $data['role'] ?? \App\Enums\ProjectRole::VIEWER->value,
+                    ];
+                }
+            }
+
+            $user->projects()->sync($projectData);
+        }
+
+        return redirect()->route('admin.users')->with('success', 'Permissions and project assignments updated successfully!');
+    }
+
+
     public function destroyUser(User $user)
     {
         if ($user->id === auth()->id()) {

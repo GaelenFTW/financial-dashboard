@@ -56,6 +56,11 @@ Route::middleware(['auth', 'admin.role'])->prefix('admin')->name('admin.')->grou
     Route::get('/users/{user}/edit', [AdminController::class, 'editUser'])->name('users.edit');
     Route::put('/users/{user}', [AdminController::class, 'updateUser'])->name('users.update');
     Route::delete('/users/{user}', [AdminController::class, 'destroyUser'])->name('users.destroy');
+    Route::get('/users/{user}/permissions', [AdminController::class, 'editUserPermissions'])
+        ->name('users.permissions');
+
+    Route::post('/users/{user}/permissions', [AdminController::class, 'updateUserPermissions'])
+        ->name('users.permissions.update');
 
     // ✅ Projects CRUD
     Route::get('/projects', [AdminController::class, 'projects'])->name('projects');
@@ -65,3 +70,4 @@ Route::middleware(['auth', 'admin.role'])->prefix('admin')->name('admin.')->grou
     Route::put('/projects/{project}', [AdminController::class, 'updateProject'])->name('projects.update');
     Route::delete('/projects/{project}', [AdminController::class, 'destroyProject'])->name('projects.destroy');
 });
+

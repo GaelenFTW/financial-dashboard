@@ -23,6 +23,16 @@
         <div class="col-md-8">
             <div class="card shadow-sm">
                 <div class="card-body">
+
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0">User Information</h5>
+
+                        {{-- Permissions Button --}}
+                        <a href="{{ route('admin.users.permissions', $user->id) }}" class="btn btn-outline-primary">
+                            <i class="bi bi-shield-lock"></i> Manage Permissions
+                        </a>
+                    </div>
+
                     <form action="{{ route('admin.users.update', $user) }}" method="POST">
                         @csrf
                         @method('PUT')
@@ -82,64 +92,6 @@
                                    id="position" name="position" value="{{ old('position', $user->position) }}">
                             @error('position') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
-
-                        {{-- Project Assignments --}}
-                        <hr class="my-4">
-                        <h5>Project Assignments</h5>
-                        <p class="text-muted">Assign this user to projects with specific roles.</p>
-
-                        @if($projects->count() > 0)
-                            <div class="mb-3">
-                                <div class="dropdown w-100">
-                                    <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start" 
-                                            type="button" id="projectDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                                        Choose projects...
-                                    </button>
-
-                                    <ul class="dropdown-menu p-3 w-100" aria-labelledby="projectDropdown" 
-                                        style="max-height: 300px; overflow-y: auto;">
-
-                                        @foreach($projects as $project)
-                                            @php
-                                                // Match based on master_project.project_id
-                                                $userProject = $user->projects->firstWhere('project_id', $project->project_id);
-                                                $isAssigned = $userProject !== null;
-                                                $role = $isAssigned ? $userProject->pivot->role : 'viewer';
-                                            @endphp
-
-                                            <li class="mb-2 border-bottom pb-2">
-                                                <div class="form-check">
-                                                    <input class="form-check-input project-checkbox" 
-                                                           type="checkbox" 
-                                                           id="project_{{ $project->project_id }}" 
-                                                           name="projects[{{ $project->project_id }}][assigned]" 
-                                                           value="1" 
-                                                           {{ $isAssigned ? 'checked' : '' }}>
-                                                    <label class="form-check-label fw-semibold" for="project_{{ $project->project_id }}">
-                                                        {{ $project->name }} 
-                                                        <small class="text-muted">({{ $project->code }})</small>
-                                                    </label>
-                                                </div>
-
-                                                <div class="mt-2 ms-4">
-                                                    <select class="form-select form-select-sm project-role-select" 
-                                                            name="projects[{{ $project->project_id }}][role]" 
-                                                            {{ $isAssigned ? '' : 'disabled' }}>
-                                                        <option value="viewer" {{ $role === 'viewer' ? 'selected' : '' }}>Viewer</option>
-                                                        <option value="editor" {{ $role === 'editor' ? 'selected' : '' }}>Editor</option>
-                                                        <option value="admin"  {{ $role === 'admin'  ? 'selected' : '' }}>Admin</option>
-                                                    </select>
-                                                </div>
-                                            </li>
-                                        @endforeach
-                                    </ul>
-                                </div>
-                            </div>
-                        @else
-                            <p class="text-muted">No projects available. 
-                                <a href="{{ route('admin.projects') }}">Create projects first</a>.
-                            </p>
-                        @endif
 
                         <div class="d-flex gap-2 mt-4">
                             <button type="submit" class="btn btn-primary">
