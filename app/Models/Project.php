@@ -23,4 +23,14 @@ class Project extends Model
             'id'
         )->withTimestamps();
     }
+
+    public function userGroupAccess()
+    {
+        return $this->hasMany(UserGroupAccess::class, 'project_id', 'project_id');
+    }
+    
+    public function getUsersWithGroups()
+    {
+        return $this->users()->with('groups')->get();
+    }
 }

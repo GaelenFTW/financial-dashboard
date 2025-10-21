@@ -15,7 +15,7 @@ class AdminController extends Controller
     public function index()
     {
         $usersCount = User::count();
-        $projectsCount = MasterProject::count();
+        $projectsCount = MasterProject::count(); 
         
         return view('admin.index', compact('usersCount', 'projectsCount'));
     }
