@@ -20,6 +20,9 @@ Route::get('/', function () {
     return redirect('/dashboard');
 });
 
+Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+
 // Upload routes (ID 1, 2 only)
 Route::middleware(['auth', 'user.permission:upload'])->group(function () {
     Route::get('/payments/upload', [PurchasePaymentController::class, 'uploadForm'])->name('payments.upload.form');
@@ -30,7 +33,6 @@ Route::middleware(['auth', 'user.permission:upload'])->group(function () {
 Route::middleware(['auth', 'user.permission:view'])->group(function () {
     Route::get('/purchase-letters', [PurchaseLetterController::class, 'index'])->name('purchase_letters.index');
     Route::get('/purchase-letters/chart', [PurchaseLetterController::class, 'chart'])->name('purchase_letters.chart');
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/management-report', [ManagementReportController::class, 'index'])->name('management.report');
     Route::get('/payments/view', [PurchasePaymentController::class, 'view'])->name('payments.view');
 });

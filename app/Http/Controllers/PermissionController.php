@@ -33,23 +33,6 @@ class PermissionController extends Controller
         return response()->json(['has_permission' => $hasPermission]);
     }
 
-    public function checkProjectPermission(Request $request)
-    {
-        $validated = $request->validate([
-            'user_id' => 'required|integer',
-            'action' => 'required|string|in:create,read,update,delete',
-            'project_id' => 'nullable|integer'
-        ]);
-
-        $hasPermission = $this->permissionService->checkProjectPermission(
-            $validated['user_id'],
-            $validated['action'],
-            $validated['project_id'] ?? null
-        );
-
-        return response()->json(['has_permission' => $hasPermission]);
-    }
-
     public function getUserMenus(Request $request, $userId)
     {
         $projectId = $request->query('project_id');

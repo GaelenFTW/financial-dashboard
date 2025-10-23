@@ -33,7 +33,7 @@
                         </a>
                     </div>
 
-                    <form action="{{ route('admin.users.update', $user) }}" method="POST">
+                    <form action="{{ route('admin.users.update', $user->id) }}" method="POST">
                         @csrf
                         @method('PUT')
 
@@ -71,7 +71,7 @@
                             <select class="form-select @error('role') is-invalid @enderror" id="role" name="role" required>
                                 @foreach($roles as $role)
                                     <option value="{{ $role->value }}" 
-                                        {{ old('role', $user->role?->value) === $role->value ? 'selected' : '' }}>
+                                        {{ old('role', $user->role) === $role->value ? 'selected' : '' }}>
                                         {{ ucfirst(str_replace('_', ' ', $role->value)) }}
                                     </option>
                                 @endforeach

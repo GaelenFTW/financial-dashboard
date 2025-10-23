@@ -58,11 +58,14 @@
                             <td>{{ $user->name }}</td>
                             <td>{{ $user->email }}</td>
                             <td>
-                                @if($user->role)
-                                    <span class="badge bg-{{ $user->role === 'super_admin' ? 'danger' : ($user->role === 'admin' ? 'warning' : 'secondary') }}">
-                                        {{ ucfirst(str_replace('_', ' ', $user->role)) }}
-                                    </span>
+                                @php
+                                    $roleVal = $user->role instanceof \BackedEnum ? $user->role->value : (string) $user->role;
+                                @endphp
 
+                                @if($roleVal)
+                                    <span class="badge bg-{{ $roleVal === 'super_admin' ? 'danger' : ($roleVal === 'admin' ? 'warning' : 'secondary') }}">
+                                        {{ \Illuminate\Support\Str::headline($roleVal) }}
+                                    </span>
                                 @else
                                     <span class="badge bg-secondary">No Role</span>
                                 @endif
