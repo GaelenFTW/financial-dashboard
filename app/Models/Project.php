@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Project extends Model
 {
-    protected $table = 'projects';
+    protected $table = 'master_project';
     protected $primaryKey = 'project_id';
     protected $fillable = ['sh', 'code', 'name'];
     public $timestamps = true;

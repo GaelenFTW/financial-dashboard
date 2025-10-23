@@ -121,6 +121,15 @@ class User extends Authenticatable
         return $roleHas;
     }
 
+    public function groupAccesses()
+    {
+        return $this->hasMany(UserGroupAccess::class, 'user_id');
+    }
+
+    public function groups()
+    {
+        return $this->belongsToMany(Group::class, 'user_group_access', 'user_id', 'group_id');
+    }
 
     // Legacy methods
     public function canUpload(){

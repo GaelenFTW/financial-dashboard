@@ -4,6 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\MasterProject;
+use App\Models\Project; // ✅ This line fixes your current error
+use App\Models\Menu;
+use App\Models\Action;
+use Illuminate\Support\Facades\DB;
+
 use App\Enums\UserRole;
 use App\Enums\ProjectRole;
 use Illuminate\Http\Request;
@@ -27,13 +32,14 @@ class AdminController extends Controller
         return view('admin.users.index', compact('users'));
     }
 
-    public function createUser()
-    {
+    //create user view (get)
+    public function createUser(){
         $roles = UserRole::cases();
         
         return view('admin.users.create', compact('roles'));
     }
 
+    //store user (post)
     public function storeUser(Request $request)
     {
         $validated = $request->validate([
@@ -52,6 +58,7 @@ class AdminController extends Controller
         return redirect()->route('admin.users')->with('success', 'User created successfully!');
     }
 
+    //edit user view (get)
     public function editUser(User $user)
     {
         $roles = UserRole::cases();
@@ -60,6 +67,7 @@ class AdminController extends Controller
         return view('admin.users.edit', compact('user', 'roles', 'projects'));
     }
 
+    //update user (post)
     public function updateUser(Request $request, User $user)
     {
         $validated = $request->validate([
@@ -104,43 +112,85 @@ class AdminController extends Controller
         return redirect()->route('admin.users')->with('success', 'User updated successfully!');
     }
 
-    public function editUserPermissions(User $user)
+    public function editUserPermissions($id)
     {
-        $permissions = \App\Models\Permission::all();
-        $userPermissions = $user->permissions()->pluck('permissions.id')->toArray();
-        $projects = MasterProject::all();
+        $user = User::findOrFail($id);
+        $projects = Project::all();
+        $groups = \DB::table('groups')->get();
+        $menus = Menu::where('active', 1)->get();
+        $actions = Action::where('active', 1)->get();
 
-        return view('admin.users.permissions', compact('user', 'permissions', 'userPermissions', 'projects'));
+        // All existing user access records (joined from access_group or user_group_access)
+        $userAccesses = DB::table('access_groups')
+            ->join('user_group_access', 'access_groups.group_id', '=', 'user_group_access.group_id')
+            ->where('user_group_access.user_id', $user->id)
+            ->select('access_groups.menu_id', 'access_groups.action_id')
+            ->get();
+
+        // dd($menus);
+        return view('admin.users.permissions', compact('user', 'projects', 'menus', 'actions', 'userAccesses', 'groups'));
     }
 
-    public function updateUserPermissions(Request $request, User $user)
-    {
-        // 1. Sync permissions
-        $permissionIds = $request->input('permissions', []);
-        $user->permissions()->sync($permissionIds);
+    // public function updateUserPermissions(Request $request, $userId)
+    // {
+    public function updateUserPermissions(Request $request, $userId)
+{
+    $permissions = $request->input('permissions', []);
+    $groupId = $request->input('group_id');
+    $projectIds = $request->input('project_id', []); // assume from checkboxes
 
-        // 2. Sync project assignments (from table)
-        if ($request->has('projects')) {
-            $validProjectIds = \DB::table('master_project')->pluck('project_id')->toArray();
+    if (!$groupId) {
+        return back()->with('error', 'Please select a group before updating permissions.');
+    }
 
-            $projectData = [];
-            foreach ($request->projects as $projectId => $data) {
-                if (
-                    isset($data['assigned']) && 
-                    $data['assigned'] && 
-                    in_array((int) $projectId, $validProjectIds)
-                ) {
-                    $projectData[$projectId] = [
-                        'role' => $data['role'] ?? \App\Enums\ProjectRole::VIEWER->value,
-                    ];
+    $user = User::findOrFail($userId);
+
+    // Delete old access for this group
+    DB::table('access_groups')->where('group_id', $groupId)->delete();
+
+    // Insert new permissions
+    foreach ($permissions as $menuId => $actions) {
+        foreach (['create', 'read', 'update', 'delete'] as $actionName) {
+            if (!empty($actions[$actionName]) && $actions[$actionName] == '1') {
+                $action = DB::table('actions')
+                    ->where('menu_id', $menuId)
+                    ->where('action', $actionName)
+                    ->first();
+
+                if ($action) {
+                    DB::table('access_groups')->insert([
+                        'group_id'   => $groupId,
+                        'menu_id'    => $menuId,
+                        'action_id'  => $action->action_id,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
                 }
             }
-
-            $user->projects()->sync($projectData);
         }
-
-        return redirect()->route('admin.users')->with('success', 'Permissions and project assignments updated successfully!');
     }
+
+    // ✅ Make sure all projects for this user have correct group mapping
+    $existingProjects = DB::table('user_group_access')
+        ->where('user_id', $userId)
+        ->pluck('project_id')
+        ->toArray();
+
+    foreach ($projectIds as $projectId) {
+        DB::table('user_group_access')->updateOrInsert(
+            [
+                'user_id'    => $userId,
+                'project_id' => $projectId,
+            ],
+            [
+                'group_id'   => $groupId,  // ensure correct group id is set
+                'updated_at' => now(),
+            ]
+        );
+    }
+
+    return back()->with('success', 'Permissions updated successfully!');
+}
 
 
     public function destroyUser(User $user)
@@ -205,4 +255,6 @@ class AdminController extends Controller
 
         return redirect()->route('admin.projects')->with('success', 'Project removed successfully!');
     }
+
+    
 }
