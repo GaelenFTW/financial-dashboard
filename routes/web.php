@@ -14,8 +14,8 @@ Route::post('/login', [AuthController::class, 'login'])->name('login');
 Route::get('/register', [AuthController::class, 'showRegisterForm'])->name('register.form');
 Route::post('/register', [AuthController::class, 'register'])->name('register');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
-// Redirect root to dashboard
 
+// Redirect root to dashboard
 Route::get('/', function () {
     return redirect('/dashboard');
 });
@@ -45,11 +45,11 @@ Route::middleware(['auth', 'user.permission:export'])->group(function () {
     Route::get('/export/products', [DashboardController::class, 'exportTopProducts'])->name('export.top.products');
 });
 
-// Admin routes (super_admin and admin only)
+// Admin routes (admin and super_admin roles only)
 Route::middleware(['auth', 'admin.role'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', [AdminController::class, 'index'])->name('index');
     
-    // Users management
+    // Users management (all admins can access)
     Route::get('/users', [AdminController::class, 'users'])->name('users');
     Route::get('/users/create', [AdminController::class, 'createUser'])->name('users.create');
     Route::post('/users', [AdminController::class, 'storeUser'])->name('users.store');
@@ -58,11 +58,11 @@ Route::middleware(['auth', 'admin.role'])->prefix('admin')->name('admin.')->grou
     Route::delete('/users/{user}', [AdminController::class, 'destroyUser'])->name('users.destroy');
     Route::get('/users/{user}/permissions', [AdminController::class, 'editUserPermissions'])
         ->name('users.permissions');
-
     Route::post('/users/{user}/permissions', [AdminController::class, 'updateUserPermissions'])
         ->name('users.permissions.update');
 
-    // ✅ Projects CRUD
+    // ✅ Projects CRUD (requires group_id = 1)
+    // These routes have additional check inside the controller methods
     Route::get('/projects', [AdminController::class, 'projects'])->name('projects');
     Route::get('/projects/create', [AdminController::class, 'createProject'])->name('projects.create');
     Route::post('/projects', [AdminController::class, 'storeProject'])->name('projects.store');
@@ -70,4 +70,3 @@ Route::middleware(['auth', 'admin.role'])->prefix('admin')->name('admin.')->grou
     Route::put('/projects/{project}', [AdminController::class, 'updateProject'])->name('projects.update');
     Route::delete('/projects/{project}', [AdminController::class, 'destroyProject'])->name('projects.destroy');
 });
-

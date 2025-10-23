@@ -59,24 +59,27 @@
                             <td>{{ $user->email }}</td>
                             <td>
                                 @if($user->role)
-                                    <span class="badge bg-{{ $user->role->value === 'super_admin' ? 'danger' : ($user->role->value === 'admin' ? 'warning' : 'secondary') }}">
-                                        {{ ucfirst(str_replace('_', ' ', $user->role->value)) }}
+                                    <span class="badge bg-{{ $user->role === 'super_admin' ? 'danger' : ($user->role === 'admin' ? 'warning' : 'secondary') }}">
+                                        {{ ucfirst(str_replace('_', ' ', $user->role)) }}
                                     </span>
+
                                 @else
                                     <span class="badge bg-secondary">No Role</span>
                                 @endif
                             </td>
+
                             <td>
-                                <span class="badge bg-info">{{ $user->projects->count() }}</span>
+                                <span class="badge bg-info">
+                                    {{ DB::table('project_user')->where('user_id', $user->id)->count() }}
+                                </span>
                             </td>
                             <td>
                                 <div class="btn-group btn-group-sm" role="group">
-                                    <a href="{{ route('admin.users.edit', $user) }}" class="btn btn-outline-primary">
+                                    <a href="{{ route('admin.users.edit', $user->id) }}" class="btn btn-outline-primary">
                                         Edit
                                     </a>
-
-                                    @if($user->id !== auth()->id() && $user->role?->value !== 'super_admin')
-                                    <form action="{{ route('admin.users.destroy', $user) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this user?');">
+                                    @if($user->id !== auth()->id() && ($user->role ?? '') !== 'super_admin')
+                                    <form action="{{ route('admin.users.destroy', $user->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this user?');">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="btn btn-outline-danger">
@@ -99,7 +102,7 @@
             </div>
 
             <div class="mt-3">
-                {{ $users->links() }}
+                {{ $users->links('pagination::bootstrap-5') }}
             </div>
         </div>
     </div>

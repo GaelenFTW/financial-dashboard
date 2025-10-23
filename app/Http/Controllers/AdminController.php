@@ -2,259 +2,345 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
-use App\Models\MasterProject;
-use App\Models\Project; // ✅ This line fixes your current error
-use App\Models\Menu;
-use App\Models\Action;
-use Illuminate\Support\Facades\DB;
-
-use App\Enums\UserRole;
-use App\Enums\ProjectRole;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules\Enum;
 
 class AdminController extends Controller
 {
+    /**
+     * Show admin dashboard
+     */
     public function index()
     {
-        $usersCount = User::count();
-        $projectsCount = MasterProject::count(); 
+        // Get statistics for admin dashboard
+        $usersCount = DB::table('users')->count();
+        $projectsCount = DB::table('master_project')->count();
+        $activeProjectsCount = DB::table('master_project')->count();
+        $groupsCount = DB::table('groups')->count();
         
-        return view('admin.index', compact('usersCount', 'projectsCount'));
+        return view('admin.index', compact(
+            'usersCount',
+            'projectsCount',
+            'activeProjectsCount',
+            'groupsCount'
+        ));
     }
 
+    // ==================== PROJECT METHODS ====================
+    
+    /**
+     * Display a listing of projects
+     * Only accessible by users with group_id = 1
+     */
+    public function projects()
+    {
+        $this->checkProjectAccess();
+
+        // Use master_project table instead of projects
+        $projects = DB::table('master_project')
+            ->orderBy('project_id', 'asc')
+            ->paginate(25);
+
+        return view('admin.projects.index', compact('projects'));
+    }
+
+    /**
+     * Show the form for creating a new project
+     */
+    public function createProject()
+    {
+        $this->checkProjectAccess();
+
+        return view('admin.projects.create');
+    }
+
+    /**
+     * Store a newly created project
+     */
+    public function storeProject(Request $request)
+    {
+        $this->checkProjectAccess();
+
+        $validated = $request->validate([
+            'project_name' => 'required|string|max:255',
+            'project_code' => 'required|string|max:50|unique:projects,project_code',
+
+        ]);
+
+        DB::table('master_project')->insert([
+            'project_name' => $validated['project_name'],
+            'project_code' => $validated['project_code'],
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return redirect()->route('admin.projects')
+            ->with('success', 'Project created successfully.');
+    }
+
+    /**
+     * Show the form for editing the specified project
+     */
+    public function editProject($projectId)
+    {
+        $this->checkProjectAccess();
+
+        $project = DB::table('master_project')
+            ->where('project_id', $projectId)
+            ->first();
+
+        if (!$project) {
+            abort(404, 'Project not found');
+        }
+
+        return view('admin.projects.edit', compact('project'));
+    }
+
+    /**
+     * Update the specified project
+     */
+    public function updateProject(Request $request, $projectId)
+    {
+        $this->checkProjectAccess();
+
+        $project = DB::table('master_project')
+            ->where('project_id', $projectId)
+            ->first();
+
+        $validated = $request->validate([
+            'project_id' => 'required|integer',
+            'name' => 'required|string|max:255',
+            'code' => 'required|string|max:50|unique:master_project,code,' . $projectId . ',project_id',
+            'sh' => 'required|integer',
+        ]);
+
+        DB::table('master_project')
+            ->where('project_id', $projectId)
+            ->update([
+                'project_id' => $validated['project_id'],
+                'name' => $validated['name'],
+                'code' => $validated['code'],
+                'sh' => $validated['sh'],
+            ]);
+
+
+        return redirect()->route('admin.projects')
+            ->with('success', 'Project updated successfully.');
+    }
+
+    /**
+     * Remove the specified project
+     */
+    public function destroyProject($projectId)
+    {
+        $this->checkProjectAccess();
+
+        $project = DB::table('master_project')
+            ->where('project_id', $projectId)
+            ->first();
+
+        if (!$project) {
+            abort(404, 'Project not found');
+        }
+
+        // Check if project is being used in user_group_access
+        $inUse = DB::table('user_group_access')
+            ->where('project_id', $projectId)
+            ->exists();
+
+        if ($inUse) {
+            return redirect()->route('admin.projects')
+                ->with('error', 'Cannot delete project. It is assigned to users.');
+        }
+
+        DB::table('master_project')->where('project_id', $projectId)->delete();
+
+        return redirect()->route('admin.projects')
+            ->with('success', 'Project deleted successfully.');
+    }
+
+    // ==================== USER METHODS ====================
+    
     public function users()
     {
-        $users = User::with('projects')->paginate(20);
-        
+        $users = DB::table('users')
+            ->orderBy('created_at', 'desc')
+            ->paginate(10);
+
         return view('admin.users.index', compact('users'));
     }
 
-    //create user view (get)
-    public function createUser(){
-        $roles = UserRole::cases();
-        
-        return view('admin.users.create', compact('roles'));
+    public function createUser()
+    {
+        $groups = DB::table('groups')->get();
+        $projects = DB::table('master_project')->get();
+
+        return view('admin.users.create', compact('groups', 'projects'));
     }
 
-    //store user (post)
     public function storeUser(Request $request)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:8|confirmed',
-            'role' => ['required', new Enum(UserRole::class)],
-            'employee_id' => 'nullable|string|max:255',
-            'position' => 'nullable|string|max:255',
+            'role' => 'required|in:user,admin,super_admin',
+            'group_id' => 'required|integer|exists:groups,group_id',
+            'project_id' => 'required|integer|exists:projects,project_id',
         ]);
 
-        $validated['password'] = Hash::make($validated['password']);
-
-        User::create($validated);
-
-        return redirect()->route('admin.users')->with('success', 'User created successfully!');
-    }
-
-    //edit user view (get)
-    public function editUser(User $user)
-    {
-        $roles = UserRole::cases();
-        $projects = MasterProject::all();
-        
-        return view('admin.users.edit', compact('user', 'roles', 'projects'));
-    }
-
-    //update user (post)
-    public function updateUser(Request $request, User $user)
-    {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email,' . $user->id,
-            'role' => ['required', new Enum(UserRole::class)],
-            'employee_id' => 'nullable|string|max:255',
-            'position' => 'nullable|string|max:255',
+        // Create user
+        $userId = DB::table('users')->insertGetId([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => Hash::make($validated['password']),
+            'role' => $validated['role'],
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
 
-        if ($request->filled('password')) {
-            $request->validate([
-                'password' => 'required|string|min:8|confirmed',
-            ]);
-            $validated['password'] = Hash::make($request->password);
-        }
+        // Assign user to group and project
+        DB::table('user_group_access')->insert([
+            'user_id' => $userId,
+            'group_id' => $validated['group_id'],
+            'project_id' => $validated['project_id'],
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
-        $user->update($validated);
-
-        // Filter & sync valid project assignments
-        if ($request->has('projects')) {
-            $validProjectIds = \DB::table('master_project')->pluck('project_id')->toArray();
-
-            $projectData = [];
-            foreach ($request->projects as $projectId => $data) {
-                // Only add if project_id exists in master_project
-                if (
-                    isset($data['assigned']) && 
-                    $data['assigned'] && 
-                    in_array((int) $projectId, $validProjectIds)
-                ) {
-                    $projectData[$projectId] = [
-                        'role' => $data['role'] ?? ProjectRole::VIEWER->value,
-                    ];
-                }
-            }
-
-            $user->projects()->sync($projectData);
-        }
-        // dd(request()->input('projects'));
-
-        return redirect()->route('admin.users')->with('success', 'User updated successfully!');
+        return redirect()->route('admin.users')
+            ->with('success', 'User created successfully.');
     }
 
-    public function editUserPermissions($id)
+    public function editUser($userId)
     {
-        $user = User::findOrFail($id);
-        $projects = Project::all();
-        $groups = \DB::table('groups')->get();
-        $menus = Menu::where('active', 1)->get();
-        $actions = Action::where('active', 1)->get();
+        $user = DB::table('users')->where('id', $userId)->first();
 
-        // All existing user access records (joined from access_group or user_group_access)
-        $userAccesses = DB::table('access_groups')
-            ->join('user_group_access', 'access_groups.group_id', '=', 'user_group_access.group_id')
-            ->where('user_group_access.user_id', $user->id)
-            ->select('access_groups.menu_id', 'access_groups.action_id')
+        if (!$user) {
+            abort(404, 'User not found');
+        }
+
+        $groups = DB::table('groups')->get();
+        $projects = DB::table('master_project')->get();
+        $userAccess = DB::table('user_group_access')
+            ->where('user_id', $userId)
             ->get();
 
-        // dd($menus);
-        return view('admin.users.permissions', compact('user', 'projects', 'menus', 'actions', 'userAccesses', 'groups'));
+        return view('admin.users.edit', compact('user', 'groups', 'projects', 'userAccess'));
     }
 
-    // public function updateUserPermissions(Request $request, $userId)
-    // {
+    public function updateUser(Request $request, $userId)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email,' . $userId . ',id',
+            'password' => 'nullable|string|min:8|confirmed',
+            'role' => 'required|in:user,admin,super_admin',
+        ]);
+
+        $updateData = [
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'role' => $validated['role'],
+            'updated_at' => now(),
+        ];
+
+        if (!empty($validated['password'])) {
+            $updateData['password'] = Hash::make($validated['password']);
+        }
+
+        DB::table('users')->where('id', $userId)->update($updateData);
+
+        return redirect()->route('admin.users')
+            ->with('success', 'User updated successfully.');
+    }
+
+    public function destroyUser($userId)
+    {
+        // Delete user's group access
+        DB::table('user_group_access')->where('user_id', $userId)->delete();
+
+        // Delete user
+        DB::table('users')->where('id', $userId)->delete();
+
+        return redirect()->route('admin.users')
+            ->with('success', 'User deleted successfully.');
+    }
+
+    public function editUserPermissions($userId)
+    {
+        $user = DB::table('users')->where('id', $userId)->first();
+
+        if (!$user) {
+            abort(404, 'User not found');
+        }
+
+        $groups = DB::table('groups')->get();
+        $projects = DB::table('master_project')->get();
+        $userAccess = DB::table('user_group_access')
+            ->where('user_id', $userId)
+            ->get();
+
+        return view('admin.users.permissions', compact('user', 'groups', 'projects', 'userAccess'));
+    }
+
     public function updateUserPermissions(Request $request, $userId)
-{
-    $permissions = $request->input('permissions', []);
-    $groupId = $request->input('group_id');
-    $projectIds = $request->input('project_id', []); // assume from checkboxes
+    {
+        $validated = $request->validate([
+            'accesses' => 'required|array',
+            'accesses.*.group_id' => 'required|integer|exists:groups,group_id',
+            'accesses.*.project_id' => 'required|integer|exists:projects,project_id',
+        ]);
 
-    if (!$groupId) {
-        return back()->with('error', 'Please select a group before updating permissions.');
-    }
+        DB::transaction(function () use ($userId, $validated) {
+            // Remove old access
+            DB::table('user_group_access')->where('user_id', $userId)->delete();
 
-    $user = User::findOrFail($userId);
-
-    // Delete old access for this group
-    DB::table('access_groups')->where('group_id', $groupId)->delete();
-
-    // Insert new permissions
-    foreach ($permissions as $menuId => $actions) {
-        foreach (['create', 'read', 'update', 'delete'] as $actionName) {
-            if (!empty($actions[$actionName]) && $actions[$actionName] == '1') {
-                $action = DB::table('actions')
-                    ->where('menu_id', $menuId)
-                    ->where('action', $actionName)
-                    ->first();
-
-                if ($action) {
-                    DB::table('access_groups')->insert([
-                        'group_id'   => $groupId,
-                        'menu_id'    => $menuId,
-                        'action_id'  => $action->action_id,
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]);
-                }
+            // Add new access
+            foreach ($validated['accesses'] as $access) {
+                DB::table('user_group_access')->insert([
+                    'user_id' => $userId,
+                    'group_id' => $access['group_id'],
+                    'project_id' => $access['project_id'],
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
             }
-        }
+        });
+
+        return redirect()->route('admin.users.permissions', $userId)
+            ->with('success', 'User permissions updated successfully.');
     }
 
-    // ✅ Make sure all projects for this user have correct group mapping
-    $existingProjects = DB::table('user_group_access')
-        ->where('user_id', $userId)
-        ->pluck('project_id')
-        ->toArray();
-
-    foreach ($projectIds as $projectId) {
-        DB::table('user_group_access')->updateOrInsert(
-            [
-                'user_id'    => $userId,
-                'project_id' => $projectId,
-            ],
-            [
-                'group_id'   => $groupId,  // ensure correct group id is set
-                'updated_at' => now(),
-            ]
-        );
-    }
-
-    return back()->with('success', 'Permissions updated successfully!');
-}
-
-
-    public function destroyUser(User $user)
-    {
-        if ($user->id === auth()->id()) {
-            return redirect()->route('admin.users')->with('error', 'You cannot delete yourself!');
-        }
-
-        $user->delete();
-
-        return redirect()->route('admin.users')->with('success', 'User deleted successfully!');
-    }
-
-    // Display projects
-    public function projects()
-    {
-        $projects = MasterProject::paginate(20);
-        return view('admin.projects.index', compact('projects'));
-    }
-
-    public function createProject()
-    {
-        return view('admin.projects.create');
-    }
-
-    public function storeProject(Request $request)
-    {
-        $validated = $request->validate([
-            'project_id' => 'required|integer|unique:master_project,project_id',
-            'sh' => 'nullable|string|max:255',
-            'code' => 'required|string|unique:master_project,code',
-            'name' => 'required|string|max:255',
-        ]);
-
-        MasterProject::create($validated);
-
-        return redirect()->route('admin.projects')->with('success', 'Project created successfully!');
-    }
-
-    public function editProject(MasterProject $project)
-    {
-        return view('admin.projects.edit', compact('project'));
-    }
-
-    public function updateProject(Request $request, MasterProject $project)
-    {
-        $validated = $request->validate([
-            'project_id' => 'required|integer|unique:master_project,project_id,' . $project->project_id . ',project_id',
-            'code' => 'required|string|unique:master_project,code,' . $project->project_id . ',project_id',
-            'sh' => 'nullable|string|max:255',
-            'name' => 'required|string|max:255',
-        ]);
-
-        $project->update($validated);
-
-        return redirect()->route('admin.projects')->with('success', 'Project updated successfully!');
-    }
-
-    public function destroyProject(MasterProject $project)
-    {
-        $project->delete();
-
-        return redirect()->route('admin.projects')->with('success', 'Project removed successfully!');
-    }
-
+    // ==================== HELPER METHODS ====================
     
+    /**
+     * Check if current user has project management access
+     * Super admins have full access, regular admins need group_id = 1
+     */
+    private function checkProjectAccess()
+    {
+        $user = auth()->user();
+        
+        // Super admins have full access - no group check needed
+        if ($user->isSuperAdmin()) {
+            return;
+        }
+        
+        // For regular admins, check if they have admin role
+        if (!$user->isAdmin()) {
+            abort(403, 'Unauthorized. Only administrators can access project management.');
+        }
+        
+        // Regular admins must have group_id = 1
+        $hasGroupAccess = DB::table('user_group_access')
+            ->where('user_id', $user->id)
+            ->where('group_id', 1)
+            ->exists();
+
+        if (!$hasGroupAccess) {
+            abort(403, 'Unauthorized. Only users in admin group (group_id = 1) can manage projects.');
+        }
+    }
 }
