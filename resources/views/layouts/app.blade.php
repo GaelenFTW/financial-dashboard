@@ -62,6 +62,13 @@
 
             <!-- Left: Dropdown Menu -->
             @auth
+            @php
+                $nav = app(\App\Http\Controllers\NavigationController::class);
+                $isG1 = $nav->userHasGroup(auth()->id(), 1);
+                $isG2 = $nav->userHasGroup(auth()->id(), 2);
+            @endphp
+
+            @if($isG1 || $isG2)
             <ul class="navbar-nav ms-3">
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle text-white" href="#" id="menuDropdown"
@@ -69,23 +76,34 @@
                         ☰ Menu
                     </a>
                     <ul class="dropdown-menu" aria-labelledby="menuDropdown">
-                        <li><h6 class="dropdown-header">Payments</h6></li>
-                        <li><a class="dropdown-item" href="{{ route('payments.view') }}">View</a></li>
-                        <li><a class="dropdown-item" href="{{ route('payments.upload') }}">Upload</a></li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="{{ route('management.report') }}">Management Report</a></li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li><h6 class="dropdown-header">Purchase Letters</h6></li>
-                        <li><a class="dropdown-item" href="{{ route('purchase_letters.index') }}">Table</a></li>
-                        <li><a class="dropdown-item" href="{{ route('purchase_letters.chart') }}">Chart</a></li>
-                        @if(auth()->user()->isAdmin() || auth()->user()->isSuperAdmin())
-                        <li><hr class="dropdown-divider"></li>
-                        <li><h6 class="dropdown-header">Administration</h6></li>
-                        <li><a class="dropdown-item" href="{{ route('admin.index') }}">Admin Panel</a></li>
+                        @if($isG1)
+                            {{-- Group 1: full menu --}}
+                            <li><h6 class="dropdown-header">Payments</h6></li>
+                            <li><a class="dropdown-item" href="{{ route('payments.view') }}">View</a></li>
+                            <li><a class="dropdown-item" href="{{ route('payments.upload') }}">Upload</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ route('management.report') }}">Management Report</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">Purchase Letters</h6></li>
+                            <li><a class="dropdown-item" href="{{ route('purchase_letters.index') }}">Table</a></li>
+                            <li><a class="dropdown-item" href="{{ route('purchase_letters.chart') }}">Chart</a></li>
+                            @if(auth()->user()->isAdmin() || auth()->user()->isSuperAdmin())
+                                <li><hr class="dropdown-divider"></li>
+                                <li><h6 class="dropdown-header">Administration</h6></li>
+                                <li><a class="dropdown-item" href="{{ route('admin.index') }}">Admin Panel</a></li>
+                            @endif
+                        @elseif($isG2)
+                            {{-- Group 2: only Purchase Letters + Management Report --}}
+                            <li><a class="dropdown-item" href="{{ route('management.report') }}">Management Report</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">Purchase Letters</h6></li>
+                            <li><a class="dropdown-item" href="{{ route('purchase_letters.index') }}">Table</a></li>
+                            <li><a class="dropdown-item" href="{{ route('purchase_letters.chart') }}">Chart</a></li>
                         @endif
                     </ul>
                 </li>
             </ul>
+            @endif
             @endauth
 
             <!-- Right side (toggle + login/logout buttons) -->
