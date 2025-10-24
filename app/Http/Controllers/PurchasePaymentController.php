@@ -16,6 +16,73 @@ class PurchasePaymentController extends Controller
         7 => 'July', 8 => 'August', 9 => 'September', 10 => 'October', 11 => 'November', 12 => 'December',
     ];
 
+    /**
+     * Get allowed project IDs for the current user (independent of group_id)
+     */
+    protected function getAllowedProjectIds(): array
+    {
+        $userId = auth()->id();
+        if (!$userId) return [];
+
+        $projects = DB::table('user_group_access')
+            ->where('user_id', $userId)
+            ->pluck('project_id')
+            ->map(fn ($p) => (int) $p)
+            ->unique()
+            ->values()
+            ->all();
+
+        return $projects;
+    }
+
+    /**
+     * Get allowed projects list for dropdowns
+     */
+    protected function getAllowedProjects(): array
+    {
+        $allowedIds = $this->getAllowedProjectIds();
+        $allProjects = app(\App\Http\Controllers\JWTController::class)->projectsMap();
+        
+        // If user has access to project 999999, return all projects
+        if (in_array(999999, $allowedIds, true)) {
+            return $allProjects;
+        }
+        
+        // Filter projects based on allowed IDs
+        return array_filter($allProjects, function($key) use ($allowedIds) {
+            return in_array((int)$key, $allowedIds, true);
+        }, ARRAY_FILTER_USE_KEY);
+    }
+
+    /**
+     * Apply project filter to query (independent of group_id)
+     */
+    protected function applyProjectFilter($query)
+    {
+        $allowedIds = $this->getAllowedProjectIds();
+        
+        // If user has no project access, return empty result
+        if (empty($allowedIds)) {
+            return $query->whereRaw('1 = 0');
+        }
+        
+        // If user has access to project 999999, no filter needed
+        if (!in_array(999999, $allowedIds, true)) {
+            $query->whereIn('project_id', $allowedIds);
+        }
+        
+        return $query;
+    }
+
+    /**
+     * Check if user can access a specific project
+     */
+    protected function canAccessProject(int $projectId): bool
+    {
+        $allowedIds = $this->getAllowedProjectIds();
+        return in_array(999999, $allowedIds, true) || in_array($projectId, $allowedIds, true);
+    }
+
     protected function parseDate($raw)
     {
         if (! $raw) {
@@ -81,6 +148,11 @@ class PurchasePaymentController extends Controller
             'project_id' => 'required|integer',
         ]);
 
+        // Check if user has access to the selected project
+        if (!$this->canAccessProject($r->project_id)) {
+            return back()->withErrors(['error' => 'You do not have access to upload data for this project.']);
+        }
+
         $file = $r->file('file');
         $year = $r->data_year;
         $month = $r->data_month;
@@ -124,7 +196,6 @@ class PurchasePaymentController extends Controller
             }
         }
 
-        // Get user identifier
         $user = auth()->user();
         $userIdentifier = $user ? ($user->email ?? 'system') : 'system';
 
@@ -181,14 +252,12 @@ class PurchasePaymentController extends Controller
                     'updated_by' => $userIdentifier,
                 ];
 
-                // Map dynamic year columns
                 foreach ($map as $excel => $db) {
                     if (isset($data[$excel])) {
                         $cols[$db] = strpos($db, 'Date') !== false ? $this->parseDate($data[$excel]) : (strpos($db, 'Type') !== false ? $data[$excel] : $this->toFloat($data[$excel]));
                     }
                 }
 
-                // Ensure columns exist in database
                 $existing = DB::connection('sqlsrv')->getSchemaBuilder()->getColumnListing('purchase_payments');
                 foreach (array_keys($cols) as $col) {
                     if (! in_array($col, $existing)) {
@@ -213,23 +282,19 @@ class PurchasePaymentController extends Controller
                     'project_id' => $project,
                 ];
 
-                // Remove matching fields from update data
                 $updateData = $cols;
                 unset($updateData['purchaseletter_id'], $updateData['data_year'], $updateData['data_month'], $updateData['project_id']);
 
-                // Check if record exists with the same combination
                 $existingRecord = DB::connection('sqlsrv')->table('purchase_payments')
                     ->where($matchingCriteria)
                     ->first();
 
                 if ($existingRecord) {
-                    // UPDATE: Record exists with same purchaseletter_id, year, month, and project
                     DB::connection('sqlsrv')->table('purchase_payments')
                         ->where($matchingCriteria)
                         ->update($updateData);
                     Log::info("Updated record: purchaseletter_id={$cols['purchaseletter_id']}, year={$yearToUse}, month={$month}, project={$project}");
                 } else {
-                    // INSERT: New combination, create new row
                     $updateData['created_at'] = now();
                     $updateData['created_by'] = $userIdentifier;
                     DB::connection('sqlsrv')->table('purchase_payments')
@@ -249,7 +314,7 @@ class PurchasePaymentController extends Controller
 
     public function uploadForm()
     {
-        $projectOptions = app(\App\Http\Controllers\JWTController::class)->projectsMap();
+        $projectOptions = $this->getAllowedProjects();
 
         return view('payments.upload', compact('projectOptions'));
     }
@@ -258,19 +323,32 @@ class PurchasePaymentController extends Controller
     {
         $q = PurchasePayment::query();
 
+        // Apply project access filter
+        $q = $this->applyProjectFilter($q);
+
         if ($r->filled('year')) {
             $q->where('data_year', $r->year);
         } else {
             $q->where('data_year', date('Y'));
-        }if ($r->filled('month')) {
+        }
+        
+        if ($r->filled('month')) {
             $q->where('data_month', $r->month);
-        }if ($r->filled('project_id')) {
+        }
+        
+        if ($r->filled('project_id')) {
             $q->where('project_id', $r->project_id);
-        }if ($r->filled('customer')) {
+        }
+        
+        if ($r->filled('customer')) {
             $q->where('CustomerName', 'like', '%'.$r->customer.'%');
-        }if ($r->filled('cluster')) {
+        }
+        
+        if ($r->filled('cluster')) {
             $q->where('Cluster', 'like', '%'.$r->cluster.'%');
-        }if ($r->filled('TypePembelian')) {
+        }
+        
+        if ($r->filled('TypePembelian')) {
             $q->where('TypePembelian', $r->TypePembelian);
         }
 
@@ -280,13 +358,16 @@ class PurchasePaymentController extends Controller
             'payments' => $payments,
             'filters' => $r->all(),
             'months' => $this->months,
-            'projects' => app(\App\Http\Controllers\JWTController::class)->projectsMap(), // <— add
+            'projects' => $this->getAllowedProjects(),
         ]);
     }
 
     public function export(Request $r)
     {
         $q = PurchasePayment::query();
+
+        // Apply project access filter
+        $q = $this->applyProjectFilter($q);
 
         $q->when($r->filled('year'), fn ($q) => $q->where('data_year', $r->year), fn ($q) => $q->where('data_year', date('Y')));
         $q->when($r->filled('month'), fn ($q) => $q->where('data_month', $r->month));

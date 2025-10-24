@@ -1,74 +1,101 @@
 <?php
-// filepath: c:\Users\Intern01\financial-dashboard\app\Http\Controllers\NavigationController.php
+
 namespace App\Http\Controllers;
 
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\View;
 
 class NavigationController extends Controller
 {
-    // Cache the user’s group ids
     protected function userGroupIds(?int $userId = null): array
     {
         $uid = $userId ?? (Auth::id() ?? 0);
         if (!$uid) return [];
 
-        return Cache::remember("nav:user-groups:$uid", 60, function () use ($uid) {
-            return DB::table('user_group_access')
-                ->where('user_id', $uid)
-                ->pluck('group_id')
-                ->map(fn ($g) => (int)$g)
-                ->unique()
-                ->values()
-                ->all();
-        });
-    }
+        $verTs = (int) optional(
+            DB::table('user_group_access')->where('user_id', $uid)->max('updated_at')
+        )->getTimestamp() ?: 0;
 
-    // Central rule: decide menu mode from groups (change rules here only)
-    public function menuMode(?int $userId = null): string
-    {
-        $groups = $this->userGroupIds($userId);
-        if (in_array(1, $groups, true)) return 'full';     // group 1 => full menu
-        if (in_array(2, $groups, true)) return 'limited';  // group 2 => only Purchase Letters + Management Report
-        return 'none';                                     // no dropdown
-    }
+        $key = "nav:user-groups:$uid";
+        $cached = Cache::get($key);
 
-    // Keep the existing Blade API working (your Blade already calls userHasGroup)
-    public function userHasGroup(?int $userId = null, int $groupId = 1): bool
-    {
-        $mode = $this->menuMode($userId);
-
-        if ($groupId === 1) {
-            // Only return true when the user should see full menu
-            return $mode === 'full';
+        if (is_array($cached) && ($cached['ver'] ?? -1) === $verTs) {
+            return $cached['groups'] ?? [];
         }
 
-        if ($groupId === 2) {
-            // Limited menu users (and full menu users) satisfy "has group 2" checks
-            // Blade uses if($isG1) ... elseif($isG2) so full still wins.
-            return $mode === 'limited' || $mode === 'full';
-        }
+        $groups = DB::table('user_group_access')
+            ->where('user_id', $uid)
+            ->pluck('group_id')
+            ->map(fn ($g) => (int) $g)
+            ->unique()
+            ->values()
+            ->all();
 
-        // Fallback to actual membership for other groups if needed later
-        return in_array($groupId, $this->userGroupIds($userId), true);
+        Cache::put($key, ['ver' => $verTs, 'groups' => $groups], 300);
+        return $groups;
     }
 
-    // Optional helper if you ever want to fetch allowed links programmatically
-    public function allowedMenuItems(?int $userId = null): array
+    public function loadMenu(): void
     {
-        return match ($this->menuMode($userId)) {
-            'full' => [
-                'payments.view', 'payments.upload',
-                'management.report',
-                'purchase_letters.index', 'purchase_letters.chart',
-                'admin.index', // shown only if your Blade also checks isAdmin
-            ],
-            'limited' => [
-                'management.report',
-                'purchase_letters.index', 'purchase_letters.chart',
-            ],
-            default => [],
-        };
+        $groups = $this->userGroupIds();
+        
+        if (empty($groups)) {
+            View::share('menuItems', []);
+            return;
+        }
+
+        $menuItems = [];
+
+        // Group 1: Full Access
+        if (in_array(1, $groups, true)) {
+            $menuItems['Payments'] = [
+                ['label' => 'View', 'route' => 'payments.view'],
+                ['label' => 'Upload', 'route' => 'payments.upload'],
+                ['divider' => true],
+                ['label' => 'Management Report', 'route' => 'management.report'],
+            ];
+            
+            $menuItems['Purchase Letters'] = [
+                ['label' => 'Table', 'route' => 'purchase_letters.index'],
+                ['label' => 'Chart', 'route' => 'purchase_letters.chart'],
+            ];
+            
+            // Admin section only for admins
+            if (auth()->user()?->isAdmin() || auth()->user()?->isSuperAdmin()) {
+                $menuItems['Administration'] = [
+                    ['label' => 'Admin Panel', 'route' => 'admin.index']
+                ];
+            }
+        }
+
+        // Group 2: Limited Access
+        if (in_array(2, $groups, true) && !in_array(1, $groups, true)) {
+            $menuItems['Management Report'] = [
+                ['label' => 'Management Report', 'route' => 'management.report'],
+            ];
+            
+            $menuItems['Purchase Letters'] = [
+                ['label' => 'Table', 'route' => 'purchase_letters.index'],
+                ['label' => 'Chart', 'route' => 'purchase_letters.chart'],
+            ];
+        }
+
+        // Group 3: Restricted Access
+        if (in_array(3, $groups, true) && !in_array(1, $groups, true) && !in_array(2, $groups, true)) {
+            $menuItems['Purchase Letters'] = [
+                ['label' => 'Table', 'route' => 'purchase_letters.index'],
+            ];
+        }
+
+        // Group 4: Upload Only
+        if (in_array(4, $groups, true) && !in_array(1, $groups, true)) {
+            $menuItems['Payments'] = [
+                ['label' => 'Upload', 'route' => 'payments.upload'],
+            ];
+        }
+
+        View::share('menuItems', $menuItems);
     }
 }

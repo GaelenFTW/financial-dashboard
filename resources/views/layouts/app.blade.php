@@ -13,7 +13,6 @@
             min-height: 100vh;
         }
 
-        /* 🌄 Background only for login/register pages */
         body.auth-bg {
             background: url('{{ asset('images/cws.png') }}') no-repeat center center fixed;
             background-size: cover;
@@ -24,13 +23,11 @@
             margin-right: 10px;
             vertical-align: middle;
         }
-        .navbar-brand span {
-            font-weight: 600;
-            letter-spacing: 0.3px;
-        }
+
         .navbar {
             box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         }
+
         .auth-card {
             backdrop-filter: blur(6px);
             background: rgba(255, 255, 255, 0.92);
@@ -38,7 +35,6 @@
             border-radius: 1rem;
         }
 
-        /* Opaque overlay for login/register pages */
         @if (request()->routeIs('login.form') || request()->routeIs('register.form'))
         body::before {
             content: "";
@@ -54,59 +50,41 @@
 <body class="@if(request()->routeIs('login.form') || request()->routeIs('register.form')) auth-bg @endif">
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
         <div class="container">
-            <!-- Left: Logo -->
+            <!-- Brand -->
             <a class="navbar-brand d-flex align-items-center" href="{{ url('/') }}">
                 <img src="{{ asset('images/logo-ciputra.png') }}" alt="Company Logo">
                 <span>Financial Dashboard</span>
             </a>
 
-            <!-- Left: Dropdown Menu -->
-            @auth
-            @php
-                $nav = app(\App\Http\Controllers\NavigationController::class);
-                $isG1 = $nav->userHasGroup(auth()->id(), 1);
-                $isG2 = $nav->userHasGroup(auth()->id(), 2);
-            @endphp
+            <!-- ✅ Dynamic dropdown -->
+@auth
+@if(!empty($menuItems))
+<ul class="navbar-nav ms-3">
+    <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle text-white" href="#" id="menuDropdown"
+           role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            ☰ Menu
+        </a>
+        <ul class="dropdown-menu" aria-labelledby="menuDropdown">
+            @foreach($menuItems as $section => $items)
+                <li><h6 class="dropdown-header">{{ $section }}</h6></li>
+                @foreach($items as $item)
+                    @if(isset($item['divider']))
+                        <li><hr class="dropdown-divider"></li>
+                    @else
+                        <li><a class="dropdown-item" href="{{ route($item['route']) }}">{{ $item['label'] }}</a></li>
+                    @endif
+                @endforeach
+                <li><hr class="dropdown-divider"></li>
+            @endforeach
+        </ul>
+    </li>
+</ul>
+@endif
+@endauth
 
-            @if($isG1 || $isG2)
-            <ul class="navbar-nav ms-3">
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle text-white" href="#" id="menuDropdown"
-                       role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        ☰ Menu
-                    </a>
-                    <ul class="dropdown-menu" aria-labelledby="menuDropdown">
-                        @if($isG1)
-                            {{-- Group 1: full menu --}}
-                            <li><h6 class="dropdown-header">Payments</h6></li>
-                            <li><a class="dropdown-item" href="{{ route('payments.view') }}">View</a></li>
-                            <li><a class="dropdown-item" href="{{ route('payments.upload') }}">Upload</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{{ route('management.report') }}">Management Report</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">Purchase Letters</h6></li>
-                            <li><a class="dropdown-item" href="{{ route('purchase_letters.index') }}">Table</a></li>
-                            <li><a class="dropdown-item" href="{{ route('purchase_letters.chart') }}">Chart</a></li>
-                            @if(auth()->user()->isAdmin() || auth()->user()->isSuperAdmin())
-                                <li><hr class="dropdown-divider"></li>
-                                <li><h6 class="dropdown-header">Administration</h6></li>
-                                <li><a class="dropdown-item" href="{{ route('admin.index') }}">Admin Panel</a></li>
-                            @endif
-                        @elseif($isG2)
-                            {{-- Group 2: only Purchase Letters + Management Report --}}
-                            <li><a class="dropdown-item" href="{{ route('management.report') }}">Management Report</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">Purchase Letters</h6></li>
-                            <li><a class="dropdown-item" href="{{ route('purchase_letters.index') }}">Table</a></li>
-                            <li><a class="dropdown-item" href="{{ route('purchase_letters.chart') }}">Chart</a></li>
-                        @endif
-                    </ul>
-                </li>
-            </ul>
-            @endif
-            @endauth
 
-            <!-- Right side (toggle + login/logout buttons) -->
+            <!-- Toggle and auth controls -->
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
                     data-bs-target="#navbarContent" aria-controls="navbarContent"
                     aria-expanded="false" aria-label="Toggle navigation">
