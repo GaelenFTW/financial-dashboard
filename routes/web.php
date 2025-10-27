@@ -23,23 +23,29 @@ Route::get('/', function () {
 Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
 
-// Upload routes (ID 1, 2 only)
+// Upload routes (group_ID 1, 2 only)
+Route::middleware(['auth', 'group.access:1,2'])->group(function () {
     Route::get('/payments/upload', [PurchasePaymentController::class, 'uploadForm'])->name('payments.upload.form');
     Route::post('/payments/upload', [PurchasePaymentController::class, 'upload'])->name('payments.upload');
+});
 
-// View routes (ID 1, 3 only)
+// View routes (group_ID 1, 3 only)
+Route::middleware(['auth', 'group.access:1,3'])->group(function () {
     Route::get('/purchase-letters', [PurchaseLetterController::class, 'index'])->name('purchase_letters.index');
     Route::get('/purchase-letters/chart', [PurchaseLetterController::class, 'chart'])->name('purchase_letters.chart');
     Route::get('/management-report', [ManagementReportController::class, 'index'])->name('management.report');
     Route::get('/payments/view', [PurchasePaymentController::class, 'view'])->name('payments.view');
+});
 
-// Export routes (ID 1, 3 only)
+// Export routes (group_ID 1, 3 only)
+Route::middleware(['auth', 'group.access:1,3'])->group(function () {
     Route::get('/payments/export', [PurchasePaymentController::class, 'export'])->name('payments.export');
     Route::get('/purchase-letters/export', [PurchaseLetterController::class, 'export'])->name('purchase_letters.export');
     Route::get('management-report/export', [ManagementReportController::class, 'export'])->name('management.report.export');
     Route::get('/export', [DashboardController::class, 'exportFilteredData'])->name('export.filtered');
     Route::get('/export/customers', [DashboardController::class, 'exportTopCustomers'])->name('export.top.customers');
     Route::get('/export/products', [DashboardController::class, 'exportTopProducts'])->name('export.top.products');
+});
 
 // Admin routes (admin and super_admin roles only)
 Route::middleware(['auth', 'admin.role'])->prefix('admin')->name('admin.')->group(function () {

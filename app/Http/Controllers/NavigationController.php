@@ -40,7 +40,7 @@ class NavigationController extends Controller
     public function loadMenu(): void
     {
         $groups = $this->userGroupIds();
-        
+
         if (empty($groups)) {
             View::share('menuItems', []);
             return;
@@ -48,21 +48,25 @@ class NavigationController extends Controller
 
         $menuItems = [];
 
-        // Group 1: Full Access
+        // ✅ Group 1: Full access (can see everything)
         if (in_array(1, $groups, true)) {
+
+
             $menuItems['Payments'] = [
-                ['label' => 'View', 'route' => 'payments.view'],
-                ['label' => 'Upload', 'route' => 'payments.upload'],
-                ['divider' => true],
-                ['label' => 'Management Report', 'route' => 'management.report'],
+                ['label' => 'View Payments', 'route' => 'payments.view'],
+                ['label' => 'Upload Payments', 'route' => 'payments.upload.form'],
             ];
-            
+
             $menuItems['Purchase Letters'] = [
                 ['label' => 'Table', 'route' => 'purchase_letters.index'],
                 ['label' => 'Chart', 'route' => 'purchase_letters.chart'],
             ];
-            
-            // Admin section only for admins
+
+            $menuItems['Reports'] = [
+                ['label' => 'Management Report', 'route' => 'management.report'],
+            ];
+
+            // Admins only
             if (auth()->user()?->isAdmin() || auth()->user()?->isSuperAdmin()) {
                 $menuItems['Administration'] = [
                     ['label' => 'Admin Panel', 'route' => 'admin.index']
@@ -70,29 +74,43 @@ class NavigationController extends Controller
             }
         }
 
-        // Group 2: Limited Access
-        if (in_array(2, $groups, true) && !in_array(1, $groups, true)) {
-            $menuItems['Management Report'] = [
-                ['label' => 'Management Report', 'route' => 'management.report'],
+        // ✅ Group 2: Upload + Management + Purchase Letters
+        elseif (in_array(2, $groups, true)) {
+
+
+            $menuItems['Payments'] = [
+                ['label' => 'Upload Payments', 'route' => 'payments.upload.form'],
             ];
-            
+
             $menuItems['Purchase Letters'] = [
                 ['label' => 'Table', 'route' => 'purchase_letters.index'],
                 ['label' => 'Chart', 'route' => 'purchase_letters.chart'],
             ];
-        }
 
-        // Group 3: Restricted Access
-        if (in_array(3, $groups, true) && !in_array(1, $groups, true) && !in_array(2, $groups, true)) {
-            $menuItems['Purchase Letters'] = [
-                ['label' => 'Table', 'route' => 'purchase_letters.index'],
+            $menuItems['Reports'] = [
+                ['label' => 'Management Report', 'route' => 'management.report'],
             ];
         }
 
-        // Group 4: Upload Only
-        if (in_array(4, $groups, true) && !in_array(1, $groups, true)) {
+        // ✅ Group 3: View-only (Purchase Letters + Management + Export)
+        elseif (in_array(3, $groups, true)) {
+
+            $menuItems['Purchase Letters'] = [
+                ['label' => 'Table', 'route' => 'purchase_letters.index'],
+                ['label' => 'Chart', 'route' => 'purchase_letters.chart'],
+            ];
+
+            $menuItems['Reports'] = [
+                ['label' => 'Management Report', 'route' => 'management.report'],
+            ];
+        }
+
+        // ✅ Group 4: Upload only
+        elseif (in_array(4, $groups, true)) {
+
+
             $menuItems['Payments'] = [
-                ['label' => 'Upload', 'route' => 'payments.upload'],
+                ['label' => 'Upload Payments', 'route' => 'payments.upload.form'],
             ];
         }
 
