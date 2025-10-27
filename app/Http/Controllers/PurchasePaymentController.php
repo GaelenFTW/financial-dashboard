@@ -330,24 +330,19 @@ class PurchasePaymentController extends Controller
             $q->where('data_year', $r->year);
         } else {
             $q->where('data_year', date('Y'));
-        }
-        
+        } 
         if ($r->filled('month')) {
             $q->where('data_month', $r->month);
         }
-        
         if ($r->filled('project_id')) {
             $q->where('project_id', $r->project_id);
         }
-        
         if ($r->filled('customer')) {
             $q->where('CustomerName', 'like', '%'.$r->customer.'%');
         }
-        
         if ($r->filled('cluster')) {
             $q->where('Cluster', 'like', '%'.$r->cluster.'%');
         }
-        
         if ($r->filled('TypePembelian')) {
             $q->where('TypePembelian', $r->TypePembelian);
         }
