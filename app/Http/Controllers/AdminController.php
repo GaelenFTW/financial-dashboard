@@ -76,6 +76,7 @@ class AdminController extends Controller
             'role' => ['required', new Enum(UserRole::class)],
             'employee_id' => 'nullable|string|max:255',
             'position' => 'nullable|string|max:255',
+            'active' => 'required|boolean',
         ]);
 
         if ($request->filled('password')) {
@@ -93,7 +94,6 @@ class AdminController extends Controller
 
             $projectData = [];
             foreach ($request->projects as $projectId => $data) {
-                // Only add if project_id exists in master_project
                 if (
                     isset($data['assigned']) && 
                     $data['assigned'] && 
@@ -107,10 +107,10 @@ class AdminController extends Controller
 
             $user->projects()->sync($projectData);
         }
-        // dd(request()->input('projects'));
 
         return redirect()->route('admin.users')->with('success', 'User updated successfully!');
     }
+
 
     public function editUserPermissions($id)
     {

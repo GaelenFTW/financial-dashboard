@@ -45,8 +45,19 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
+        // Try to authenticate the user
         if (Auth::attempt($credentials)) {
             $request->session()->regenerate();
+
+            $user = Auth::user();
+
+            // Check if user is inactive
+            if ($user->active != 1) {
+                Auth::logout();
+                return back()->withErrors([
+                    'email' => 'Your account is inactive. Please contact the administrator.',
+                ])->onlyInput('email');
+            }
 
             return redirect('/dashboard')->with('success', 'Login successful!');
         }

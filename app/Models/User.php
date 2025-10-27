@@ -17,7 +17,7 @@ class User extends Authenticatable
     use HasFactory;
 
     protected $fillable = [
-        'name', 'email', 'password', 'permissions', 'adminid', 'role', 'employee_id', 'position',
+        'name', 'email', 'password', 'permissions', 'adminid', 'role', 'employee_id', 'position','active'
     ];
 
     protected $casts = [

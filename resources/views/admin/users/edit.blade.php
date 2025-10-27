@@ -92,6 +92,16 @@
                                    id="position" name="position" value="{{ old('position', $user->position) }}">
                             @error('position') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
+                        
+                        <div class="mb-3">
+                            <label for="active" class="form-label">Account Status <span class="text-danger">*</span></label>
+                            <select class="form-select @error('active') is-invalid @enderror" id="active" name="active" required>
+                                <option value="1" {{ old('active', $user->active) == 1 ? 'selected' : '' }}>Active</option>
+                                <option value="0" {{ old('active', $user->active) == 0 ? 'selected' : '' }}>Inactive</option>
+                            </select>
+                            @error('active') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        </div>
+
 
                         <div class="d-flex gap-2 mt-4">
                             <button type="submit" class="btn btn-primary">
