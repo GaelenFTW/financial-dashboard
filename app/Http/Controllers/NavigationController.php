@@ -40,7 +40,7 @@ class NavigationController extends Controller
     public function loadMenu(): void
     {
         $groups = $this->userGroupIds();
-
+        $user = auth()->user();
         if (empty($groups)) {
             View::share('menuItems', []);
             return;
@@ -48,10 +48,8 @@ class NavigationController extends Controller
 
         $menuItems = [];
 
-        // ✅ Group 1: Full access (can see everything)
+        // Group 1: Full access (can see everything)
         if (in_array(1, $groups, true)) {
-
-
             $menuItems['Payments'] = [
                 ['label' => 'View Payments', 'route' => 'payments.view'],
                 ['label' => 'Upload Payments', 'route' => 'payments.upload.form'],
@@ -74,10 +72,8 @@ class NavigationController extends Controller
             }
         }
 
-        // ✅ Group 2: Upload + Management + Purchase Letters
+        // Group 2: Upload + Management + Purchase Letters
         elseif (in_array(2, $groups, true)) {
-
-
             $menuItems['Payments'] = [
                 ['label' => 'Upload Payments', 'route' => 'payments.upload.form'],
             ];
@@ -92,9 +88,8 @@ class NavigationController extends Controller
             ];
         }
 
-        // ✅ Group 3: View-only (Purchase Letters + Management + Export)
+        // Group 3: View-only (Purchase Letters + Management + Export)
         elseif (in_array(3, $groups, true)) {
-
             $menuItems['Purchase Letters'] = [
                 ['label' => 'Table', 'route' => 'purchase_letters.index'],
                 ['label' => 'Chart', 'route' => 'purchase_letters.chart'],
@@ -105,12 +100,16 @@ class NavigationController extends Controller
             ];
         }
 
-        // ✅ Group 4: Upload only
+        // Group 4: Upload only
         elseif (in_array(4, $groups, true)) {
-
-
             $menuItems['Payments'] = [
                 ['label' => 'Upload Payments', 'route' => 'payments.upload.form'],
+            ];
+        }
+
+        if ($user?->isAdmin() || $user?->isSuperAdmin()) {
+            $menuItems['Administration'] = [
+                ['label' => 'Admin Panel', 'route' => 'admin.index'],
             ];
         }
 
