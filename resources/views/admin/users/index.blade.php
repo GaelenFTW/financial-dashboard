@@ -73,9 +73,10 @@
 
                             <td>
                                 <span class="badge bg-info">
-                                    {{ DB::table('project_user')->where('user_id', $user->id)->count() }}
+                                    {{ DB::table('user_group_access')->where('user_id', $user->id)->distinct('project_id')->count('project_id') }}
                                 </span>
                             </td>
+
                             <td>
                                 <div class="btn-group btn-group-sm" role="group">
                                     <a href="{{ route('admin.users.edit', $user->id) }}" class="btn btn-outline-primary">

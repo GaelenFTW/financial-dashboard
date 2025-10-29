@@ -165,11 +165,5 @@
     </div>
 </div>
 
-    
-    <div class="mb-4 d-flex justify-content-end">
-        <a href="{{ url('/purchase-letters') }}" class="btn btn-outline-primary">
-            Purchase Letters Table
-        </a>
-    </div>
 </div>
 @endsection

@@ -121,13 +121,16 @@
 @push('scripts')
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
 <script>
-document.querySelectorAll('.project-checkbox').forEach(cb => {
-    cb.addEventListener('change', function() {
-        const select = this.closest('li').querySelector('.project-role-select');
-        select.disabled = !this.checked;
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.project-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const select = this.closest('li')?.querySelector('.project-role-select');
+            if (select) select.disabled = !this.checked;
+        });
     });
 });
 </script>
+
 @endpush
 @endsection
     

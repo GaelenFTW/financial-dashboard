@@ -21,7 +21,6 @@
 
     <div class="row justify-content-center">
         <div class="col-md-10">
-            {{-- ✅ Only ONE form --}}
             <form action="{{ route('admin.users.permissions.update', $user->id) }}" method="POST">
                 @csrf
 
@@ -42,6 +41,14 @@
                         <div class="card-body">
                             <p class="text-muted mb-3">Assign this user to specific projects.</p>
 
+                            @php
+                                // Fetch all assigned project IDs directly from user_group_access
+                                $assignedProjects = \Illuminate\Support\Facades\DB::table('user_group_access')
+                                    ->where('user_id', $user->id)
+                                    ->pluck('project_id')
+                                    ->toArray();
+                            @endphp
+
                             @if($projects->count() > 0)
                                 <div class="table-responsive">
                                     <table class="table table-hover align-middle">
@@ -55,7 +62,7 @@
                                         <tbody>
                                             @foreach($projects as $project)
                                                 @php
-                                                    $isAssigned = $user->projects->contains('project_id', $project->project_id);
+                                                    $isAssigned = in_array($project->project_id, $assignedProjects);
                                                 @endphp
                                                 <tr>
                                                     <td>
@@ -130,7 +137,6 @@
                                     <tbody>
                                         @foreach($menus as $menu)
                                         <tr>
-                                            {{-- Each menu has its own unique ID --}}
                                             <td class="text-center">
                                                 <input type="hidden" name="permissions[{{ $menu->menu_id }}][menu]" value="0">
                                                 <input type="checkbox"
@@ -141,7 +147,6 @@
                                             </td>
                                             <td><strong>{{ ucfirst($menu->menu_name) }}</strong></td>
                                             <td><code>{{ $menu->link }}</code></td>
-
                                             @foreach(['create','read','update','delete'] as $actionName)
                                                 <td class="text-center">
                                                     <input type="hidden" name="permissions[{{ $menu->menu_id }}][{{ $actionName }}]" value="0">
@@ -153,7 +158,6 @@
                                             @endforeach
                                         </tr>
                                         @endforeach
-
                                     </tbody>
                                 </table>
                             </div>
@@ -175,19 +179,16 @@
     </div>
 </div>
 
-
 @push('scripts')
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
 <script>
-document.querySelectorAll('.project-checkbox').forEach(cb => {
-    cb.addEventListener('change', function() {
-        const row = this.closest('tr');
-        const select = row.querySelector('.project-role-select');
-        if (this.checked) {
-            select.removeAttribute('disabled');
-        } else {
-            select.setAttribute('disabled', true);
-        }
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.project-checkbox').forEach(cb => {
+        cb.addEventListener('change', function() {
+            const row = this.closest('tr');
+            const select = row?.querySelector('.project-role-select');
+            if (select) select.disabled = !this.checked;
+        });
     });
 });
 </script>
