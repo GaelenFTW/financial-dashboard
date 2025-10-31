@@ -45,10 +45,6 @@ trait ChecksAdminAccess
             ->exists();
     }
 
-    /**
-     * Check if current user can manage projects
-     * Requires BOTH: admin/super_admin role AND group_id = 1
-     */
     protected function canManageProjects(): bool
     {
         return $this->hasAdminRole() && $this->isInAdminGroup();

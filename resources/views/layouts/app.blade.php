@@ -57,32 +57,31 @@
             </a>
 
             <!-- ✅ Dynamic dropdown -->
-@auth
-@if(!empty($menuItems))
-<ul class="navbar-nav ms-3">
-    <li class="nav-item dropdown">
-        <a class="nav-link dropdown-toggle text-white" href="#" id="menuDropdown"
-           role="button" data-bs-toggle="dropdown" aria-expanded="false">
-            ☰ Menu
-        </a>
-        <ul class="dropdown-menu" aria-labelledby="menuDropdown">
-            @foreach($menuItems as $section => $items)
-                <li><h6 class="dropdown-header">{{ $section }}</h6></li>
-                @foreach($items as $item)
-                    @if(isset($item['divider']))
-                        <li><hr class="dropdown-divider"></li>
-                    @else
-                        <li><a class="dropdown-item" href="{{ route($item['route']) }}">{{ $item['label'] }}</a></li>
-                    @endif
-                @endforeach
-                <li><hr class="dropdown-divider"></li>
-            @endforeach
-        </ul>
-    </li>
-</ul>
-@endif
-@endauth
-
+            @auth
+            @if(!empty($menuItems))
+            <ul class="navbar-nav ms-3">
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle text-white" href="#" id="menuDropdown"
+                       role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        ☰ Menu
+                    </a>
+                    <ul class="dropdown-menu" aria-labelledby="menuDropdown">
+                        @foreach($menuItems as $section => $items)
+                            <li><h6 class="dropdown-header">{{ $section }}</h6></li>
+                            @foreach($items as $item)
+                                @if(isset($item['divider']))
+                                    <li><hr class="dropdown-divider"></li>
+                                @else
+                                    <li><a class="dropdown-item" href="{{ route($item['route']) }}">{{ $item['label'] }}</a></li>
+                                @endif
+                            @endforeach
+                            <li><hr class="dropdown-divider"></li>
+                        @endforeach
+                    </ul>
+                </li>
+            </ul>
+            @endif
+            @endauth
 
             <!-- Toggle and auth controls -->
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse"

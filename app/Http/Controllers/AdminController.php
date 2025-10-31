@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\MasterProject;
-use App\Models\Project; // ✅ This line fixes your current error
+use App\Models\Project;
 use App\Models\Menu;
 use App\Models\Action;
 use Illuminate\Support\Facades\DB;
@@ -131,8 +131,6 @@ class AdminController extends Controller
         return view('admin.users.permissions', compact('user', 'projects', 'menus', 'actions', 'userAccesses', 'groups'));
     }
 
-    // public function updateUserPermissions(Request $request, $userId)
-    // {
     public function updateUserPermissions(Request $request, $userId)
     {
         // Validate incoming payload from resources/views/admin/users/permissions.blade.php

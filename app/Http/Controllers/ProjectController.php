@@ -15,9 +15,6 @@ class ProjectController extends Controller
         $this->permissionService = $permissionService;
     }
 
-    /**
-     * Display a listing of projects
-     */
     public function index(Request $request)
     {
         $userId = $request->user()->id; // or however you get the authenticated user
@@ -103,9 +100,6 @@ class ProjectController extends Controller
         return response()->json($project);
     }
 
-    /**
-     * Update the specified project
-     */
     public function update(Request $request, $id)
     {
         $userId = $request->user()->id;

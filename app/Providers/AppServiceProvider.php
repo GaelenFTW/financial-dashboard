@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\View;
+use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\NavigationController;
 
 class AppServiceProvider extends ServiceProvider
@@ -15,14 +16,14 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        // Share navigation menu with all views
+        // Compose on every view render — ensures auth()->id() is available
         View::composer('*', function ($view) {
-            if (auth()->check()) {
-                $navController = new NavigationController();
-                $navController->loadMenu();
-            } else {
-                View::share('menuItems', []);
+            $menu = [];
+            if (Auth::check()) {
+                $menu = app(NavigationController::class)->buildMenuForUser(Auth::id());
             }
+            // Share EXACT menu for the current user
+            $view->with('menuItems', $menu);
         });
     }
 }

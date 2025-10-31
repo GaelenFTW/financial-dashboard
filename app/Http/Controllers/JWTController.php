@@ -42,7 +42,7 @@ class JWTController extends Controller
         }
     }
 
-    /** Generic login method */
+    //login
     public function login($apiKey, $username = '1234567890', $password = '1234567890', $loginReplace = null)
     {
         try {
