@@ -20,25 +20,29 @@ Route::get('/', function () {
     return redirect('/dashboard');
 });
 
+// Dashboard - all authenticated users
 Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard')->middleware('auth');
 
-
-// Upload routes (group_ID 1, 2 only)
-Route::middleware(['auth', 'group.access:1,2'])->group(function () {
+// Upload routes (group_id 1, 2, 4)
+Route::middleware(['auth', 'check.group:1,2,4'])->group(function () {
     Route::get('/payments/upload', [PurchasePaymentController::class, 'uploadForm'])->name('payments.upload.form');
     Route::post('/payments/upload', [PurchasePaymentController::class, 'upload'])->name('payments.upload');
 });
 
-// View routes (group_ID 1, 3 only)
-Route::middleware(['auth', 'group.access:1,3'])->group(function () {
+// View routes (group_id 1, 2, 3)
+Route::middleware(['auth', 'check.group:1,2,3'])->group(function () {
     Route::get('/purchase-letters', [PurchaseLetterController::class, 'index'])->name('purchase_letters.index');
     Route::get('/purchase-letters/chart', [PurchaseLetterController::class, 'chart'])->name('purchase_letters.chart');
     Route::get('/management-report', [ManagementReportController::class, 'index'])->name('management.report');
+});
+
+// View payments (group_id 1 only)
+Route::middleware(['auth', 'check.group:1'])->group(function () {
     Route::get('/payments/view', [PurchasePaymentController::class, 'view'])->name('payments.view');
 });
 
-// Export routes (group_ID 1, 3 only)
-Route::middleware(['auth', 'group.access:1,3'])->group(function () {
+// Export routes (group_id 1, 2, 3)
+Route::middleware(['auth', 'check.group:1,2,3'])->group(function () {
     Route::get('/payments/export', [PurchasePaymentController::class, 'export'])->name('payments.export');
     Route::get('/purchase-letters/export', [PurchaseLetterController::class, 'export'])->name('purchase_letters.export');
     Route::get('management-report/export', [ManagementReportController::class, 'export'])->name('management.report.export');
@@ -63,8 +67,7 @@ Route::middleware(['auth', 'admin.role'])->prefix('admin')->name('admin.')->grou
     Route::post('/users/{user}/permissions', [AdminController::class, 'updateUserPermissions'])
         ->name('users.permissions.update');
 
-    // ✅ Projects CRUD (requires group_id = 1)
-    // These routes have additional check inside the controller methods
+    // Projects CRUD (all admins can access)
     Route::get('/projects', [AdminController::class, 'projects'])->name('projects');
     Route::get('/projects/create', [AdminController::class, 'createProject'])->name('projects.create');
     Route::post('/projects', [AdminController::class, 'storeProject'])->name('projects.store');

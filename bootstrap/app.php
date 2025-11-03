@@ -14,7 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'user.permission' => \App\Http\Middleware\CheckUserPermission::class,
             'admin.role'      => \App\Http\Middleware\AdminRoleMiddleware::class, // ✅ fixed
-            'group.access' => \App\Http\Middleware\CheckGroupAccess::class,
+            'check.group' => \App\Http\Middleware\CheckGroupAccess::class,
 
 
         ]);
