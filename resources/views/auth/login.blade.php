@@ -19,8 +19,7 @@
         justify-content: center;
         align-items: center;
     }
-
-
+    
     /* The centered card */
     .auth-card {
         position: relative;

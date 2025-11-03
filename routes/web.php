@@ -37,10 +37,10 @@ Route::middleware(['auth', 'check.group:1,2,3'])->group(function () {
 });
 
 // View payments (group_id 1 only)
-Route::middleware(['auth', 'check.group:1'])->group(function () {
+Route::middleware(['auth', 'check.group:1,4'])->group(function () {
     Route::get('/payments/view', [PurchasePaymentController::class, 'view'])->name('payments.view');
 });
-
+ 
 // Export routes (group_id 1, 2, 3)
 Route::middleware(['auth', 'check.group:1,2,3'])->group(function () {
     Route::get('/payments/export', [PurchasePaymentController::class, 'export'])->name('payments.export');

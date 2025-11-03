@@ -23,7 +23,6 @@ class CheckGroupAccess
     {
         $user = Auth::user();
 
-        // Redirect to login if not authenticated
         if (!$user) {
             return redirect()->route('login.form')->with('error', 'Please login to access this page.');
         }
@@ -36,7 +35,6 @@ class CheckGroupAccess
         // Convert allowed groups to integers for strict comparison
         $allowedGroups = array_map('intval', $allowedGroups);
 
-        // Get user's group IDs with caching
         $userGroupIds = $this->getUserGroupIds($user->id);
 
         // Check if user belongs to at least one allowed group

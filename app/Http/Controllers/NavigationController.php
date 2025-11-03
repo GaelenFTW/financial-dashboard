@@ -8,9 +8,6 @@ use Illuminate\Support\Facades\DB;
 
 class NavigationController extends Controller
 {
-    /**
-     * Get unique group IDs for a user (regardless of project)
-     */
     protected function userGroupIds(?int $userId = null): array
     {
         $uid = $userId ?? Auth::id() ?? 0;
@@ -89,6 +86,8 @@ class NavigationController extends Controller
         // Group 4 - Upload Payments Only
         if (in_array(4, $groups, true)) {
             $menu['Payments'][] = ['label' => 'Upload Payments', 'route' => 'payments.upload.form'];
+            $menu['Payments'][] = ['label' => 'View Payments', 'route' => 'payments.view'];
+
         }
 
         // Admin section - check user role
