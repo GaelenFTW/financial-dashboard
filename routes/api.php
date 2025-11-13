@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\PurchaseLetterController;
+use App\Http\Controllers\Api\PurchasePaymentController; // <-- add missing import
 use Illuminate\Support\Facades\Route;
 
 // Public routes

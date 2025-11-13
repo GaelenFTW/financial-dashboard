@@ -41,11 +41,6 @@ class PurchasePaymentController extends Controller
         $allowedIds = $this->getAllowedProjectIds();
         $allProjects = app(\App\Http\Controllers\JWTController::class)->projectsMap();
         
-        // If user has access to project 999999, return all projects
-        if (in_array(999999, $allowedIds, true)) {
-            return $allProjects;
-        }
-        
         // Filter projects based on allowed IDs
         return array_filter($allProjects, function($key) use ($allowedIds) {
             return in_array((int)$key, $allowedIds, true);
@@ -60,12 +55,7 @@ class PurchasePaymentController extends Controller
         if (empty($allowedIds)) {
             return $query->whereRaw('1 = 0');
         }
-        
-        // If user has access to project 999999, no filter needed
-        if (!in_array(999999, $allowedIds, true)) {
-            $query->whereIn('project_id', $allowedIds);
-        }
-        
+
         return $query;
     }
 
@@ -75,7 +65,7 @@ class PurchasePaymentController extends Controller
     protected function canAccessProject(int $projectId): bool
     {
         $allowedIds = $this->getAllowedProjectIds();
-        return in_array(999999, $allowedIds, true) || in_array($projectId, $allowedIds, true);
+        return in_array($projectId, $allowedIds, true);
     }
 
     protected function parseDate($raw)
