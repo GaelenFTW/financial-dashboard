@@ -21,7 +21,7 @@ Route::get('/', function () {
 });
 
 // Dashboard - all authenticated users
-Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard')->middleware('auth');
+Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
 // Upload routes (group_id 1, 2, 4)
 Route::middleware(['auth', 'check.group:1,2,4'])->group(function () {
