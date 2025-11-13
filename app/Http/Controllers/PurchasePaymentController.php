@@ -35,9 +35,6 @@ class PurchasePaymentController extends Controller
         return $projects;
     }
 
-    /**
-     * Get allowed projects list for dropdowns
-     */
     protected function getAllowedProjects(): array
     {
         $allowedIds = $this->getAllowedProjectIds();
@@ -54,9 +51,6 @@ class PurchasePaymentController extends Controller
         }, ARRAY_FILTER_USE_KEY);
     }
 
-    /**
-     * Apply project filter to query (independent of group_id)
-     */
     protected function applyProjectFilter($query)
     {
         $allowedIds = $this->getAllowedProjectIds();

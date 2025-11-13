@@ -38,7 +38,7 @@ class Group extends Model
     {
         return $query->where('active', 1);
     }
-
+        
     // Get all permissions for this group
     public function getPermissions()
     {
