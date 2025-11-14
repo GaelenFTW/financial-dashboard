@@ -73,8 +73,8 @@ Route::middleware('auth:sanctum')->prefix('admin')->group(function () {
     Route::get('/users/{user}/edit', [AdminController::class, 'editUser']);
     Route::put('/users/{user}', [AdminController::class, 'updateUser']);
     Route::delete('/users/{user}', [AdminController::class, 'destroyUser']);
-    Route::get('/users/{id}/permissions', [AdminController::class, 'editUserPermissions']);
-    Route::post('/users/{id}/permissions', [AdminController::class, 'updateUserPermissions']);
+    Route::get('/users/{id}/permissions', [AdminController::class, 'editUserPermissions']) ->name('users.permissions');
+    Route::post('/users/{id}/permissions', [AdminController::class, 'updateUserPermissions']) ->name('users.permissions.update');
     
     Route::get('/projects', [AdminController::class, 'projects']);
     Route::get('/projects/create', [AdminController::class, 'createProject']);

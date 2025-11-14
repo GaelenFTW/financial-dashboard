@@ -62,8 +62,7 @@ Route::middleware(['auth', 'check.group:1,4'])->group(function () {
     Route::get('/users/{user}/edit', [AdminController::class, 'editUser'])->name('users.edit');
     Route::put('/users/{user}', [AdminController::class, 'updateUser'])->name('users.update');
     Route::delete('/users/{user}', [AdminController::class, 'destroyUser'])->name('users.destroy');
-    Route::get('/users/{user}/permissions', [AdminController::class, 'editUserPermissions'])
-        ->name('users.permissions');
+    Route::get('/users/{user}/permissions', [AdminController::class, 'editUserPermissions'])->name('users.permissions');
     Route::post('/users/{user}/permissions', [AdminController::class, 'updateUserPermissions'])
         ->name('users.permissions.update');
 
