@@ -21,20 +21,20 @@ Route::get('/', function () {
 });
 
 // Dashboard - all authenticated users
-Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard')->middleware('auth');
+Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
 // Upload routes (group_id 1, 2, 4)
-Route::middleware(['auth', 'check.group:1,2,4'])->group(function () {
+// Route::middleware(['auth', 'check.group:1,2,4'])->group(function () {
     Route::get('/payments/upload', [PurchasePaymentController::class, 'uploadForm'])->name('payments.upload.form');
     Route::post('/payments/upload', [PurchasePaymentController::class, 'upload'])->name('payments.upload');
-});
+// });
 
 // View routes (group_id 1, 2, 3)
-Route::middleware(['auth', 'check.group:1,2,3'])->group(function () {
+// Route::middleware(['auth', 'check.group:1,2,3'])->group(function () {
     Route::get('/purchase-letters', [PurchaseLetterController::class, 'index'])->name('purchase_letters.index');
     Route::get('/purchase-letters/chart', [PurchaseLetterController::class, 'chart'])->name('purchase_letters.chart');
     Route::get('/management-report', [ManagementReportController::class, 'index'])->name('management.report');
-});
+// });
 
 // View payments (group_id 1 only)
 Route::middleware(['auth', 'check.group:1,4'])->group(function () {
@@ -42,17 +42,17 @@ Route::middleware(['auth', 'check.group:1,4'])->group(function () {
 });
  
 // Export routes (group_id 1, 2, 3)
-Route::middleware(['auth', 'check.group:1,2,3'])->group(function () {
+// Route::middleware(['auth', 'check.group:1,2,3'])->group(function () {
     Route::get('/payments/export', [PurchasePaymentController::class, 'export'])->name('payments.export');
     Route::get('/purchase-letters/export', [PurchaseLetterController::class, 'export'])->name('purchase_letters.export');
     Route::get('management-report/export', [ManagementReportController::class, 'export'])->name('management.report.export');
     Route::get('/export', [DashboardController::class, 'exportFilteredData'])->name('export.filtered');
     Route::get('/export/customers', [DashboardController::class, 'exportTopCustomers'])->name('export.top.customers');
     Route::get('/export/products', [DashboardController::class, 'exportTopProducts'])->name('export.top.products');
-});
+// });
 
 // Admin routes (admin and super_admin roles only)
-Route::middleware(['auth', 'admin.role'])->prefix('admin')->name('admin.')->group(function () {
+// Route::middleware(['auth', 'admin.role'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', [AdminController::class, 'index'])->name('index');
     
     // Users management (all admins can access)
@@ -74,4 +74,4 @@ Route::middleware(['auth', 'admin.role'])->prefix('admin')->name('admin.')->grou
     Route::get('/projects/{project}/edit', [AdminController::class, 'editProject'])->name('projects.edit');
     Route::put('/projects/{project}', [AdminController::class, 'updateProject'])->name('projects.update');
     Route::delete('/projects/{project}', [AdminController::class, 'destroyProject'])->name('projects.destroy');
-});
+// });
