@@ -27,10 +27,23 @@ class AdminController extends Controller
         return response()->json(['view' => 'admin.index', 'data' => compact('usersCount', 'projectsCount')]);
     }
 
-    public function users()
+    public function users(Request $request)
     {
-        $users = User::with('projects')->paginate(20);
-        
+        $search = $request->input('search');
+
+        $query = User::with('projects');
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'LIKE', "%{$search}%")
+                ->orWhere('email', 'LIKE', "%{$search}%")
+                ->orWhere('employee_id', 'LIKE', "%{$search}%")
+                ->orWhere('position', 'LIKE', "%{$search}%");
+            });
+        }
+
+        $users = $query->paginate(20);
+
         return response()->json(['view' => 'admin.users.index', 'data' => compact('users')]);
     }
 
@@ -223,11 +236,26 @@ class AdminController extends Controller
     }
 
     // Display projects
-    public function projects()
+    public function projects(Request $request)
     {
-        $projects = MasterProject::paginate(20);
+        $search = $request->input('search');
+
+        $query = MasterProject::query();
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('project_id', 'LIKE', "%{$search}%")
+                ->orWhere('code', 'LIKE', "%{$search}%")
+                ->orWhere('name', 'LIKE', "%{$search}%")
+                ->orWhere('sh', 'LIKE', "%{$search}%");
+            });
+        }
+
+        $projects = $query->paginate(20);
+
         return response()->json(['view' => 'admin.projects.index', 'data' => compact('projects')]);
     }
+
 
     public function createProject()
     {

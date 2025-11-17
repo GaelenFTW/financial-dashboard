@@ -212,18 +212,25 @@ class ManagementReportController extends Controller
             }
         }
 
-        // Filter targets by current project
+        // Filter targets by current project (or sum all if no project selected)
         $filteredTargets = [];
-        if (! empty($projectId) && is_array($rows4)) {
+        if (is_array($rows4)) {
             foreach ($rows4 as $r) {
-                if ((int) ($r['project_id'] ?? 0) === (int) $projectId) {
+                // If project is selected, only include matching project
+                // If no project selected, aggregate all projects
+                if (empty($projectId) || (int) ($r['project_id'] ?? 0) === (int) $projectId) {
                     $month = (int) ($r['bulan'] ?? 0);
                     if ($month >= 1 && $month <= 12) {
-                        $filteredTargets[$month] = [
-                            'cash' => $parseNumber($r['collection_target_cash_v'] ?? 0),
-                            'inhouse' => $parseNumber($r['collection_target_inhouse_v'] ?? 0),
-                            'kpr' => $parseNumber($r['collection_target_kpr_v'] ?? 0),
-                        ];
+                        if (!isset($filteredTargets[$month])) {
+                            $filteredTargets[$month] = [
+                                'cash' => 0,
+                                'inhouse' => 0,
+                                'kpr' => 0,
+                            ];
+                        }
+                        $filteredTargets[$month]['cash'] += $parseNumber($r['collection_target_cash_v'] ?? 0);
+                        $filteredTargets[$month]['inhouse'] += $parseNumber($r['collection_target_inhouse_v'] ?? 0);
+                        $filteredTargets[$month]['kpr'] += $parseNumber($r['collection_target_kpr_v'] ?? 0);
                     }
                 }
             }
