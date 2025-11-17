@@ -481,13 +481,18 @@ class ManagementReportController extends Controller
         $projectId = $request->input('project_id');
 
         $response = $this->index($request);
-        if ($response instanceof \Illuminate\View\View) {
-            $data = $response->getData();
+
+        // JsonResponse has ->getData(true)
+        if ($response instanceof \Illuminate\Http\JsonResponse) {
+            $data = $response->getData(true); // returns array
         } elseif ($response instanceof \Illuminate\Http\Response) {
-            $data = $response->getOriginalContent()->getData();
+            $data = $response->getOriginalContent();
+        } elseif ($response instanceof \Illuminate\View\View) {
+            $data = $response->getData();
         } else {
             $data = [];
         }
+
 
         $spreadsheet = new Spreadsheet;
 

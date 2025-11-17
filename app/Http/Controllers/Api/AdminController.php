@@ -68,10 +68,14 @@ class AdminController extends Controller
 
         $validated['password'] = Hash::make($validated['password']);
 
-        User::create($validated);
+        $user = User::create($validated);
 
-        return redirect()->route('admin.users')->with('success', 'User created successfully!');
+        return response()->json([
+            'message' => 'User created successfully!',
+            'user' => $user
+        ], 201);
     }
+
 
     //edit user view (get)
     public function editUser(User $user)
@@ -103,16 +107,16 @@ class AdminController extends Controller
 
         $user->update($validated);
 
-        // Filter & sync valid project assignments
+        // Sync Projects
         if ($request->has('projects')) {
-            $validProjectIds = \DB::table('master_project')->pluck('project_id')->toArray();
+            $validProjectIds = DB::table('master_project')->pluck('project_id')->toArray();
 
             $projectData = [];
             foreach ($request->projects as $projectId => $data) {
                 if (
-                    isset($data['assigned']) && 
-                    $data['assigned'] && 
-                    in_array((int) $projectId, $validProjectIds)
+                    isset($data['assigned']) &&
+                    $data['assigned'] &&
+                    in_array((int)$projectId, $validProjectIds)
                 ) {
                     $projectData[$projectId] = [
                         'role' => $data['role'] ?? ProjectRole::VIEWER->value,
@@ -123,8 +127,12 @@ class AdminController extends Controller
             $user->projects()->sync($projectData);
         }
 
-        return redirect()->route('admin.users')->with('success', 'User updated successfully!');
+        return response()->json([
+            'message' => 'User updated successfully!',
+            'user' => $user
+        ]);
     }
+
 
 
     public function editUserPermissions($id)
@@ -148,7 +156,6 @@ class AdminController extends Controller
 
     public function updateUserPermissions(Request $request, $userId)
     {
-        // Validate incoming payload from resources/views/admin/users/permissions.blade.php
         $validated = $request->validate([
             'group_id' => 'required|integer|exists:groups,group_id',
             'projects' => 'sometimes|array',
@@ -160,17 +167,14 @@ class AdminController extends Controller
         $projectsInput = $validated['projects'] ?? [];
         $permissionsInput = $validated['permissions'] ?? [];
 
-        // Collect selected project IDs (checkbox checked => "1")
         $selectedProjectIds = collect($projectsInput)
-            ->filter(fn ($v) => (int)($v['assigned'] ?? 0) === 1)
+            ->filter(fn ($v) => (int) ($v['assigned'] ?? 0) === 1)
             ->keys()
             ->map(fn ($k) => (int) $k)
             ->values();
 
-        // Map action_name => action_id for CRUD actions
-        $actionMap = DB::table('actions')->pluck('action_id', 'action'); // e.g. create/read/update/delete
+        $actionMap = DB::table('actions')->pluck('action_id', 'action');
 
-        // Build permissions to sync for the selected group
         $compiledPermissions = [];
         foreach ($permissionsInput as $menuId => $flags) {
             foreach (['create', 'read', 'update', 'delete'] as $actionName) {
@@ -184,7 +188,6 @@ class AdminController extends Controller
         }
 
         DB::transaction(function () use ($userId, $groupId, $selectedProjectIds, $compiledPermissions) {
-            // 1) Replace user project access for this user
             DB::table('user_group_access')->where('user_id', $userId)->delete();
 
             if ($selectedProjectIds->isNotEmpty()) {
@@ -192,37 +195,33 @@ class AdminController extends Controller
                 $rows = $selectedProjectIds->map(fn ($pid) => [
                     'user_id'    => $userId,
                     'group_id'   => $groupId,
-                    'project_id' => $pid, // references master_project.project_id
+                    'project_id' => $pid,
                     'created_at' => $now,
                     'updated_at' => $now,
-                ])->all();
-
-                DB::table('user_group_access')->insert($rows);
+                ]);
+                DB::table('user_group_access')->insert($rows->all());
             }
 
-            // 2) Sync group menu/action permissions for the chosen group
             DB::table('access_groups')->where('group_id', $groupId)->delete();
 
             if (!empty($compiledPermissions)) {
                 $now = now();
-                $rows = array_map(function ($p) use ($groupId, $now) {
-                    return [
-                        'group_id'   => $groupId,
-                        'menu_id'    => $p['menu_id'],
-                        'action_id'  => $p['action_id'],
-                        'created_at' => $now,
-                        'updated_at' => $now,
-                    ];
-                }, $compiledPermissions);
+                $rows = array_map(fn ($p) => [
+                    'group_id'   => $groupId,
+                    'menu_id'    => $p['menu_id'],
+                    'action_id'  => $p['action_id'],
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ], $compiledPermissions);
 
                 DB::table('access_groups')->insert($rows);
             }
         });
 
-        return redirect()->route('admin.users.permissions', $userId)
-            ->with('success', 'User permissions updated successfully.');
+        return response()->json([
+            'message' => 'User permissions updated successfully.'
+        ]);
     }
-
 
     public function destroyUser(User $user)
     {
@@ -271,10 +270,14 @@ class AdminController extends Controller
             'name' => 'required|string|max:255',
         ]);
 
-        MasterProject::create($validated);
+        $project = MasterProject::create($validated);
 
-        return redirect()->route('admin.projects')->with('success', 'Project created successfully!');
+        return response()->json([
+            'message' => 'Project created successfully!',
+            'project' => $project
+        ], 201);
     }
+
 
     public function editProject(MasterProject $project)
     {
@@ -292,8 +295,12 @@ class AdminController extends Controller
 
         $project->update($validated);
 
-        return redirect()->route('admin.projects')->with('success', 'Project updated successfully!');
+        return response()->json([
+            'message' => 'Project updated successfully!',
+            'project' => $project
+        ]);
     }
+
 
     public function destroyProject(MasterProject $project)
     {
