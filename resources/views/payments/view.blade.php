@@ -73,7 +73,7 @@
                                 </select>
                             </div>
 
-                            {{-- Project Filter --}}
+                            {-- Project Filter --}
                             <div class="col-md-3">
                                 <label class="form-label">Project</label>
                                 <select name="project_id" class="form-select">

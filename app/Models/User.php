@@ -6,6 +6,7 @@ use App\Enums\ProjectRole;
 use App\Enums\UserRole;
 use App\Models\Permission;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -144,4 +145,6 @@ class User extends Authenticatable
     public function canExport(){
         return $this->permissions == 1 || $this->permissions == 3;
     }
+
+    use SoftDeletes;
 }

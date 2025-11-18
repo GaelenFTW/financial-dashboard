@@ -17,11 +17,12 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::middleware('auth:sanctum')->group(function () {
 
     // Auth
+    Route::post('/admin', [AuthController::class, 'index']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', [AuthController::class, 'user']);
 
     // Payments (protected)
-Route::get('/purchase-payments/upload-form', [PurchasePaymentController::class, 'uploadForm']);
+    Route::get('/purchase-payments/upload-form', [PurchasePaymentController::class, 'uploadForm']);
     Route::get('/purchase-payments', [PurchasePaymentController::class, 'view']);
     Route::get('/purchase-payments/export', [PurchasePaymentController::class, 'export']);
     Route::post('/purchase-payments/upload', [PurchasePaymentController::class, 'upload']);
