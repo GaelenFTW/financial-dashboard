@@ -1,5 +1,8 @@
 <?php
 
+
+use App\Models\User;
+use App\Models\Project;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\PurchaseLetterController;
@@ -8,19 +11,9 @@ use App\Http\Controllers\Api\ManagementReportController;
 use App\Http\Controllers\Api\AdminController;
 use Illuminate\Support\Facades\Route;
 
-/*
-|--------------------------------------------------------------------------
-| Public Routes
-|--------------------------------------------------------------------------
-*/
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
 
-/*
-|--------------------------------------------------------------------------
-| Protected Routes (Needs Sanctum Token)
-|--------------------------------------------------------------------------
-// */
 Route::middleware('auth:sanctum')->group(function () {
 
     // Auth
@@ -34,31 +27,16 @@ Route::get('/purchase-payments/upload-form', [PurchasePaymentController::class, 
     Route::post('/purchase-payments/upload', [PurchasePaymentController::class, 'upload']);
 });
 
-/*
-|--------------------------------------------------------------------------
-| Public Dashboard Routes
-|--------------------------------------------------------------------------
-*/
 Route::get('/dashboard', [DashboardController::class, 'index']);
 Route::get('/dashboard/export', [DashboardController::class, 'exportFilteredData']);
 Route::get('/dashboard/export/customers', [DashboardController::class, 'exportTopCustomers']);
 Route::get('/dashboard/export/products', [DashboardController::class, 'exportTopProducts']);
 
-/*
-|--------------------------------------------------------------------------
-| Public Purchase Letters
-|--------------------------------------------------------------------------
-*/
 Route::get('/purchase-letters', [PurchaseLetterController::class, 'index']);
 Route::get('/purchase-letters/chart', [PurchaseLetterController::class, 'chart']);
 Route::get('/purchase-letters/export', [PurchaseLetterController::class, 'export']);
 Route::get('/purchase-letters/{id}', [PurchaseLetterController::class, 'show']);
 
-/*
-|--------------------------------------------------------------------------
-| Public Management Report
-|--------------------------------------------------------------------------
-*/
 Route::get('/management-report', [ManagementReportController::class, 'index']);
 Route::get('/management-report/export', [ManagementReportController::class, 'export']);
 
@@ -87,4 +65,12 @@ Route::middleware('auth:sanctum')->prefix('admin')->group(function () {
     Route::get('/projects/{project}/edit', [AdminController::class, 'editProject']);
     Route::put('/projects/{project}', [AdminController::class, 'updateProject']);
     Route::delete('/projects/{project}', [AdminController::class, 'destroyProject']);
+});
+
+Route::get('/system-overview', function () {
+    return response()->json([
+        'totalUsers'     => User::where('active', true)->count(),
+        'activeProjects' => Project::count(),
+
+    ]);
 });
