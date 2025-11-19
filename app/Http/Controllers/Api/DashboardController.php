@@ -47,6 +47,41 @@ class DashboardController extends Controller
         ]);
     }
 
+    public function salesTrend(Request $request)
+    {
+        $query = PurchasePayment::query();
+        $query = $this->applyFilters($query, $request);
+        $payments = $query->get();
+
+        // Group by year and project (type_unit)
+        $trendData = [];
+        $projects = $payments->pluck('project_id')->unique()->values();
+
+        foreach ($payments->groupBy(function($item) {
+            return date('Y', strtotime($item->PurchaseDate));
+        }) as $year => $yearPayments) {
+            $dataPoint = ['year' => $year];
+            
+            foreach ($projects as $project) {
+                $revenue = $yearPayments->where('project_id', $project)
+                    ->sum('HrgJualTotal') / 1000000; // Convert to millions
+                $dataPoint[$project] = $revenue;
+            }
+            
+            $trendData[] = $dataPoint;
+        }
+
+        // Sort by year
+        usort($trendData, function($a, $b) {
+            return $a['year'] <=> $b['year'];
+        });
+
+        return response()->json([
+            'trendData' => $trendData,
+            'projects' => $projects->toArray()
+        ]);
+    }
+
     public function exportTopCustomers(Request $request)
     {
         $query = PurchasePayment::query();

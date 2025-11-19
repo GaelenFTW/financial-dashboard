@@ -29,6 +29,7 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 Route::get('/dashboard', [DashboardController::class, 'index']);
+Route::get('/dashboard/sales-trend', [DashboardController::class, 'salesTrend']);
 Route::get('/dashboard/export', [DashboardController::class, 'exportFilteredData']);
 Route::get('/dashboard/export/customers', [DashboardController::class, 'exportTopCustomers']);
 Route::get('/dashboard/export/products', [DashboardController::class, 'exportTopProducts']);
