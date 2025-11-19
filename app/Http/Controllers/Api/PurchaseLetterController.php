@@ -107,7 +107,12 @@ class PurchaseLetterController extends Controller
         $query->orderBy('PurchaseDate', 'desc');
 
         // Paginate
-        $letters = $query->paginate(10)->appends(['search' => $search]);
+        $perPage = (int) $request->get('per_page', 10);
+
+        $letters = $query->paginate($perPage)->appends([
+            'search' => $search,
+            'per_page' => $perPage
+        ]);
 
         return response()->json([
             'data' => $letters->items(),

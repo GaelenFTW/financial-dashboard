@@ -76,7 +76,6 @@ class AdminController extends Controller
         ], 201);
     }
 
-
     //edit user view (get)
     public function editUser(User $user)
     {
@@ -132,8 +131,6 @@ class AdminController extends Controller
             'user' => $user
         ]);
     }
-
-
 
     public function editUserPermissions($id)
     {
@@ -300,7 +297,6 @@ class AdminController extends Controller
             'project' => $project
         ]);
     }
-
 
     public function destroyProject(MasterProject $project)
     {

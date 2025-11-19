@@ -23,34 +23,22 @@ class AuthController extends Controller
                 'name' => $validated['name'],
                 'email' => $validated['email'],
                 'password' => Hash::make($validated['password']),
+                'role' => 'user', // default role
             ]);
 
-            $token = $user->createToken('auth-token')->plainTextToken;
+            $token = $user->createToken('auth-token', ['*'])->plainTextToken;
 
             return response()->json([
                 'message' => 'Registration successful!',
-                'user' => $user,
-                'token' => $token,
-            ], 201)
-            ->header('Access-Control-Allow-Origin', 'http://localhost:3000')
-            ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-            ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+                'user'    => $user,
+                'token'   => $token
+            ], 201);
+
         } catch (ValidationException $e) {
             return response()->json([
                 'message' => 'Validation failed',
-                'errors' => $e->errors(),
-            ], 422)
-            ->header('Access-Control-Allow-Origin', 'http://localhost:3000')
-            ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-            ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Registration failed',
-                'error' => $e->getMessage(),
-            ], 500)
-            ->header('Access-Control-Allow-Origin', 'http://localhost:3000')
-            ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-            ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+                'errors'  => $e->errors(),
+            ], 422);
         }
     }
 
@@ -65,51 +53,30 @@ class AuthController extends Controller
             $user = User::where('email', $request->email)->first();
 
             if (!$user || !Hash::check($request->password, $user->password)) {
-                return response()->json([
-                    'message' => 'Invalid credentials',
-                    'errors' => ['email' => ['The provided credentials are incorrect.']],
-                ], 401)
-                ->header('Access-Control-Allow-Origin', 'http://localhost:3000')
-                ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-                ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+                throw ValidationException::withMessages([
+                    'email' => ['The provided credentials are incorrect.'],
+                ]);
             }
 
-            if (isset($user->active) && $user->active != 1) {
+            if ($user->active == 0) {
                 return response()->json([
                     'message' => 'Account inactive',
-                    'errors' => ['email' => ['Your account is inactive. Please contact the administrator.']],
-                ], 403)
-                ->header('Access-Control-Allow-Origin', 'http://localhost:3000')
-                ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-                ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+                ], 403);
             }
 
-            $token = $user->createToken('auth-token')->plainTextToken;
+            $token = $user->createToken('auth-token', $user->abilities ?? ['*'])->plainTextToken;
 
             return response()->json([
                 'message' => 'Login successful!',
-                'user' => $user,
-                'token' => $token,
-            ], 200)
-            ->header('Access-Control-Allow-Origin', 'http://localhost:3000')
-            ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-            ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+                'user'    => $user,
+                'token'   => $token,
+            ], 200);
+
         } catch (ValidationException $e) {
             return response()->json([
                 'message' => 'Validation failed',
-                'errors' => $e->errors(),
-            ], 422)
-            ->header('Access-Control-Allow-Origin', 'http://localhost:3000')
-            ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-            ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Login failed',
-                'error' => $e->getMessage(),
-            ], 500)
-            ->header('Access-Control-Allow-Origin', 'http://localhost:3000')
-            ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-            ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+                'errors'  => $e->errors(),
+            ], 422);
         }
     }
 
@@ -117,19 +84,11 @@ class AuthController extends Controller
     {
         $request->user()->currentAccessToken()->delete();
 
-        return response()->json([
-            'message' => 'Logged out successfully.'
-        ], 200)
-        ->header('Access-Control-Allow-Origin', 'http://localhost:3000')
-        ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-        ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+        return response()->json(['message' => 'Logged out successfully.']);
     }
 
     public function user(Request $request)
     {
-        return response()->json($request->user())
-        ->header('Access-Control-Allow-Origin', 'http://localhost:3000')
-        ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-        ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+        return response()->json($request->user());
     }
 }

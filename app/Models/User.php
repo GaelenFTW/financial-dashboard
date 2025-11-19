@@ -102,28 +102,17 @@ class User extends Authenticatable
         return $this->role && $this->role->isAdmin();
     }
 
-    public function hasPermission(string $name): bool
+    public function hasPermission($menuName, $action)
     {
-        if ($this->isSuperAdmin()) return true;
-
-        // Check user-specific permission
-        $userHas = DB::table('user_permission')
-            ->join('permissions', 'permissions.id', '=', 'user_permission.permission_id')
-            ->where('user_permission.user_id', $this->id)
-            ->where('permissions.name', $name)
+        return $this->groups()
+            ->join('access_groups','groups.group_id','=','access_groups.group_id')
+            ->join('menus','menus.menu_id','=','access_groups.menu_id')
+            ->join('actions','actions.action_id','=','access_groups.action_id')
+            ->where('menus.name', $menuName)
+            ->where('actions.action', $action)
             ->exists();
-
-        if ($userHas) return true;
-
-        // Check role-based permission
-        $roleHas = DB::table('role_permission')
-            ->join('permissions', 'permissions.id', '=', 'role_permission.permission_id')
-            ->where('role_permission.role', $this->role->value)
-            ->where('permissions.name', $name)
-            ->exists();
-
-        return $roleHas;
     }
+
 
     public function groupAccesses()
     {
