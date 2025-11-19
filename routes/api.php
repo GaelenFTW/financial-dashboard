@@ -17,16 +17,16 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::middleware('auth:sanctum')->group(function () {
 
     // Auth
-    Route::post('/admin', [AuthController::class, 'index']);
     Route::post('/logout', [AuthController::class, 'logout']);
-    Route::get('/user', [AuthController::class, 'user']);
+    Route::get('/user',   [AuthController::class, 'user']);
 
-    // Payments (protected)
+    // Payments
     Route::get('/purchase-payments/upload-form', [PurchasePaymentController::class, 'uploadForm']);
     Route::get('/purchase-payments', [PurchasePaymentController::class, 'view']);
     Route::get('/purchase-payments/export', [PurchasePaymentController::class, 'export']);
     Route::post('/purchase-payments/upload', [PurchasePaymentController::class, 'upload']);
 });
+
 
 Route::get('/dashboard', [DashboardController::class, 'index']);
 Route::get('/dashboard/sales-trend', [DashboardController::class, 'salesTrend']);
@@ -41,6 +41,9 @@ Route::get('/purchase-letters/{id}', [PurchaseLetterController::class, 'show']);
 
 Route::get('/management-report', [ManagementReportController::class, 'index']);
 Route::get('/management-report/export', [ManagementReportController::class, 'export']);
+
+Route::get('/user/menus', [App\Http\Controllers\Api\UserMenuController::class, 'index'])
+     ->middleware('auth:sanctum');
 
 
 // routes/api.php

@@ -21,8 +21,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'user.permission' => \App\Http\Middleware\CheckUserPermission::class,
             'admin.role'      => \App\Http\Middleware\AdminRoleMiddleware::class,
             'check.group'     => \App\Http\Middleware\CheckGroupAccess::class,
-            'can.menu' => \App\Http\Middleware\CheckMenuAccess::class,
-
+            'can.menu'        => \App\Http\Middleware\CheckMenuAccess::class,
+            'role'            => \App\Http\Middleware\RoleMiddleware::class,
         ]);
 
 
