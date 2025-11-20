@@ -2,138 +2,101 @@
 
 namespace App\Models;
 
-use App\Enums\ProjectRole;
-use App\Enums\UserRole;
-use App\Models\Permission;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Notifications\Notifiable;
-
-
+use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, Notifiable;
 
     protected $fillable = [
-        'name', 'email', 'password', 'permissions', 'adminid', 'role', 'employee_id', 'position','active'
+        'name', 'email', 'password', 'group_id', 'AdminID'
+    ];
+
+    protected $hidden = [
+        'password', 'remember_token',
     ];
 
     protected $casts = [
-        'permissions' => 'array',
         'email_verified_at' => 'datetime',
-        'password' => 'hashed',
-        'role' => UserRole::class,
-        'active' => 'boolean',
     ];
 
-    public function permissions()
+    public function group()
     {
-        return $this->belongsToMany(Permission::class, 'user_permission', 'user_id', 'permission_id');
+        return $this->belongsTo(Group::class, 'group_id');
     }
 
-
-    public function projects()
-    {
-        return $this->belongsToMany(
-            MasterProject::class,  // model name
-            'project_user',        // pivot table name
-            'user_id',             // FK on pivot referencing users
-            'project_id'           // FK on pivot referencing master_project
-        )->withPivot('role')->withTimestamps();
-    }
-
-    public function hasProjectAccess(int $projectId): bool
-    {
-        if ($this->isSuperAdmin()) {
-            return true;
-        }
-
-        return $this->projects()->where('master_project.project_id', $projectId)->exists();
-    }
-
-    /**
-     * Get user's role in a specific project
-     */
-    public function getProjectRole(int $projectId): ?ProjectRole
-    {
-        $project = $this->projects()->where('master_project.project_id', $projectId)->first();
-
-        if (! $project) {
-            return null;
-        }
-
-        return ProjectRole::from($project->pivot->role);
-    }
-
-    public function canEditProject(int $projectId): bool
-    {
-        if ($this->isSuperAdmin()) {
-            return true;
-        }
-
-        $role = $this->getProjectRole($projectId);
-
-        return $role && $role->canEdit();
-    }
-
-    public function isProjectAdmin(int $projectId): bool
-    {
-        if ($this->isSuperAdmin()) {
-            return true;
-        }
-
-        $role = $this->getProjectRole($projectId);
-
-        return $role && $role->isAdmin();
-    }
-
-    public function isSuperAdmin(): bool
-    {
-        return $this->role === UserRole::SUPER_ADMIN;
-    }
-
-    public function isAdmin(): bool
-    {
-        return $this->role && $this->role->isAdmin();
-    }
-
-    public function hasPermission($menuName, $action)
-    {
-        return $this->groups()
-            ->join('access_groups','groups.group_id','=','access_groups.group_id')
-            ->join('menus','menus.menu_id','=','access_groups.menu_id')
-            ->join('actions','actions.action_id','=','access_groups.action_id')
-            ->where('menus.name', $menuName)
-            ->where('actions.action', $action)
-            ->exists();
-    }
-
-
-    public function groupAccesses()
+    public function userGroupAccesses()
     {
         return $this->hasMany(UserGroupAccess::class, 'user_id');
     }
 
-    public function groups()
+    // Get allowed project IDs for this user
+    public function getAllowedProjectIds()
     {
-        return $this->belongsToMany(Group::class, 'user_group_access', 'user_id', 'group_id');
+        return $this->userGroupAccesses()->pluck('project_id')->toArray();
     }
 
-    // Legacy methods
-    public function canUpload(){
-        return $this->permissions == 1 || $this->permissions == 2;
-    }
-    public function canView(){
-        return $this->permissions == 1 || $this->permissions == 2 || $this->permissions == 3;
-    }
-    public function canExport(){
-        return $this->permissions == 1 || $this->permissions == 3;
+    // Check if user has access to a specific project
+    public function hasProjectAccess($projectId)
+    {
+        // Check for "all projects" access
+        if ($this->userGroupAccesses()->where('project_id', 999999)->exists()) {
+            return true;
+        }
+        
+        return $this->userGroupAccesses()->where('project_id', $projectId)->exists();
     }
 
-    use SoftDeletes;
+    // Get user permissions (menu + action)
+    public function getPermissions()
+    {
+        if (!$this->group_id) {
+            return collect([]);
+        }
+
+        return \DB::table('access_groups')
+            ->join('menus', 'access_groups.menu_id', '=', 'menus.menu_id')
+            ->join('actions', 'access_groups.action_id', '=', 'actions.action_id')
+            ->where('access_groups.group_id', $this->group_id)
+            ->where('menus.deleted', 0)
+            ->where('menus.active', 1)
+            ->where('actions.active', 1)
+            ->select(
+                'menus.menu_id',
+                'menus.name as menu_name',
+                'menus.link',
+                'actions.action_id',
+                'actions.action'
+            )
+            ->get();
+    }
+
+    // Check if user has permission for specific menu and action
+    public function hasPermission($menuId, $actionId)
+    {
+        if (!$this->group_id) {
+            return false;
+        }
+
+        return \DB::table('access_groups')
+            ->where('group_id', $this->group_id)
+            ->where('menu_id', $menuId)
+            ->where('action_id', $actionId)
+            ->exists();
+    }
+
+    // Check if user can access a menu
+    public function canAccessMenu($menuId)
+    {
+        if (!$this->group_id) {
+            return false;
+        }
+
+        return \DB::table('access_groups')
+            ->where('group_id', $this->group_id)
+            ->where('menu_id', $menuId)
+            ->exists();
+    }
 }

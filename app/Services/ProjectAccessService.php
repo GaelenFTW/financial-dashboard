@@ -2,20 +2,20 @@
 
 namespace App\Services;
 
-use App\Models\Project;
+use App\Models\MasterProject;
 use App\Models\User;
 
 class ProjectAccessService
 {
-    public function grantProjectAccess(User $user, Project|int $project): void
+    public function grantProjectAccess(User $user, MasterProject|int $project): void
     {
-        $projectId = $project instanceof Project ? $project->project_id : $project;
+        $projectId = $project instanceof MasterProject ? $project->project_id : $project;
         $user->projects()->syncWithoutDetaching([$projectId]);
     }
 
-    public function revokeProjectAccess(User $user, Project|int $project): void
+    public function revokeProjectAccess(User $user, MasterProject|int $project): void
     {
-        $projectId = $project instanceof Project ? $project->project_id : $project;
+        $projectId = $project instanceof MasterProject ? $project->project_id : $project;
         $user->projects()->detach($projectId);
     }
 

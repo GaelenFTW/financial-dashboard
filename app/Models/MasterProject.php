@@ -3,16 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class MasterProject extends Model
 {
-    protected $table = 'master_project';  // ✅ not plural
-    protected $primaryKey = 'project_id'; // ✅ correct key
+    protected $table = 'master_project';
+    protected $primaryKey = 'project_id';
     public $incrementing = true;
     protected $keyType = 'int';
-    public $timestamps = false; // 🚫 disable created_at & updated_at
-
+    public $timestamps = false;
 
     protected $fillable = [
         'project_id',
@@ -21,18 +19,26 @@ class MasterProject extends Model
         'name',
     ];
 
-        public function getRouteKeyName()
+    public function getRouteKeyName()
     {
         return 'project_id';
     }
 
+    // Many-to-many relationship with users
     public function users()
     {
         return $this->belongsToMany(
             User::class,
-            'project_user',
+            'user_group_access',
             'project_id',
-            'user_id'
-        )->withPivot('role')->withTimestamps();
+            'user_id',
+            'project_id',
+            'id'
+        )->withTimestamps();
+    }
+
+    public function userGroupAccesses()
+    {
+        return $this->hasMany(UserGroupAccess::class, 'project_id', 'project_id');
     }
 }

@@ -42,42 +42,21 @@ class PurchasePaymentController extends Controller
     protected function getAllowedProjects(): array
     {
         $allowedIds = $this->getAllowedProjectIds();
-        $allProjects= app(\App\Http\Controllers\Api\JWTController::class)->projectsMap();
-        Log::info('getAllowedProjects - Allowed IDs: ' . json_encode($allowedIds));
+        $allProjects = app(\App\Http\Controllers\JWTController::class)->projectsMap();
         
-        // If user has access to project 999999, return all projects
+        // If user has access to project 999999, still return all projects for dropdown
+        // but don't filter - let them choose
         if (in_array(999999, $allowedIds, true)) {
             return $allProjects;
         }
-
-        try {
-            $allProjects = app(\App\Http\Controllers\JWTController::class)->projectsMap();
-            Log::info('getAllowedProjects - All projects from projectsMap: ' . json_encode($allProjects));
-            Log::info('getAllowedProjects - All projects count: ' . count($allProjects));
-            Log::info('getAllowedProjects - All projects keys: ' . json_encode(array_keys($allProjects)));
-        } catch (\Exception $e) {
-            Log::error('getAllowedProjects - Error getting projectsMap: ' . $e->getMessage());
-            return [];
-        }
         
-        if (empty($allowedIds)) {
-            Log::warning('getAllowedProjects - No allowed IDs, returning empty');
-            return [];
-        }
-        
-        $filtered = array_filter($allProjects, function($key) use ($allowedIds) {
-            $intKey = (int)$key;
-            $isAllowed = in_array($intKey, $allowedIds, true);
-            Log::info("getAllowedProjects - Checking key {$key} (int: {$intKey}), allowed: " . ($isAllowed ? 'YES' : 'NO'));
-            return $isAllowed;
+        // Filter projects based on allowed IDs
+        return array_filter($allProjects, function($key) use ($allowedIds) {
+            return in_array((int)$key, $allowedIds, true);
         }, ARRAY_FILTER_USE_KEY);
-        
-        Log::info('getAllowedProjects - Filtered projects: ' . json_encode($filtered));
-        Log::info('getAllowedProjects - Filtered count: ' . count($filtered));
-        
-        return $filtered;
     }
 
+    // Modify the applyProjectFilter to NOT automatically skip filtering for 999999
     protected function applyProjectFilter($query)
     {
         $allowedIds = $this->getAllowedProjectIds();
@@ -86,8 +65,19 @@ class PurchasePaymentController extends Controller
             return $query->whereRaw('1 = 0');
         }
 
-                // If user has access to project 999999, no filter needed
-        if (!in_array(999999, $allowedIds, true)) {
+        // Remove the automatic bypass for 999999
+        // Only filter if a specific project_id is requested
+        if (!request()->filled('project_id')) {
+            // If no project selected and user has 999999, show all
+            if (in_array(999999, $allowedIds, true)) {
+                return $query;
+            }
+        }
+        
+        // Apply filter based on request or user access
+        if (request()->filled('project_id')) {
+            $query->where('project_id', request('project_id'));
+        } else {
             $query->whereIn('project_id', $allowedIds);
         }
 
@@ -275,7 +265,7 @@ class PurchasePaymentController extends Controller
                     }
                 }
 
-                $existing = DB::connection('sqlsrv')->getSchemaBuilder()->getColumnListing('purchase_payments2');
+                $existing = DB::connection('sqlsrv')->getSchemaBuilder()->getColumnListing('purchase_payments');
                 foreach (array_keys($cols) as $col) {
                     if (! in_array($col, $existing)) {
                         try {
@@ -284,7 +274,7 @@ class PurchasePaymentController extends Controller
                                     in_array($col, ['data_year', 'data_month', 'project_id']) ? 'int' : 'decimal(20,2)'
                                 )
                             );
-                            DB::connection('sqlsrv')->statement("ALTER TABLE purchase_payments2 ADD [{$col}] {$type} NULL");
+                            DB::connection('sqlsrv')->statement("ALTER TABLE purchase_payments ADD [{$col}] {$type} NULL");
                             Log::info("Column {$col} added successfully");
                         } catch (\Exception $e) {
                             Log::warning("Column {$col}: ".$e->getMessage());
@@ -302,19 +292,19 @@ class PurchasePaymentController extends Controller
                 $updateData = $cols;
                 unset($updateData['purchaseletter_id'], $updateData['data_year'], $updateData['data_month'], $updateData['project_id']);
 
-                $existingRecord = DB::connection('sqlsrv')->table('purchase_payments2')
+                $existingRecord = DB::connection('sqlsrv')->table('purchase_payments')
                     ->where($matchingCriteria)
                     ->first();
 
                 if ($existingRecord) {
-                    DB::connection('sqlsrv')->table('purchase_payments2')
+                    DB::connection('sqlsrv')->table('purchase_payments')
                         ->where($matchingCriteria)
                         ->update($updateData);
                     Log::info("Updated record: purchaseletter_id={$cols['purchaseletter_id']}, year={$yearToUse}, month={$month}, project={$project}");
                 } else {
                     $updateData['created_at'] = now();
                     $updateData['created_by'] = $userIdentifier;
-                    DB::connection('sqlsrv')->table('purchase_payments2')
+                    DB::connection('sqlsrv')->table('purchase_payments')
                         ->insert(array_merge($matchingCriteria, $updateData));
                     Log::info("Inserted new record: purchaseletter_id={$cols['purchaseletter_id']}, year={$yearToUse}, month={$month}, project={$project}");
                 }
@@ -401,7 +391,7 @@ class PurchasePaymentController extends Controller
         $q->when($r->filled('TypePembelian'), fn ($q) => $q->where('TypePembelian', $r->TypePembelian));
 
         $payments = $q->orderBy('PurchaseDate', 'desc')->get();
-        $columns = DB::connection('sqlsrv')->getSchemaBuilder()->getColumnListing('purchase_payments2');
+        $columns = DB::connection('sqlsrv')->getSchemaBuilder()->getColumnListing('purchase_payments');
 
         $preferredOrder = [
             'No', 'purchaseletter_id', 'Cluster', 'Block', 'Unit', 'CustomerName', 'PurchaseDate', 'LunasDate',

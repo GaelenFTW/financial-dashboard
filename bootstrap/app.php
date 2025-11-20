@@ -23,6 +23,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'check.group'     => \App\Http\Middleware\CheckGroupAccess::class,
             'can.menu'        => \App\Http\Middleware\CheckMenuAccess::class,
             'role'            => \App\Http\Middleware\RoleMiddleware::class,
+            'permission'      => \App\Http\Middleware\CheckPermissionMiddleware::class,
+            'project.access'  => \App\Http\Middleware\CheckProjectAccessMiddleware::class,
+
         ]);
 
 

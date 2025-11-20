@@ -252,7 +252,7 @@ class PurchasePaymentController extends Controller
                     }
                 }
 
-                $existing = DB::connection('sqlsrv')->getSchemaBuilder()->getColumnListing('purchase_payments2');
+                $existing = DB::connection('sqlsrv')->getSchemaBuilder()->getColumnListing('purchase_payments');
                 foreach (array_keys($cols) as $col) {
                     if (! in_array($col, $existing)) {
                         try {
@@ -261,7 +261,7 @@ class PurchasePaymentController extends Controller
                                     in_array($col, ['data_year', 'data_month', 'project_id']) ? 'int' : 'decimal(20,2)'
                                 )
                             );
-                            DB::connection('sqlsrv')->statement("ALTER TABLE purchase_payments2 ADD [{$col}] {$type} NULL");
+                            DB::connection('sqlsrv')->statement("ALTER TABLE purchase_payments ADD [{$col}] {$type} NULL");
                             Log::info("Column {$col} added successfully");
                         } catch (\Exception $e) {
                             Log::warning("Column {$col}: ".$e->getMessage());
@@ -279,19 +279,19 @@ class PurchasePaymentController extends Controller
                 $updateData = $cols;
                 unset($updateData['purchaseletter_id'], $updateData['data_year'], $updateData['data_month'], $updateData['project_id']);
 
-                $existingRecord = DB::connection('sqlsrv')->table('purchase_payments2')
+                $existingRecord = DB::connection('sqlsrv')->table('purchase_payments')
                     ->where($matchingCriteria)
                     ->first();
 
                 if ($existingRecord) {
-                    DB::connection('sqlsrv')->table('purchase_payments2')
+                    DB::connection('sqlsrv')->table('purchase_payments')
                         ->where($matchingCriteria)
                         ->update($updateData);
                     Log::info("Updated record: purchaseletter_id={$cols['purchaseletter_id']}, year={$yearToUse}, month={$month}, project={$project}");
                 } else {
                     $updateData['created_at'] = now();
                     $updateData['created_by'] = $userIdentifier;
-                    DB::connection('sqlsrv')->table('purchase_payments2')
+                    DB::connection('sqlsrv')->table('purchase_payments')
                         ->insert(array_merge($matchingCriteria, $updateData));
                     Log::info("Inserted new record: purchaseletter_id={$cols['purchaseletter_id']}, year={$yearToUse}, month={$month}, project={$project}");
                 }
@@ -366,7 +366,7 @@ class PurchasePaymentController extends Controller
         $q->when($r->filled('TypePembelian'), fn ($q) => $q->where('TypePembelian', $r->TypePembelian));
 
         $payments = $q->orderBy('PurchaseDate', 'desc')->get();
-        $columns = DB::connection('sqlsrv')->getSchemaBuilder()->getColumnListing('purchase_payments2');
+        $columns = DB::connection('sqlsrv')->getSchemaBuilder()->getColumnListing('purchase_payments');
 
         $preferredOrder = [
             'No', 'purchaseletter_id', 'Cluster', 'Block', 'Unit', 'CustomerName', 'PurchaseDate', 'LunasDate',
@@ -407,7 +407,7 @@ class PurchasePaymentController extends Controller
 
         $year = $r->year ?? date('Y');
         $month = $r->month ?? date('n');
-        $filename = "purchase_payments2_Full_{$year}_{$month}_".date('YmdHis').'.xlsx';
+        $filename = "purchase_payments_Full_{$year}_{$month}_".date('YmdHis').'.xlsx';
 
         $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
         $tempFile = storage_path("app/public/{$filename}");
