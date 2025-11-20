@@ -9,6 +9,9 @@ use App\Http\Controllers\Api\PurchaseLetterController;
 use App\Http\Controllers\Api\PurchasePaymentController;
 use App\Http\Controllers\Api\ManagementReportController;
 use App\Http\Controllers\Api\AdminController;
+use App\Http\Controllers\Api\RBACController;
+use App\Http\Controllers\Api\UserMenuController;
+
 use Illuminate\Support\Facades\Route;
 
 Route::post('/login', [AuthController::class, 'login']);
@@ -42,9 +45,14 @@ Route::get('/purchase-letters/{id}', [PurchaseLetterController::class, 'show']);
 Route::get('/management-report', [ManagementReportController::class, 'index']);
 Route::get('/management-report/export', [ManagementReportController::class, 'export']);
 
-Route::get('/user/menus', [App\Http\Controllers\Api\UserMenuController::class, 'index'])
+Route::get('/user/menus', [UserMenuController::class, 'index'])
      ->middleware('auth:sanctum');
 
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/rbac', [RBACController::class, 'index']);
+    Route::post('/rbac/update', [RBACController::class, 'update']);
+    Route::get('/rbac/user-permissions/{userId}', [RBACController::class, 'getUserPermissions']);
+});
 
 // routes/api.php
 Route::middleware('auth:sanctum')->prefix('admin')->group(function () {
@@ -56,6 +64,10 @@ Route::middleware('auth:sanctum')->prefix('admin')->group(function () {
     Route::get('/users/{user}/edit', [AdminController::class, 'editUser']);
     Route::put('/users/{user}', [AdminController::class, 'updateUser']);
     Route::delete('/users/{user}', [AdminController::class, 'destroyUser']);
+
+    Route::get('/users/{user}/rbac', [RBACController::class, 'index']);
+    Route::post('/users/{user}/rbac/update', [RBACController::class, 'update']);
+
 
     // FIXED HERE
     Route::get('/users/{id}/permissions', [AdminController::class, 'editUserPermissions'])
