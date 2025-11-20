@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api;
 
-
 use App\http\Controllers\Controller;
 use App\Models\User;
 use App\Models\MasterProject;
@@ -134,7 +133,7 @@ class AdminController extends Controller
     public function editUserPermissions($id)
     {
         $user = User::findOrFail($id);
-        $projects = Project::all();
+        $projects = MasterProject::all(); // FIXED: Changed from Project to MasterProject
         $groups = \DB::table('groups')->get();
         $menus = Menu::where('active', 1)->get();
         $actions = Action::where('active', 1)->get();
@@ -146,7 +145,6 @@ class AdminController extends Controller
             ->select('access_groups.menu_id', 'access_groups.action_id')
             ->get();
 
-        // dd($menus);
         return response()->json(['view' => 'admin.users.permissions', 'data' => compact('user', 'projects', 'menus', 'actions', 'userAccesses', 'groups')]);
     }
 
@@ -222,12 +220,12 @@ class AdminController extends Controller
     public function destroyUser(User $user)
     {
         if ($user->id === auth()->id()) {
-            return redirect()->route('admin.users')->with('error', 'You cannot delete yourself!');
+            return response()->json(['error' => 'You cannot delete yourself!'], 403);
         }
 
         $user->delete();
 
-        return redirect()->route('admin.users')->with('success', 'User deleted successfully!');
+        return response()->json(['message' => 'User deleted successfully!']);
     }
 
     // Display projects
@@ -301,8 +299,6 @@ class AdminController extends Controller
     {
         $project->delete();
 
-        return redirect()->route('admin.projects')->with('success', 'Project removed successfully!');
+        return response()->json(['message' => 'Project removed successfully!']);
     }
-
-    
 }
