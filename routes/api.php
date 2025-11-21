@@ -1,6 +1,5 @@
 <?php
 
-
 use App\Models\User;
 use App\Models\MasterProject;
 use App\Http\Controllers\Api\AuthController;
@@ -18,76 +17,87 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
 
 Route::middleware('auth:sanctum')->group(function () {
-
     // Auth
     Route::post('/logout', [AuthController::class, 'logout']);
-    Route::get('/user',   [AuthController::class, 'user']);
-
-    // Payments
-    Route::get('/purchase-payments/upload-form', [PurchasePaymentController::class, 'uploadForm']);
-    Route::get('/purchase-payments', [PurchasePaymentController::class, 'view']);
-    Route::get('/purchase-payments/export', [PurchasePaymentController::class, 'export']);
-    Route::post('/purchase-payments/upload', [PurchasePaymentController::class, 'upload']);
-});
-
-
-Route::get('/dashboard', [DashboardController::class, 'index']);
-Route::get('/dashboard/sales-trend', [DashboardController::class, 'salesTrend']);
-Route::get('/dashboard/export', [DashboardController::class, 'exportFilteredData']);
-Route::get('/dashboard/export/customers', [DashboardController::class, 'exportTopCustomers']);
-Route::get('/dashboard/export/products', [DashboardController::class, 'exportTopProducts']);
-
-Route::get('/purchase-letters', [PurchaseLetterController::class, 'index']);
-Route::get('/purchase-letters/chart', [PurchaseLetterController::class, 'chart']);
-Route::get('/purchase-letters/export', [PurchaseLetterController::class, 'export']);
-Route::get('/purchase-letters/{id}', [PurchaseLetterController::class, 'show']);
-
-Route::get('/management-report', [ManagementReportController::class, 'index']);
-Route::get('/management-report/export', [ManagementReportController::class, 'export']);
-
-Route::get('/user/menus', [UserMenuController::class, 'index'])
-     ->middleware('auth:sanctum');
-
-Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/rbac', [RBACController::class, 'index']);
-    Route::post('/rbac/update', [RBACController::class, 'update']);
-    Route::get('/rbac/user-permissions/{userId}', [RBACController::class, 'getUserPermissions']);
-});
-
-// routes/api.php
-Route::middleware('auth:sanctum')->prefix('admin')->group(function () {
-    Route::get('/', [AdminController::class, 'index']);
+    Route::get('/user', [AuthController::class, 'user']);
     
-    Route::get('/users', [AdminController::class, 'users']);
-    Route::get('/users/create', [AdminController::class, 'createUser']);
-    Route::post('/users', [AdminController::class, 'storeUser']);
-    Route::get('/users/{user}/edit', [AdminController::class, 'editUser']);
-    Route::put('/users/{user}', [AdminController::class, 'updateUser']);
-    Route::delete('/users/{user}', [AdminController::class, 'destroyUser']);
-
-    Route::get('/users/{user}/rbac', [RBACController::class, 'index']);
-    Route::post('/users/{user}/rbac/update', [RBACController::class, 'update']);
-
-
-    // FIXED HERE
-    Route::get('/users/{id}/permissions', [AdminController::class, 'editUserPermissions'])
-        ->name('admin.users.permissions');
-
-    Route::post('/users/{id}/permissions', [AdminController::class, 'updateUserPermissions'])
-        ->name('admin.users.permissions.update');
-
-    Route::get('/projects', [AdminController::class, 'projects']);
-    Route::get('/projects/create', [AdminController::class, 'createProject']);
-    Route::post('/projects', [AdminController::class, 'storeProject']);
-    Route::get('/projects/{project}/edit', [AdminController::class, 'editProject']);
-    Route::put('/projects/{project}', [AdminController::class, 'updateProject']);
-    Route::delete('/projects/{project}', [AdminController::class, 'destroyProject']);
+    // User Menus (based on RBAC)
+    Route::get('/user/menus', [UserMenuController::class, 'index']);
+    Route::get('/user/permissions', [UserMenuController::class, 'permissions']);
 });
 
-Route::get('/system-overview', function () {
-    return response()->json([
-        'totalUsers'     => User::where('active', true)->count(),
-        'activeProjects' => Project::count(),
+// Dashboard (menu_id: 1)
+Route::middleware(['auth:sanctum', 'rbac:1,read'])->group(function () {
+    Route::get('/dashboard', [DashboardController::class, 'index']);
+    Route::get('/dashboard/sales-trend', [DashboardController::class, 'salesTrend']);
+    Route::get('/dashboard/export', [DashboardController::class, 'exportFilteredData']);
+    Route::get('/dashboard/export/customers', [DashboardController::class, 'exportTopCustomers']);
+    Route::get('/dashboard/export/products', [DashboardController::class, 'exportTopProducts']);
+});
 
+// Purchase Letters (menu_id: 4)
+Route::middleware('auth:sanctum')->prefix('purchase-letters')->group(function () {
+    Route::get('/', [PurchaseLetterController::class, 'index'])->middleware('rbac:4,read');
+    Route::get('/chart', [PurchaseLetterController::class, 'chart'])->middleware('rbac:4,read');
+    Route::get('/export', [PurchaseLetterController::class, 'export'])->middleware('rbac:4,read');
+    Route::get('/{id}', [PurchaseLetterController::class, 'show'])->middleware('rbac:4,read');
+    Route::get('/projects/available', [PurchaseLetterController::class, 'getAvailableProjects'])->middleware('rbac:4,read');
+});
+
+// Purchase Payments (menu_id: 8 - View, menu_id: 9 - Upload)
+Route::middleware('auth:sanctum')->prefix('purchase-payments')->group(function () {
+    Route::get('/', [PurchasePaymentController::class, 'view'])->middleware('rbac:8,read');
+    Route::get('/export', [PurchasePaymentController::class, 'export'])->middleware('rbac:8,read');
+    
+    Route::get('/upload-form', [PurchasePaymentController::class, 'uploadForm'])->middleware('rbac:9,read');
+    Route::post('/upload', [PurchasePaymentController::class, 'upload'])->middleware('rbac:9,create');
+});
+
+// Management Report (menu_id: 5)
+Route::middleware(['auth:sanctum', 'rbac:5,read'])->prefix('management-report')->group(function () {
+    Route::get('/', [ManagementReportController::class, 'index']);
+    Route::get('/export', [ManagementReportController::class, 'export']);
+});
+
+// Admin Routes
+Route::middleware('auth:sanctum')->prefix('admin')->group(function () {
+    Route::get('/', [AdminController::class, 'index'])->middleware('rbac:2,read');
+    
+    // Admin Users (menu_id: 7)
+    Route::middleware('rbac:7,read')->group(function () {
+        Route::get('/users', [AdminController::class, 'users']);
+        Route::get('/users/create', [AdminController::class, 'createUser'])->middleware('rbac:7,create');
+        Route::post('/users', [AdminController::class, 'storeUser'])->middleware('rbac:7,create');
+        Route::get('/users/{user}/edit', [AdminController::class, 'editUser'])->middleware('rbac:7,update');
+        Route::put('/users/{user}', [AdminController::class, 'updateUser'])->middleware('rbac:7,update');
+        Route::delete('/users/{user}', [AdminController::class, 'destroyUser'])->middleware('rbac:7,delete');
+        
+        Route::get('/users/{id}/permissions', [AdminController::class, 'editUserPermissions'])->middleware('rbac:7,update');
+        Route::post('/users/{id}/permissions', [AdminController::class, 'updateUserPermissions'])->middleware('rbac:7,update');
+    });
+    
+    // Admin Projects (menu_id: 6)
+    Route::middleware('rbac:6,read')->group(function () {
+        Route::get('/projects', [AdminController::class, 'projects']);
+        Route::get('/projects/create', [AdminController::class, 'createProject'])->middleware('rbac:6,create');
+        Route::post('/projects', [AdminController::class, 'storeProject'])->middleware('rbac:6,create');
+        Route::get('/projects/{project}/edit', [AdminController::class, 'editProject'])->middleware('rbac:6,update');
+        Route::put('/projects/{project}', [AdminController::class, 'updateProject'])->middleware('rbac:6,update');
+        Route::delete('/projects/{project}', [AdminController::class, 'destroyProject'])->middleware('rbac:6,delete');
+    });
+});
+
+// RBAC Management
+Route::middleware(['auth:sanctum', 'rbac:2,update'])->prefix('rbac')->group(function () {
+    Route::get('/', [RBACController::class, 'index']);
+    Route::post('/update', [RBACController::class, 'update']);
+    Route::get('/user-permissions/{userId}', [RBACController::class, 'getUserPermissions']);
+});
+
+// System Overview
+Route::middleware('auth:sanctum')->get('/system-overview', function () {
+    return response()->json([
+        'totalUsers' => User::where('active', true)->count(),
+        'activeProjects' => MasterProject::count(),
     ]);
 });

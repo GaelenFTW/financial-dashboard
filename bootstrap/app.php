@@ -25,6 +25,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role'            => \App\Http\Middleware\RoleMiddleware::class,
             'permission'      => \App\Http\Middleware\CheckPermissionMiddleware::class,
             'project.access'  => \App\Http\Middleware\CheckProjectAccessMiddleware::class,
+            'rbac'            => \App\Http\Middleware\CheckRBACPermission::class,
 
         ]);
 
