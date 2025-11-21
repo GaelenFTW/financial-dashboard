@@ -13,8 +13,7 @@ use Illuminate\Support\Facades\Log;
 
 class DatabaseController extends Controller
 {
-    // ============= GROUPS =============
-    
+    //  GROUPS 
     public function getGroups()
     {
         try {
@@ -89,8 +88,7 @@ class DatabaseController extends Controller
         }
     }
 
-    // ============= MENUS =============
-    
+    //  MENUS 
     public function getMenus()
     {
         try {
@@ -200,8 +198,7 @@ class DatabaseController extends Controller
         }
     }
 
-    // ============= ACTIONS =============
-    
+    // ACTIONS
     public function getActions()
     {
         try {
@@ -305,8 +302,7 @@ class DatabaseController extends Controller
         }
     }
 
-    // ============= OVERVIEW =============
-    
+    // OVERVIEW 
     public function overview()
     {
         try {

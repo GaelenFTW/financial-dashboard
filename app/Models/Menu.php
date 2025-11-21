@@ -9,8 +9,31 @@ class Menu extends Model
     protected $table = 'menus';
     protected $primaryKey = 'menu_id';
     
-    protected $fillable = ['parent', 'menu_name', 'link', 'active', 'deleted'];
-    protected $casts = ['active' => 'boolean', 'deleted' => 'boolean'];
+    protected $fillable = [
+        'name',
+        'link',
+        'parent_id',
+        'sort_order',
+        'active',
+        'deleted'
+    ];
+
+    protected $casts = [
+        'active' => 'boolean',
+        'deleted' => 'boolean',
+        'sort_order' => 'integer',
+        'parent_id' => 'integer',
+    ];
+
+    public function parent()
+    {
+        return $this->belongsTo(Menu::class, 'parent_id', 'menu_id');
+    }
+
+    public function children()
+    {
+        return $this->hasMany(Menu::class, 'parent_id', 'menu_id');
+    }
 
     public function actions()
     {
@@ -22,21 +45,9 @@ class Menu extends Model
         return $this->hasMany(AccessGroup::class, 'menu_id', 'menu_id');
     }
 
-    // Get active menus only
+    // Scope to get only active menus
     public function scopeActive($query)
     {
-        return $query->where('active', 1)->where('deleted', 0);
-    }
-
-    // Get menus by parent
-    public function scopeByParent($query, $parent)
-    {
-        return $query->where('parent', $parent);
-    }
-
-    // Get all active actions for this menu
-    public function getActiveActions()
-    {
-        return $this->actions()->where('active', 1)->get();
+        return $query->where('active', true)->where('deleted', false);
     }
 }
