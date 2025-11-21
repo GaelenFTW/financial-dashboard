@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\ManagementReportController;
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\RBACController;
 use App\Http\Controllers\Api\UserMenuController;
+use App\Http\Controllers\Api\DatabaseController;
 
 use Illuminate\Support\Facades\Route;
 
@@ -85,6 +86,29 @@ Route::middleware('auth:sanctum')->prefix('admin')->group(function () {
         Route::put('/projects/{project}', [AdminController::class, 'updateProject'])->middleware('rbac:6,update');
         Route::delete('/projects/{project}', [AdminController::class, 'destroyProject'])->middleware('rbac:6,delete');
     });
+});
+
+// Database Management (menu_id: 10 - to be created)
+Route::middleware(['auth:sanctum', 'rbac:2,read'])->prefix('database')->group(function () {
+    Route::get('/overview', [DatabaseController::class, 'overview']);
+    
+    // Groups
+    Route::get('/groups', [DatabaseController::class, 'getGroups']);
+    Route::post('/groups', [DatabaseController::class, 'storeGroup'])->middleware('rbac:2,create');
+    Route::put('/groups/{id}', [DatabaseController::class, 'updateGroup'])->middleware('rbac:2,update');
+    Route::delete('/groups/{id}', [DatabaseController::class, 'deleteGroup'])->middleware('rbac:2,delete');
+    
+    // Menus
+    Route::get('/menus', [DatabaseController::class, 'getMenus']);
+    Route::post('/menus', [DatabaseController::class, 'storeMenu'])->middleware('rbac:2,create');
+    Route::put('/menus/{id}', [DatabaseController::class, 'updateMenu'])->middleware('rbac:2,update');
+    Route::delete('/menus/{id}', [DatabaseController::class, 'deleteMenu'])->middleware('rbac:2,delete');
+    
+    // Actions
+    Route::get('/actions', [DatabaseController::class, 'getActions']);
+    Route::post('/actions', [DatabaseController::class, 'storeAction'])->middleware('rbac:2,create');
+    Route::put('/actions/{id}', [DatabaseController::class, 'updateAction'])->middleware('rbac:2,update');
+    Route::delete('/actions/{id}', [DatabaseController::class, 'deleteAction'])->middleware('rbac:2,delete');
 });
 
 // RBAC Management
