@@ -2,103 +2,115 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Models\Menu;
 use App\Http\Controllers\Controller;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class UserMenuController extends Controller
 {
-
-    public function index()
+    /**
+     * Get accessible menus for the authenticated user
+     */
+    public function index(Request $request)
     {
-        $userId = Auth::id();
-
-        // 1) allowed menu ids for this user (from access_groups -> user_groups)
-        $allowedMenuIds = DB::table('access_groups as ag')
-            ->join('user_groups as ug', 'ug.group_id', '=', 'ag.group_id')
-            ->where('ug.user_id', $userId)
-            ->pluck('ag.menu_id')
-            ->map(function($v){ return (int) $v; }) // ensure ints
-            ->unique()
-            ->values()
-            ->toArray();
-
-        // If no allowed menus, return empty array quickly
-        if (empty($allowedMenuIds)) {
-            return response()->json([]);
-        }
-
-        // 2) Load all active (non-deleted) menus — we need parents to build the tree
-        $menus = Menu::where('active', 1)
-            ->where('deleted', 0)
-            ->orderBy('sort_order') // if sort_order missing it's okay; remove if not present
-            ->get(['menu_id', 'name', 'link', 'parent_id']);
-
-        // Normalize collection to array of simple objects
-        $items = $menus->map(function($m){
-            return (object)[
-                'menu_id'   => (int) $m->menu_id,
-                'name'      => $m->name,
-                'link'      => $m->link,
-                'parent_id' => $m->parent_id === null ? null : (int) $m->parent_id,
-            ];
-        })->values();
-
-        // 3) Build a map (id => node)
-        $map = [];
-        foreach ($items as $it) {
-            $map[$it->menu_id] = [
-                'menu_id'   => $it->menu_id,
-                'name'      => $it->name,
-                'link'      => $it->link,
-                'parent_id' => $it->parent_id,
-                'children'  => []
-            ];
-        }
-
-        // 4) Attach children to parents
-        $roots = [];
-        foreach ($map as $id => &$node) {
-            $parentId = $node['parent_id'];
-            if ($parentId === null || !isset($map[$parentId])) {
-                $roots[$id] = &$node;
-            } else {
-                $map[$parentId]['children'][] = &$node;
+        try {
+            $user = auth()->user();
+            
+            if (!$user) {
+                return response()->json(['error' => 'Unauthenticated'], 401);
             }
+
+            $menus = $user->getAccessibleMenus();
+            
+            // Build hierarchical menu structure
+            $menuTree = $this->buildMenuTree($menus);
+
+            Log::info('User menus retrieved', [
+                'user_id' => $user->id,
+                'group_id' => $user->group_id,
+                'menu_count' => $menuTree->count()
+            ]);
+
+            return response()->json([
+                'menus' => $menuTree
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Error getting user menus', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json(['error' => 'Failed to load menus'], 500);
         }
-        unset($node); // break reference
-
-        // 5) Prune the tree: keep only branches that contain at least one allowed menu id
-        $allowedLookup = array_flip($allowedMenuIds); // quick lookup
-
-        $prune = function($node) use (&$prune, $allowedLookup) {
-            // If node itself is allowed
-            $isAllowed = isset($allowedLookup[$node['menu_id']]);
-
-            // Recurse on children and keep only those that return true
-            $children = [];
-            foreach ($node['children'] as $child) {
-                if ($prune($child)) {
-                    $children[] = $child;
-                }
-            }
-            $node['children'] = $children;
-
-            // Keep node if itself allowed or has any allowed descendant
-            return $isAllowed || !empty($node['children']);
-        };
-
-        // Apply prune to roots and collect final result
-        $final = [];
-        foreach ($roots as $root) {
-            if ($prune($root)) {
-                // remove parent_id from top-level output if you prefer
-                $final[] = $root;
-            }
-        }
-
-        return response()->json(array_values($final));
     }
 
+    /**
+     * Get all permissions for the authenticated user
+     */
+    public function permissions(Request $request)
+    {
+        try {
+            $user = auth()->user();
+            
+            if (!$user) {
+                return response()->json(['error' => 'Unauthenticated'], 401);
+            }
+
+            $permissions = $user->getPermissions();
+            
+            // Group permissions by menu
+            $groupedPermissions = $permissions->groupBy('menu_id')->map(function ($items) {
+                return [
+                    'menu_id' => $items->first()->menu_id,
+                    'menu_name' => $items->first()->menu_name,
+                    'link' => $items->first()->link,
+                    'actions' => $items->map(function ($item) {
+                        return [
+                            'action_id' => $item->action_id,
+                            'action' => $item->action
+                        ];
+                    })->values()
+                ];
+            })->values();
+
+            return response()->json([
+                'permissions' => $groupedPermissions
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Error getting user permissions', [
+                'error' => $e->getMessage()
+            ]);
+            
+            return response()->json(['error' => 'Failed to load permissions'], 500);
+        }
+    }
+
+    /**
+     * Build hierarchical menu tree
+     */
+    private function buildMenuTree($menusByParent)
+    {
+        $rootMenus = $menusByParent->get(null, collect());
+        
+        return $rootMenus->map(function ($menu) use ($menusByParent) {
+            $children = $menusByParent->get($menu->menu_id, collect());
+            
+            return [
+                'menu_id' => $menu->menu_id,
+                'name' => $menu->name,
+                'link' => $menu->link,
+                'sort_order' => $menu->sort_order,
+                'children' => $children->map(function ($child) {
+                    return [
+                        'menu_id' => $child->menu_id,
+                        'name' => $child->name,
+                        'link' => $child->link,
+                        'sort_order' => $child->sort_order,
+                    ];
+                })->sortBy('sort_order')->values()
+            ];
+        })->sortBy('sort_order')->values();
+    }
 }

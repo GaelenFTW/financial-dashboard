@@ -16,22 +16,22 @@ class AuthController extends Controller
             $validated = $request->validate([
                 'name' => 'required|string|max:255',
                 'email' => 'required|string|email|max:255|unique:users',
-                'password' => 'required|string|min:6|confirmed',
+                'password' => 'required|string|min:8|confirmed',
+                'group_id' => 'required|exists:groups,group_id',
             ]);
 
-            $user = User::create([
-                'name' => $validated['name'],
-                'email' => $validated['email'],
-                'password' => Hash::make($validated['password']),
-                'role' => 'user', // default role
-            ]);
+            $validated['password'] = Hash::make($validated['password']);
+            $validated['active'] = true;
 
-            $token = $user->createToken('auth-token', ['*'])->plainTextToken;
+            $user = User::create($validated);
+
+            $token = $user->createToken('auth-token')->plainTextToken;
 
             return response()->json([
-                'message' => 'Registration successful!',
-                'user'    => $user,
-                'token'   => $token
+                'user' => $user,
+                'token' => $token,
+                'permissions' => $user->getPermissions(),
+                'menus' => $user->getAccessibleMenus()
             ], 201);
 
         } catch (ValidationException $e) {
@@ -44,51 +44,52 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
-        try {
-            $request->validate([
-                'email' => 'required|email',
-                'password' => 'required|string',
+        $request->validate([
+            'email' => 'required|email',
+            'password' => 'required',
+        ]);
+
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user || !Hash::check($request->password, $user->password)) {
+            throw ValidationException::withMessages([
+                'email' => ['The provided credentials are incorrect.'],
             ]);
-
-            $user = User::where('email', $request->email)->first();
-
-            if (!$user || !Hash::check($request->password, $user->password)) {
-                throw ValidationException::withMessages([
-                    'email' => ['The provided credentials are incorrect.'],
-                ]);
-            }
-
-            if ($user->active == 0) {
-                return response()->json([
-                    'message' => 'Account inactive',
-                ], 403);
-            }
-
-            $token = $user->createToken('auth-token', $user->abilities ?? ['*'])->plainTextToken;
-
-            return response()->json([
-                'message' => 'Login successful!',
-                'user'    => $user,
-                'token'   => $token,
-            ], 200);
-
-        } catch (ValidationException $e) {
-            return response()->json([
-                'message' => 'Validation failed',
-                'errors'  => $e->errors(),
-            ], 422);
         }
+
+        if (!$user->active) {
+            throw ValidationException::withMessages([
+                'email' => ['Your account is inactive.'],
+            ]);
+        }
+
+        $token = $user->createToken('auth-token')->plainTextToken;
+
+        return response()->json([
+            'user' => $user,
+            'token' => $token,
+            'permissions' => $user->getPermissions(),
+            'menus' => $user->getAccessibleMenus()
+        ]);
     }
 
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
 
-        return response()->json(['message' => 'Logged out successfully.']);
+        return response()->json(['message' => 'Logged out successfully']);
     }
 
     public function user(Request $request)
     {
-        return response()->json($request->user());
+        $user = $request->user();
+        
+        return response()->json([
+            'user' => $user,
+            'group' => $user->group,
+            'permissions' => $user->getPermissions(),
+            'menus' => $user->getAccessibleMenus(),
+            'projects' => $user->projects
+        ]);
     }
 }
